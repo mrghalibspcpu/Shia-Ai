@@ -36,5 +36,17 @@ void main() {
       expect(buildFtsQuery(['علی'], fts4: true, prefix: true, andMode: true), 'علی*');
       expect(escapeFtsToken('foo:bar*'), 'foobar');
     });
+
+    test('drops Urdu stopwords and stems plurals', () {
+      final tokens = searchTokens('نمازوں کو ملا کر پڑھنا کیسا ہے');
+      expect(tokens, isNot(contains('کو')));
+      expect(tokens, isNot(contains('ہے')));
+      expect(tokens, contains('نماز'));
+    });
+
+    test('expands combining-prayers questions to jam bayn al-salatayn', () {
+      final queries = expandSearchQueries('نمازوں کو ملا کر پڑھنا کیسا ہے');
+      expect(queries.join(' '), contains('جمع بین'));
+    });
   });
 }

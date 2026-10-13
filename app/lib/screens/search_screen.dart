@@ -77,8 +77,8 @@ class _SearchScreenState extends State<SearchScreen> {
     }
     setState(() { _loading = true; _error = null; });
     try {
-      final results = await widget.library.search(
-        query,
+      final results = await widget.library.searchMany(
+        expandSearchQueries(query),
         limit: 40,
         bookKey: _bookKey,
         language: _language,

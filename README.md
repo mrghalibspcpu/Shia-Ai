@@ -29,7 +29,7 @@ The app provides the book → chapter → section → reader hierarchy, bookmark
 
 ## Run the AI backend
 
-The reader and local search work without Gemini. For citation-grounded chat on the phone, open **ترتیبات** and paste a Google AI Studio API key (`AIza…`). The key stays in Android secure storage and is never compiled into the APK. Search still runs against the on-device books; Gemini only drafts the answer from those hits.
+The reader and local search work without Gemini. For citation-grounded chat on the phone, open **ترتیبات** and paste a Google AI Studio API key (`AIza…`). The key stays in Android secure storage and is never compiled into the APK. Each question expands into Arabic/Urdu search phrases, retrieves several local riwayat, and asks Gemini to synthesize them — not to refuse because a single report is incomplete.
 
 To serve the same chat from a hosted backend instead, configure the server (never the APK) with `GEMINI_API_KEY` and `SHIA_API_TOKEN`, then run:
 

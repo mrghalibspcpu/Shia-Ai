@@ -118,12 +118,26 @@ class AiRepository {
     String? readerContext,
     ReaderTarget? readerTarget,
   }) async {
-    final hits = await _collectHits(question, readerTarget);
-    if (hits.isEmpty) {
-      return ChatMessage(isUser: false, text: noMatchMessage(question), createdAt: DateTime.now());
+    final geminiKey = await configuredGeminiApiKey();
+    final model = await configuredGeminiModel();
+    final queries = List<String>.from(expandSearchQueries(question));
+    if (geminiKey.isNotEmpty) {
+      try {
+        final extra = await _gemini.extractSearchKeywords(
+          apiKey: geminiKey,
+          question: question,
+          preferredModel: model,
+        );
+        for (final item in extra) {
+          if (queries.every((query) => query != item)) queries.add(item);
+        }
+      } catch (_) {
+        // Keyword expansion is helpful, not required; local phrases still run.
+      }
     }
 
-    final geminiKey = await configuredGeminiApiKey();
+    final hits = await _collectHits(readerTarget, queries: queries);
+
     if (geminiKey.isNotEmpty) {
       try {
         final answer = await _gemini.generateGroundedAnswer(
@@ -153,7 +167,7 @@ class AiRepository {
                   })
               .toList(),
           readerContext: readerContext,
-          preferredModel: await configuredGeminiModel(),
+          preferredModel: model,
         );
         return ChatMessage(
           isUser: false,
@@ -164,6 +178,10 @@ class AiRepository {
       } on GeminiClientException catch (error) {
         throw AiServiceException(error.message);
       }
+    }
+
+    if (hits.isEmpty) {
+      return ChatMessage(isUser: false, text: noMatchMessage(question), createdAt: DateTime.now());
     }
 
     final baseUrl = await configuredBaseUrl();
@@ -195,8 +213,11 @@ class AiRepository {
     );
   }
 
-  Future<List<SearchHit>> _collectHits(String question, ReaderTarget? readerTarget) async {
-    final hits = List<SearchHit>.from(await _library.search(question, limit: 6));
+  Future<List<SearchHit>> _collectHits(
+    ReaderTarget? readerTarget, {
+    required List<String> queries,
+  }) async {
+    final hits = List<SearchHit>.from(await _library.searchMany(queries, limit: 12));
     if (readerTarget != null) {
       final book = BookDefinition.byKey(readerTarget.book);
       if (book != null) {
@@ -217,7 +238,7 @@ class AiRepository {
               ),
             ),
           );
-          if (hits.length > 6) hits.removeLast();
+          if (hits.length > 12) hits.removeLast();
         }
       }
     }

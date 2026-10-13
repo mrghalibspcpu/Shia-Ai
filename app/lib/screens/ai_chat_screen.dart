@@ -471,7 +471,7 @@ class _ThinkingBubble extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
           decoration: BoxDecoration(color: Theme.of(context).cardTheme.color, borderRadius: BorderRadius.circular(18)),
-          child: const Row(mainAxisSize: MainAxisSize.min, children: [SizedBox(width: 6, height: 6, child: CircularProgressIndicator(strokeWidth: 1.5)), SizedBox(width: 10), Text('حوالہ تلاش ہو رہے ہیں…')]),
+          child: const Row(mainAxisSize: MainAxisSize.min, children: [SizedBox(width: 6, height: 6, child: CircularProgressIndicator(strokeWidth: 1.5)), SizedBox(width: 10), Text('روایات ملا کر جواب بن رہا ہے…')]),
         ),
       );
 }

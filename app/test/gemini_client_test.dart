@@ -57,8 +57,16 @@ void main() {
     );
 
     expect(answer, contains('[R1]'));
+    expect(answer, isNot(contains('حوالہ جات')));
     expect(seen.first, contains('gemini-2.5-flash'));
     expect(seen, hasLength(greaterThan(1)));
+  });
+
+  test('parses keyword JSON even when wrapped in extra text', () {
+    expect(
+      GeminiClient.parseKeywordQueries('here {"queries":["جمع بین الصلاتین", "ظہر عصر"]}'),
+      ['جمع بین الصلاتین', 'ظہر عصر'],
+    );
   });
 
   test('maps an invalid API key to a Urdu error without retrying forever', () async {

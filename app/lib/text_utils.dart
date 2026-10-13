@@ -42,15 +42,141 @@ String normalizeArabicUrdu(String value) {
   return text.trim().replaceAll(RegExp(r'\s+'), ' ');
 }
 
+const Set<String> kSearchStopwords = {
+  'کو', 'کر', 'کے', 'کی', 'کا', 'ہے', 'ہیں', 'تھا', 'تھی', 'تھے', 'کیا', 'کیسا', 'کیسے', 'کیسی',
+  'بارے', 'میں', 'سے', 'پر', 'اور', 'یا', 'یہ', 'وہ', 'ہم', 'آپ', 'نہ', 'نہیں', 'نا', 'ہی', 'تو',
+  'بھی', 'ایک', 'لیے', 'لئے', 'والا', 'والی', 'والے', 'ہو', 'ہوگا', 'ہوگی', 'ہوگے', 'ہونا',
+  'اپنا', 'اپنی', 'اپنے', 'اس', 'ان', 'جو', 'جس', 'جن', 'تاکہ', 'اگر', 'لیکن', 'پھر', 'اب',
+  'بتائیں', 'بتاو', 'بتاؤ', 'سمجھائیں', 'جواب', 'سوال', 'پوچھیں', 'چاہیے', 'چاهیے',
+  'the', 'a', 'an', 'is', 'are', 'was', 'of', 'in', 'to', 'for', 'how', 'what', 'why',
+  'when', 'where', 'who', 'with', 'about', 'please', 'me', 'my', 'your',
+  'في', 'من', 'على', 'الى', 'عن', 'ما', 'هل', 'كيف', 'ماذا', 'الذي', 'التي', 'هذا', 'هذه',
+  'و', 'أو', 'لا', 'ان', 'إن', 'أن', 'ف', 'ثم', 'قد', 'لم', 'لن',
+};
+
+String stemToken(String token) {
+  var text = token;
+  const suffixes = ['یوں', 'وں', 'یاں', 'یں', 'ین', 'ات', 'گی', 'گے', 'گا', 'نا', 'نی', 'نے'];
+  for (final suffix in suffixes) {
+    if (text.endsWith(suffix) && text.length - suffix.length >= 3) {
+      text = text.substring(0, text.length - suffix.length);
+      break;
+    }
+  }
+  if (text.startsWith('ال') && text.length > 5) text = text.substring(2);
+  return text;
+}
+
 List<String> searchTokens(String query, {int limit = 12}) {
   final seen = <String>{};
   final tokens = <String>[];
-  for (final token in normalizeArabicUrdu(query).split(' ')) {
-    if (token.isEmpty || token.length < 2 || !seen.add(token)) continue;
+  for (final raw in normalizeArabicUrdu(query).split(' ')) {
+    if (raw.isEmpty || kSearchStopwords.contains(raw)) continue;
+    final token = stemToken(raw);
+    if (token.length < 3 || kSearchStopwords.contains(token) || !seen.add(token)) continue;
     tokens.add(token);
     if (tokens.length >= limit) break;
   }
   return tokens;
+}
+
+const List<(List<String>, List<String>)> kTopicExpansions = [
+  (
+    ['ملا کر', 'ملاکر', 'جمع بین', 'صلاتین', 'صلوٰتین', 'دو نماز', 'نمازوں کو ملا', 'نمازیں جمع'],
+    ['جمع بین الصلاتین', 'جمع بین الصلوٰتین', 'يجمع بين الصلاتين', 'ظہر اور عصر جمع'],
+  ),
+  (
+    ['وضو', 'وضوء', 'الو ضوء'],
+    ['وضو', 'الوضوء', 'کیفیت وضو'],
+  ),
+  (
+    ['تیمم', 'تيمم'],
+    ['تیمم', 'التيمم'],
+  ),
+  (
+    ['غسل جنابت', 'غسل', 'جنابت'],
+    ['غسل جنابت', 'الغسل'],
+  ),
+  (
+    ['مسافر', 'قصر', 'شکستہ نماز'],
+    ['نماز مسافر', 'تقصیر', 'صلاة المسافر'],
+  ),
+  (
+    ['نماز جمعہ', 'جمعہ کی نماز'],
+    ['نماز جمعہ', 'صلاة الجمعة'],
+  ),
+  (
+    ['خمس', 'خمس'],
+    ['خمس', 'الخمس'],
+  ),
+  (
+    ['زکوٰة', 'زکوة', 'زکوۃ', 'زكاة'],
+    ['زکوٰة', 'الزكاة'],
+  ),
+  (
+    ['متحہ', 'متعہ', 'نکاح موقت'],
+    ['متعہ', 'المتعة', 'نکاح موقت'],
+  ),
+  (
+    ['غدیٖر', 'غدیر', 'ولایت'],
+    ['غدیر خم', 'من کنت مولاه', 'ولایت علی'],
+  ),
+  (
+    ['کربلا', 'عاشور', 'حسین'],
+    ['کربلا', 'عاشوراء', 'الحسین'],
+  ),
+  (
+    ['مہدی', 'امام زمان', 'غیبت'],
+    ['امام مہدی', 'الغیبة', 'صاحب الزمان'],
+  ),
+  (
+    ['جنازہ', 'میٹ کی نماز'],
+    ['نماز جنازہ', 'صلاة الجنازة'],
+  ),
+  (
+    ['حج', 'عمرہ'],
+    ['الحج', 'العمرة'],
+  ),
+];
+
+List<String> expandSearchQueries(String question) {
+  final original = question.trim();
+  if (original.isEmpty) return const [];
+  final norm = ' ${normalizeArabicUrdu(original)} ';
+  final queries = <String>[];
+  void add(String value) {
+    final text = value.trim();
+    if (text.isEmpty) return;
+    if (queries.every((item) => item != text)) queries.add(text);
+  }
+
+  add(original);
+  for (final entry in kTopicExpansions) {
+    final triggered = entry.$1.any((trigger) {
+      final needle = normalizeArabicUrdu(trigger);
+      return needle.isNotEmpty && norm.contains(needle);
+    });
+    if (triggered) {
+      for (final extra in entry.$2) {
+        add(extra);
+      }
+    }
+  }
+  final tokens = searchTokens(original);
+  if (tokens.length >= 2) add(tokens.take(4).join(' '));
+  return queries;
+}
+
+int relevanceScore(String blob, Iterable<String> terms) {
+  final haystack = normalizeArabicUrdu(blob);
+  if (haystack.isEmpty) return 0;
+  var score = 0;
+  for (final term in terms) {
+    final needle = normalizeArabicUrdu(term);
+    if (needle.isEmpty) continue;
+    if (haystack.contains(needle)) score += needle.length + 2;
+  }
+  return score;
 }
 
 String escapeFtsToken(String token) {

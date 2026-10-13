@@ -9,7 +9,7 @@ import 'package:sqflite/sqflite.dart';
 import 'models.dart';
 import 'text_utils.dart';
 
-export 'text_utils.dart' show normalizeArabicUrdu, compactDisplayText, looksLikeGeminiApiKey;
+export 'text_utils.dart' show normalizeArabicUrdu, compactDisplayText, looksLikeGeminiApiKey, expandSearchQueries, searchTokens;
 
 const int _searchIndexVersion = 3;
 const int _indexPageSize = 400;
@@ -432,6 +432,34 @@ class LibraryRepository {
       ));
     }
     return hits.take(limit).toList();
+  }
+
+  Future<List<SearchHit>> searchMany(
+    List<String> queries, {
+    int limit = 12,
+    String? bookKey,
+    String language = 'all',
+  }) async {
+    final seen = <String>{};
+    final merged = <SearchHit>[];
+    for (final query in queries.take(12)) {
+      if (query.trim().isEmpty) continue;
+      final batch = await search(query, limit: 8, bookKey: bookKey, language: language);
+      for (final hit in batch) {
+        final id = '${hit.book.key}:${hit.passage.recordId}';
+        if (seen.add(id)) merged.add(hit);
+      }
+    }
+    if (merged.isEmpty) return const [];
+    final terms = queries.expand(searchTokens).toSet();
+    int scoreOf(SearchHit hit) {
+      final title = relevanceScore('${hit.passage.chapterTitle} ${hit.passage.sectionTitle}', terms) * 4;
+      final body = relevanceScore('${hit.passage.arabic} ${hit.passage.urdu}', terms);
+      return title + body;
+    }
+
+    merged.sort((left, right) => scoreOf(right).compareTo(scoreOf(left)));
+    return merged.take(limit).toList();
   }
 
   Future<List<Map<String, Object?>>> _searchFts(String expression, int limit, String? bookKey) async {
