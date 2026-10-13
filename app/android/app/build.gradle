@@ -47,6 +47,7 @@ android {
                     ? signingConfigs.release
                     : signingConfigs.debug
             minifyEnabled false
+            shrinkResources false
         }
     }
 }
