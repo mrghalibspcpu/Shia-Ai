@@ -1,11 +1,3 @@
-bool looksLikeGeminiApiKey(String value) {
-  final key = value.trim();
-  if (key.startsWith('AIza') && key.length >= 30 && key.length <= 80) {
-    return !key.contains(RegExp(r'\s')) && !key.contains('://');
-  }
-  return false;
-}
-
 String compactDisplayText(String value) {
   if (value.isEmpty) return value;
   var text = value.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
@@ -220,15 +212,6 @@ List<String> expandSearchQueries(String question) {
   return queries;
 }
 
-String stripModelMarkup(String value) {
-  var text = value.replaceAll('**', '').replaceAll('__', '');
-  text = text.replaceAll(RegExp(r'`+'), '');
-  text = text.replaceAll(RegExp(r'^#{1,6}\s*', multiLine: true), '');
-  text = text.replaceAll(RegExp(r'[ \t]+\n'), '\n');
-  text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n');
-  return text.trim();
-}
-
 int relevanceScore(String blob, Iterable<String> terms) {
   final haystack = normalizeArabicUrdu(blob);
   if (haystack.isEmpty) return 0;
@@ -280,34 +263,11 @@ bool hasArabicScript(String text) {
   return false;
 }
 
-String noMatchMessage(String question) {
-  if (hasUrduLetters(question)) {
-    return 'مقامی کتب میں اس سوال کے مطابق روایت نہیں ملی۔ دوسرا لفظ یا مختصر کلیدی لفظ آزمائیں۔';
-  }
-  if (hasArabicScript(question)) {
-    return 'لم أعثر على رواية مطابقة في الكتب المحلية. جرّب كلمة مفتاحية أقصر.';
-  }
-  return 'No matching narration was found in the local books. Try a shorter keyword.';
-}
+const List<String> _arabicDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
 
-String localGroundedAnswer(String question, List<String> excerpts) {
-  final buffer = StringBuffer();
-  if (hasUrduLetters(question) || hasArabicScript(question)) {
-    buffer.writeln('مقامی کتب سے یہ متعلقہ روایات ملی ہیں:');
-  } else {
-    buffer.writeln('These matching records were found in the local books:');
-  }
-  buffer.writeln();
-  for (var i = 0; i < excerpts.length; i++) {
-    buffer.writeln(excerpts[i]);
-    if (i != excerpts.length - 1) buffer.writeln();
-  }
-  buffer.writeln();
-  buffer.write(
-    'مکمل شیعہ اے آئی جواب کے لیے سیٹنگز میں Google AI Studio کی API کلید (AIza…) درج کریں۔',
-  );
-  return buffer.toString().trim();
-}
+/// Renders a number with Arabic-Indic digits, as used across the Urdu corpus.
+String arabicNumerals(int value) =>
+    value.toString().split('').map((digit) => digit == '-' ? digit : _arabicDigits[int.parse(digit)!]).join();
 
 String formatCitation({
   required String bookTitle,
@@ -315,11 +275,12 @@ String formatCitation({
   required String sectionTitle,
   required int recordId,
   int? page,
+  String recordLabel = 'حدیث نمبر',
 }) {
   final lines = <String>['کتاب: $bookTitle'];
   if (chapterTitle.isNotEmpty) lines.add('جلد / باب: $chapterTitle');
   if (sectionTitle.isNotEmpty) lines.add('فصل: $sectionTitle');
-  lines.add('حدیث نمبر: $recordId');
+  lines.add('$recordLabel: $recordId');
   if (page != null) lines.add('صفحہ: $page');
   return lines.join('\n');
 }

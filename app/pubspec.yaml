@@ -1,7 +1,7 @@
 name: shia_ai
 publish_to: "none"
-description: Offline Shia library reader with citation-grounded AI chat.
-version: 1.1.0+2
+description: Offline Shia library — Quran, Mafatih al-Jinan, Nahj al-Balagha, and 14 hadith books.
+version: 1.2.0+3
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -10,9 +10,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  http: ^1.4.0
   app_links: ^6.4.1
-  flutter_secure_storage: ^9.2.4
+  crypto: ^3.0.3
+  http: ^1.4.0
   path: ^1.9.1
   scrollable_positioned_list: ^0.3.8
   shared_preferences: ^2.5.3
@@ -26,7 +26,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    # SQLite books are optional here: when this folder is empty the app
+    # downloads each database on demand (see lib/data_installer.dart).
     - assets/databases/
+    - assets/database-manifest.json
     - assets/images/logo.png
     - assets/images/tasneemlogo.png
   fonts:

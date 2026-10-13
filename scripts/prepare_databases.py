@@ -1,55 +1,59 @@
 #!/usr/bin/env python3
-"""Safely unpack and validate the Shia Ahadith SQLite bundle.
+"""Safely unpack, validate, and (optionally) re-manifest the Shia library corpus.
 
-The APK ships each database as an asset. Keeping the source bundle compressed
-avoids committing ~190 MB of expanded SQLite files; build/development steps can
-materialize the original files into assets/databases/ with this script.
+The corpus reaches the app in two shapes:
+
+* ``assets/shia-databases.zip`` — the 14 original hadith books (~190 MiB
+  expanded). Keeping them compressed avoids committing a second expanded copy.
+* ``assets/quran.db``, ``assets/mafatihdb-v4.db``, ``assets/nahjul_balagha.db``
+  — three standalone collections checked in directly.
+
+Builds and CI materialise every file into one directory (``assets/databases`` by
+default, or ``app/assets/databases`` for a bundled APK) after validating SQLite
+integrity, required tables/columns, row counts, and SHA-256 digests.
+``--write-manifest`` regenerates ``assets/database-manifest.json`` from the files
+that are actually present.
 """
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
-import os
 import shutil
 import sqlite3
+import sys
 import tempfile
 import zipfile
+from collections.abc import Iterator
 from pathlib import Path, PurePosixPath
 
-ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_BUNDLE = ROOT / "assets" / "shia-databases.zip"
-DEFAULT_OUTPUT = ROOT / "assets" / "databases"
-MANIFEST_PATH = ROOT / "assets" / "database-manifest.json"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-EXPECTED_DATABASES = {
-    "Tahzeeb.db",
-    "alkafi.db",
-    "alkhisal.db",
-    "hakam.db",
-    "hidaya.db",
-    "hikmatprophet.db",
-    "imam.db",
-    "kamaledeen.db",
-    "maniakbar.db",
-    "manlahyahzur.db",
-    "mezan.db",
-    "swab.db",
-    "towheed.db",
-    "wasail.db",
-}
-REQUIRED_COLUMNS = {
-    "Parags": {"ID", "txt", "Secid", "paganum", "mean"},
-    "Sections": {"ID", "title", "Chapid", "Secid"},
-    "Chaps": {"ID", "cid", "title", "bookid"},
-}
+from database_specs import (  # noqa: E402
+    APP_MANIFEST_PATH,
+    BUNDLE,
+    BY_NAME,
+    DATABASES,
+    EXTRA_DATABASES,
+    MANIFEST_PATH,
+    TARGET_PAGE_SIZE,
+    DatabaseSpec,
+)
+
+DOWNLOAD_BASE_URLS = (
+    "https://github.com/mrghalibspcpu/Shia-Ai/releases/latest/download/",
+    "https://raw.githubusercontent.com/mrghalibspcpu/Shia-Ai/main/assets/",
+)
+DOWNLOAD_EXTENSION = ".db.gz"
+MAX_ENTRY_BYTES = 100 * 1024 * 1024
 
 
 class DatabaseBundleError(RuntimeError):
     """Raised when a bundle is incomplete, unsafe, or contains invalid SQLite."""
 
 
-def _sha256(path: Path) -> str:
+def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
@@ -57,129 +61,231 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def validate_database(path: Path) -> dict[str, int | str]:
-    """Check SQLite integrity and return the known table row counts."""
+def validate_database(path: Path, spec: DatabaseSpec) -> dict[str, int]:
+    """Check SQLite integrity and return the row count of every required table."""
     uri = f"file:{path.resolve().as_posix()}?mode=ro"
     try:
         with sqlite3.connect(uri, uri=True) as connection:
             check = connection.execute("PRAGMA quick_check").fetchone()
             if not check or check[0] != "ok":
-                raise DatabaseBundleError(f"SQLite quick_check failed for {path.name}: {check}")
-
+                raise DatabaseBundleError(f"SQLite quick_check failed for {spec.name}: {check}")
             tables = {
                 row[0]
-                for row in connection.execute(
-                    "SELECT name FROM sqlite_master WHERE type = 'table'"
-                )
+                for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
             }
-            counts: dict[str, int | str] = {"name": path.name}
-            for table, expected_columns in REQUIRED_COLUMNS.items():
+            counts: dict[str, int] = {}
+            for table, expected_columns in spec.tables.items():
                 if table not in tables:
-                    raise DatabaseBundleError(f"{path.name} is missing table {table!r}")
+                    raise DatabaseBundleError(f"{spec.name} is missing table {table!r}")
                 actual_columns = {
                     row[1] for row in connection.execute(f'PRAGMA table_info("{table}")')
                 }
                 missing = expected_columns - actual_columns
                 if missing:
                     raise DatabaseBundleError(
-                        f"{path.name}.{table} is missing columns: {sorted(missing)}"
+                        f"{spec.name}.{table} is missing columns: {sorted(missing)}"
                     )
-                counts[table] = int(connection.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0])
+                counts[table] = int(
+                    connection.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
+                )
             return counts
     except sqlite3.DatabaseError as exc:
-        raise DatabaseBundleError(f"Could not open {path.name} as SQLite: {exc}") from exc
+        raise DatabaseBundleError(f"Could not open {spec.name} as SQLite: {exc}") from exc
 
 
-def unpack_databases(bundle: Path = DEFAULT_BUNDLE, output_dir: Path = DEFAULT_OUTPUT) -> list[dict]:
-    """Extract expected files to a staging directory, validate, then install them."""
-    bundle = bundle.resolve()
-    output_dir = output_dir.resolve()
+@contextlib.contextmanager
+def collect_databases(
+    bundle: Path = BUNDLE, *, include_bundle: bool = True
+) -> Iterator[list[tuple[DatabaseSpec, Path]]]:
+    """Yield every database available on disk, staged in one scratch directory."""
+    staging = Path(tempfile.mkdtemp(prefix=".shia-databases-"))
+    try:
+        collected: list[tuple[DatabaseSpec, Path]] = []
+        if include_bundle:
+            collected.extend(_read_bundle(bundle, staging))
+        for spec in EXTRA_DATABASES:
+            if not spec.asset_path.is_file():
+                raise DatabaseBundleError(
+                    f"{spec.name} is missing from {spec.asset_path.parent}. Add the file or "
+                    "remove it from scripts/database_specs.py."
+                )
+            target = staging / spec.name
+            shutil.copyfile(spec.asset_path, target)
+            collected.append((spec, target))
+        yield collected
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+
+def _read_bundle(bundle: Path, staging: Path) -> list[tuple[DatabaseSpec, Path]]:
+    """Extract the compressed hadith books into the staging directory."""
     if not bundle.is_file():
         raise DatabaseBundleError(f"Database bundle not found: {bundle}")
-
     try:
         archive = zipfile.ZipFile(bundle)
     except (OSError, zipfile.BadZipFile) as exc:
         raise DatabaseBundleError(f"Invalid database ZIP bundle: {exc}") from exc
 
+    expected = {spec.name for spec in DATABASES if spec.origin == "bundle"}
     with archive:
         infos = [info for info in archive.infolist() if not info.is_dir()]
-        names = [PurePosixPath(info.filename).name for info in infos]
-        if len(infos) != len(EXPECTED_DATABASES) or set(names) != EXPECTED_DATABASES:
+        names = {PurePosixPath(info.filename).name for info in infos}
+        if names != expected:
             raise DatabaseBundleError(
                 "Bundle contents do not match the verified database set. "
-                f"Expected {sorted(EXPECTED_DATABASES)}, found {sorted(names)}"
+                f"Expected {sorted(expected)}, found {sorted(names)}"
             )
-        # Require flat, known names; do not trust archive paths.
+        staged: list[tuple[DatabaseSpec, Path]] = []
         for info in infos:
             name = PurePosixPath(info.filename).name
-            if PurePosixPath(info.filename).name != info.filename or name not in EXPECTED_DATABASES:
+            # Require flat, known names; do not trust archive paths.
+            if PurePosixPath(info.filename).name != info.filename or name not in BY_NAME:
                 raise DatabaseBundleError(f"Unsafe or unexpected archive path: {info.filename!r}")
-            if info.file_size > 100 * 1024 * 1024:
+            if info.file_size > MAX_ENTRY_BYTES:
                 raise DatabaseBundleError(f"Unexpectedly large database entry: {name}")
+            target = staging / name
+            with archive.open(info, "r") as source, target.open("wb") as handle:
+                shutil.copyfileobj(source, handle, length=1024 * 1024)
+            staged.append((BY_NAME[name], target))
+        return staged
 
-        output_dir.parent.mkdir(parents=True, exist_ok=True)
-        stage = Path(tempfile.mkdtemp(prefix=".shia-databases-", dir=output_dir.parent))
-        try:
-            records: list[dict] = []
-            for info in infos:
-                name = PurePosixPath(info.filename).name
-                staged = stage / name
-                with archive.open(info, "r") as source, staged.open("wb") as target:
-                    shutil.copyfileobj(source, target, length=1024 * 1024)
-                record = validate_database(staged)
-                record["size_bytes"] = staged.stat().st_size
-                record["sha256"] = _sha256(staged)
-                records.append(record)
 
-            expected_manifest = {}
-            if MANIFEST_PATH.exists():
-                expected_manifest = {
-                    row["name"]: row
-                    for row in json.loads(MANIFEST_PATH.read_text(encoding="utf-8")).get(
-                        "databases", []
-                    )
-                }
-            for record in records:
-                expected = expected_manifest.get(record["name"])
-                if expected and record["sha256"] != expected.get("sha256"):
-                    raise DatabaseBundleError(f"Checksum mismatch for {record['name']}")
-                if expected:
-                    for table in REQUIRED_COLUMNS:
-                        if record[table] != expected.get(table):
-                            raise DatabaseBundleError(
-                                f"Unexpected {table} row count in {record['name']}: "
-                                f"{record[table]} != {expected.get(table)}"
-                            )
+def build_records(collected: list[tuple[DatabaseSpec, Path]]) -> list[dict]:
+    records: list[dict] = []
+    for spec, path in collected:
+        counts = validate_database(path, spec)
+        records.append(
+            {
+                "name": spec.name,
+                "key": spec.key,
+                "source": spec.source,
+                "title_urdu": spec.title_urdu,
+                "title_latin": spec.title_latin,
+                "record_label": spec.record_label,
+                "size_bytes": path.stat().st_size,
+                "sha256": sha256_file(path),
+                "records": counts,
+            }
+        )
+    return sorted(
+        records, key=lambda row: (row["source"] != "hadith", str(row["name"]).lower())
+    )
 
-            output_dir.mkdir(parents=True, exist_ok=True)
-            for record in records:
-                name = record["name"]
-                destination = output_dir / name
-                if destination.exists() and _sha256(destination) == record["sha256"]:
-                    continue
-                os.replace(stage / name, destination)
-            return sorted(records, key=lambda row: str(row["name"]).lower())
-        finally:
-            shutil.rmtree(stage, ignore_errors=True)
+
+def verify_against_manifest(records: list[dict]) -> None:
+    """Reject any file whose digest or row counts differ from the manifest."""
+    if not MANIFEST_PATH.exists():
+        return
+    expected = {
+        row["name"]: row
+        for row in json.loads(MANIFEST_PATH.read_text(encoding="utf-8")).get("databases", [])
+    }
+    for record in records:
+        entry = expected.get(record["name"])
+        if not entry:
+            raise DatabaseBundleError(
+                f"{record['name']} is not listed in {MANIFEST_PATH.name}. "
+                "Run `python3 scripts/prepare_databases.py --write-manifest`."
+            )
+        if record["sha256"] != entry.get("sha256"):
+            raise DatabaseBundleError(f"Checksum mismatch for {record['name']}")
+        expected_counts = entry.get("records") or {
+            table: entry.get(table) for table in record["records"]
+        }
+        for table, count in record["records"].items():
+            if expected_counts.get(table) not in (None, count):
+                raise DatabaseBundleError(
+                    f"Unexpected {table} row count in {record['name']}: "
+                    f"{count} != {expected_counts.get(table)}"
+                )
+
+
+def write_manifest(records: list[dict]) -> None:
+    totals = {
+        "hadith_records": sum(r["records"].get("Parags", 0) for r in records),
+        "sections": sum(r["records"].get("Sections", 0) for r in records),
+        "chapters": sum(r["records"].get("Chaps", 0) for r in records),
+        "quran_verses": sum(r["records"].get("Quran", 0) for r in records),
+        "quran_surahs": sum(r["records"].get("ChapterProperty", 0) for r in records),
+        "dua_items": sum(r["records"].get("M_items", 0) for r in records),
+        "dua_lines": sum(r["records"].get("Lines", 0) for r in records),
+        "balagha_paragraphs": sum(r["records"].get("balaghatext", 0) for r in records),
+        "balagha_sections": sum(r["records"].get("balaghatoc", 0) for r in records),
+    }
+    payload = {
+        "format_version": 2,
+        "source_app": (
+            "Ahadith al Shia Urdu 1.0.1 corpus plus the Quran, Mafatih al-Jinan, "
+            "and Nahj al-Balagha collections"
+        ),
+        "sqlite_page_size": TARGET_PAGE_SIZE,
+        "database_count": len(records),
+        "totals": {key: value for key, value in totals.items() if value},
+        "download": {"extension": DOWNLOAD_EXTENSION, "base_urls": list(DOWNLOAD_BASE_URLS)},
+        "databases": records,
+    }
+    text = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    MANIFEST_PATH.write_text(text, encoding="utf-8")
+    # The Flutter bundle ships its own copy so the app can verify downloads
+    # offline; writing both here keeps the two from drifting apart.
+    APP_MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
+    APP_MANIFEST_PATH.write_text(text, encoding="utf-8")
+
+
+def install(collected: list[tuple[DatabaseSpec, Path]], output_dir: Path) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for spec, path in collected:
+        destination = output_dir / spec.name
+        if destination.exists() and sha256_file(destination) == sha256_file(path):
+            continue
+        shutil.move(str(path), str(destination))
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--bundle", type=Path, default=DEFAULT_BUNDLE)
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--bundle", type=Path, default=BUNDLE)
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Where to materialise the databases (default: validate only)",
+    )
+    parser.add_argument(
+        "--skip-bundle",
+        action="store_true",
+        help="Validate only the standalone Quran/Mafatih/Nahj al-Balagha files",
+    )
+    parser.add_argument(
+        "--write-manifest",
+        action="store_true",
+        help="Regenerate assets/database-manifest.json from the files on disk",
+    )
     args = parser.parse_args()
+
     try:
-        records = unpack_databases(args.bundle, args.output)
+        with collect_databases(args.bundle, include_bundle=not args.skip_bundle) as collected:
+            records = build_records(collected)
+            if args.write_manifest:
+                write_manifest(records)
+            else:
+                verify_against_manifest(records)
+            if args.output:
+                install(collected, args.output)
     except DatabaseBundleError as exc:
         parser.error(str(exc))
+
     for record in records:
+        counts = ", ".join(f"{table}={count}" for table, count in record["records"].items())
         print(
-            f"{record['name']}: {record['Parags']} paragraphs, "
-            f"{record['Sections']} sections, {record['Chaps']} chapters "
+            f"{record['name']}: {counts} "
             f"({record['size_bytes']:,} bytes; SHA-256 {record['sha256'][:12]}…)"
         )
-    print(f"Validated {len(records)} SQLite databases in {args.output.resolve()}")
+    if args.output:
+        print(f"Validated {len(records)} SQLite databases in {args.output.resolve()}")
+    else:
+        print(f"Validated {len(records)} SQLite databases")
+    if args.write_manifest:
+        print(f"Wrote {MANIFEST_PATH} and {APP_MANIFEST_PATH}")
     return 0
 
 

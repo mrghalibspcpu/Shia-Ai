@@ -1,22 +1,25 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../ai_repository.dart';
 import '../app_theme.dart';
-import '../gemini_client.dart';
-import '../text_utils.dart';
+import '../data_installer.dart';
+import '../data_packages.dart';
+import '../library_repository.dart';
+import '../widgets/reader_kit.dart';
+import 'data_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     super.key,
-    required this.ai,
+    required this.library,
+    required this.installer,
     required this.themeMode,
     required this.onThemeModeChanged,
   });
 
-  final AiRepository ai;
+  final LibraryRepository library;
+  final DataInstaller installer;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
 
@@ -25,15 +28,11 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final TextEditingController _keyController = TextEditingController();
-  final TextEditingController _urlController = TextEditingController();
-  final TextEditingController _tokenController = TextEditingController();
-  bool _obscureKey = true;
-  bool _loading = true;
-  bool _saving = false;
-  bool _testing = false;
-  String _model = kGeminiModelFallbacks.first;
   double _fontScale = 1.0;
+  String _script = 'both';
+  bool _loading = true;
+  bool _rebuilding = false;
+  bool _verifying = false;
   String? _status;
   bool _statusError = false;
 
@@ -44,163 +43,97 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final key = await widget.ai.configuredGeminiApiKey();
-    final url = await widget.ai.configuredBaseUrl();
-    final token = await widget.ai.configuredApiToken();
-    final model = await widget.ai.configuredGeminiModel();
+    final preferences = await ReaderPreferences.load();
     if (!mounted) return;
     setState(() {
-      _keyController.text = key;
-      _urlController.text = looksLikeGeminiApiKey(url) ? '' : url;
-      _tokenController.text = token;
-      _model = model.isEmpty ? kGeminiModelFallbacks.first : model;
-      _fontScale = (prefs.getDouble('reader_font_scale') ?? 1.0).clamp(0.85, 1.6);
+      _fontScale = preferences.fontScale;
+      _script = preferences.script;
       _loading = false;
     });
   }
 
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    try {
-      await widget.ai.saveGeminiApiKey(_keyController.text);
-      await widget.ai.saveGeminiModel(_model);
-      await widget.ai.saveBaseUrl(_urlController.text);
-      await widget.ai.saveApiToken(_tokenController.text);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setDouble('reader_font_scale', _fontScale);
-      if (!mounted) return;
-      setState(() {
-        _status = 'ترتیبات محفوظ ہو گئیں۔';
-        _statusError = false;
-      });
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
+  Future<void> _saveFont(double value) async {
+    setState(() => _fontScale = value);
+    await ReaderPreferences().saveFontScale(value);
   }
 
-  Future<void> _testKey() async {
-    final key = _keyController.text.trim();
-    if (!looksLikeGeminiApiKey(key)) {
-      setState(() {
-        _status = 'Google AI Studio کی کلید AIza سے شروع ہوتی ہے۔';
-        _statusError = true;
-      });
-      return;
-    }
+  Future<void> _saveScript(String value) async {
+    setState(() => _script = value);
+    await ReaderPreferences().saveScript(value);
+  }
+
+  Future<void> _rebuildIndex() async {
+    if (_rebuilding) return;
     setState(() {
-      _testing = true;
+      _rebuilding = true;
       _status = null;
     });
     try {
-      await widget.ai.saveGeminiApiKey(key);
-      await widget.ai.saveGeminiModel(_model);
-      final message = await widget.ai.verifyGeminiApiKey(key);
-      if (mounted) {
-        setState(() {
-          _status = message;
-          _statusError = false;
-        });
-      }
+      await widget.library.rebuildSearchIndex(onProgress: (_, __) {});
+      if (!mounted) return;
+      setState(() {
+        _status = 'تلاش کی فہرست دوبارہ بن گئی۔';
+        _statusError = false;
+      });
     } catch (error) {
-      if (mounted) {
-        setState(() {
-          _status = error.toString();
-          _statusError = true;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _status = error.toString();
+        _statusError = true;
+      });
     } finally {
-      if (mounted) setState(() => _testing = false);
+      if (mounted) setState(() => _rebuilding = false);
     }
   }
 
-  @override
-  void dispose() {
-    _keyController.dispose();
-    _urlController.dispose();
-    _tokenController.dispose();
-    super.dispose();
+  Future<void> _verifyData() async {
+    if (_verifying) return;
+    setState(() {
+      _verifying = true;
+      _status = 'فائلوں کی تصدیق ہو رہی ہے…';
+      _statusError = false;
+    });
+    try {
+      await widget.installer.loadCatalog(allowNetwork: false);
+      final results = await widget.installer.verifyInstalled();
+      final broken = results.where((entry) => !entry.$2).toList();
+      if (!mounted) return;
+      setState(() {
+        _status = broken.isEmpty
+            ? '${results.length} فائلیں درست ہیں۔'
+            : 'خراب فائلیں: ${broken.map((entry) => entry.$1.titleUrdu).join('، ')} — دوبارہ ڈاؤن لوڈ کریں۔';
+        _statusError = broken.isNotEmpty;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _status = error.toString();
+        _statusError = true;
+      });
+    } finally {
+      if (mounted) setState(() => _verifying = false);
+    }
+  }
+
+  Future<void> _openDataScreen() async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => DataScreen(library: widget.library, installer: widget.installer),
+    ));
+    if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    final installed = widget.library.installedBooks;
+    final installedBytes = widget.installer.installedBytes();
     return Scaffold(
       appBar: AppBar(title: const JustifiedText('ترتیبات')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.fromLTRB(18, 8, 18, 32),
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 36),
               children: [
-                const JustifiedText('Google AI Studio', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
-                const JustifiedText(
-                  'aistudio.google.com سے AIza سے شروع ہونے والی API کلید یہاں لگائیں۔ کلید صرف اسی فون کے محفوظ ذخیرے میں رہتی ہے، APK میں نہیں لکھی جاتی۔',
-                  style: TextStyle(fontSize: 14),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _keyController,
-                  obscureText: _obscureKey,
-                  textDirection: TextDirection.ltr,
-                  textAlign: TextAlign.left,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  decoration: InputDecoration(
-                    labelText: 'Gemini API key (AIza…)',
-                    suffixIcon: IconButton(
-                      onPressed: () => setState(() => _obscureKey = !_obscureKey),
-                      icon: Icon(_obscureKey ? Icons.visibility : Icons.visibility_off),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  initialValue: kGeminiModelFallbacks.contains(_model) ? _model : kGeminiModelFallbacks.first,
-                  decoration: const InputDecoration(labelText: 'ماڈل'),
-                  items: [
-                    for (final model in kGeminiModelFallbacks)
-                      DropdownMenuItem(value: model, child: Text(model, textDirection: TextDirection.ltr)),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) setState(() => _model = value);
-                  },
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: _saving ? null : _save,
-                        icon: const Icon(Icons.save_outlined),
-                        label: Text(_saving ? 'محفوظ ہو رہا ہے…' : 'محفوظ کریں'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _testing ? null : _testKey,
-                        icon: _testing
-                            ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Icon(Icons.verified_outlined),
-                        label: const Text('کلید جانچیں'),
-                      ),
-                    ),
-                  ],
-                ),
-                if (_status != null) ...[
-                  const SizedBox(height: 10),
-                  JustifiedText(
-                    _status!,
-                    style: TextStyle(
-                      color: _statusError ? Theme.of(context).colorScheme.error : kForest,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 28),
-                const JustifiedText('مطالعہ', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
+                const _SectionTitle('مطالعہ'),
                 SegmentedButton<ThemeMode>(
                   segments: const [
                     ButtonSegment(value: ThemeMode.light, label: Text('روشن'), icon: Icon(Icons.light_mode)),
@@ -219,45 +152,113 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   divisions: 15,
                   label: '${(_fontScale * 100).round()}%',
                   onChanged: (value) => setState(() => _fontScale = value),
-                  onChangeEnd: (_) => _save(),
+                  onChangeEnd: _saveFont,
                 ),
-                const SizedBox(height: 18),
-                ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  title: const JustifiedText('اعلیٰ اختیارات', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  children: [
-                    const JustifiedText(
-                      'اگر آپ خود سروس چلاتے ہیں تو HTTPS پتہ یہاں لکھیں۔ عام استعمال کے لیے صرف Gemini کلید کافی ہے۔',
-                      style: TextStyle(fontSize: 13),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: _urlController,
-                      keyboardType: TextInputType.url,
-                      textDirection: TextDirection.ltr,
-                      textAlign: TextAlign.left,
-                      decoration: const InputDecoration(hintText: 'https://api.example.com'),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: _tokenController,
-                      obscureText: true,
-                      textDirection: TextDirection.ltr,
-                      textAlign: TextAlign.left,
-                      decoration: const InputDecoration(labelText: 'سروس access token'),
-                    ),
-                    const SizedBox(height: 10),
+                const SizedBox(height: 8),
+                JustifiedText('ڈیفالٹ متن'),
+                const SizedBox(height: 8),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'both', label: Text('عربی و اردو')),
+                    ButtonSegment(value: 'arabic', label: Text('صرف عربی')),
+                    ButtonSegment(value: 'urdu', label: Text('صرف اردو')),
                   ],
+                  selected: {_script},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (selection) => _saveScript(selection.first),
                 ),
-                const SizedBox(height: 24),
-                const JustifiedText('شیعہ اے آئی', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
-                const JustifiedText(
-                  'چودہ کتب، 96 ہزار سے زائد روایات۔ تلاش فون پر ہوتی ہے؛ Gemini صرف آپ کی کلید سے جواب مرتب کرتا ہے۔',
-                  style: TextStyle(fontSize: 14),
+                const SizedBox(height: 26),
+                const _SectionTitle('ڈیٹا'),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        JustifiedText(
+                          '${installed.length} کتب نصب ہیں • ${formatBytes(installedBytes)}',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 6),
+                        JustifiedText(
+                          widget.library.hasFastSearch
+                              ? 'تلاش کا مقامی انجن تیار ہے۔'
+                              : 'تلاش بنیادی طریقے پر چل رہی ہے؛ فہرست دوبارہ بنائیں۔',
+                          style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            FilledButton.icon(
+                              onPressed: _openDataScreen,
+                              icon: const Icon(Icons.download_outlined),
+                              label: const Text('ڈیٹا کا انتظام'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: _verifying ? null : _verifyData,
+                              icon: _verifying
+                                  ? const SizedBox.square(
+                                      dimension: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.verified_outlined),
+                              label: const Text('فائلیں جانچیں'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: _rebuilding ? null : _rebuildIndex,
+                              icon: _rebuilding
+                                  ? const SizedBox.square(
+                                      dimension: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.rebuild),
+                              label: const Text('تلاش فہرست دوبارہ'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_status != null) ...[
+                  const SizedBox(height: 10),
+                  JustifiedText(
+                    _status!,
+                    style: TextStyle(
+                      color: _statusError ? Theme.of(context).colorScheme.error : kForest,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 26),
+                const _SectionTitle('ایپ کے بارے میں'),
+                JustifiedText(
+                  'شیعہ لائبریری ایک مکمل آف لائن مطالعہ گاہ ہے: قرآنِ کریم اردو ترجمہ اور تفسیری حواشی کے ساتھ، '
+                  'مفاتیح الجنان کی دعائیں و اعمال، نہج البلاغہ کے خطب و خطوط و حکمت، اور چودہ کتبِ احادیث۔ '
+                  'تمام متن فون پر محفوظ رہتا ہے اور تلاش مقامی طور پر چلتی ہے۔',
+                  style: TextStyle(fontSize: 14, height: 1.7),
+                ),
+                const SizedBox(height: 12),
+                JustifiedText(
+                  'نصب شدہ کتب: ${installed.map((book) => book.titleUrdu).join('، ')}',
+                  style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
     );
   }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: JustifiedText(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+      );
 }

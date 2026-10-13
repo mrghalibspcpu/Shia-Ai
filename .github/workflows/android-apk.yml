@@ -5,6 +5,11 @@ on:
     branches: [main, 'arena/**']
   pull_request:
   workflow_dispatch:
+    inputs:
+      bundle_databases:
+        description: Ship the SQLite databases inside the APK (much larger download)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -22,7 +27,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
 
-      - name: Set up Python
+      - name: Set up Python 3.12
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -40,11 +45,27 @@ jobs:
           cache: true
           cache-key: flutter-${{ runner.os }}-${{ hashFiles('app/pubspec.yaml') }}
 
-      - name: Validate source corpus and unpack Android assets
-        run: python scripts/prepare_databases.py --output app/assets/databases
+      - name: Validate corpus against the manifest
+        run: python scripts/prepare_databases.py
 
-      - name: Run backend tests
+      - name: Run corpus smoke checks
+        run: python scripts/verify_corpus.py
+
+      - name: Replay the client's SQL against the databases
+        run: python scripts/verify_client_sql.py
+
+      - name: Run Python tooling tests
         run: python -m unittest discover -v
+
+      - name: Install Dart grammar for the offline client check
+        run: python -m pip install --quiet tree-sitter tree-sitter-dart
+
+      - name: Check Flutter client syntax, imports, and removed symbols
+        run: python scripts/check_dart.py
+
+      - name: Unpack databases into the APK (optional)
+        if: ${{ inputs.bundle_databases == true }}
+        run: python scripts/prepare_databases.py --output app/assets/databases
 
       - name: Resolve Flutter packages
         working-directory: app
@@ -116,17 +137,17 @@ jobs:
             chmod 600 "$KEYSTORE_PATH"
             {
               echo "production=true"
-              echo "artifact_name=shia-ai-production-signed-${GITHUB_SHA}"
+              echo "artifact_name=shia-library-production-signed-${GITHUB_SHA}"
               echo "ANDROID_KEYSTORE_PATH=$KEYSTORE_PATH"
               echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
               echo "ANDROID_KEY_ALIAS=$KEY_ALIAS"
               echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD"
             } >> "$GITHUB_ENV"
             echo "production=true" >> "$GITHUB_OUTPUT"
-            echo "artifact_name=shia-ai-production-signed-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+            echo "artifact_name=shia-library-production-signed-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
           else
             echo "production=false" >> "$GITHUB_OUTPUT"
-            echo "artifact_name=shia-ai-preview-debug-signed-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+            echo "artifact_name=shia-library-preview-debug-signed-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
             echo "Production signing secrets are incomplete; building with the Android debug key. This APK is for testing only."
           fi
 
@@ -134,10 +155,10 @@ jobs:
         working-directory: app
         shell: bash
         env:
-          SHIA_AI_API_BASE_URL: ${{ vars.SHIA_AI_API_BASE_URL }}
+          SHIA_DATA_BASE_URL: ${{ vars.SHIA_DATA_BASE_URL }}
         run: |
           set +e
-          flutter build apk --release --dart-define=SHIA_AI_API_BASE_URL="$SHIA_AI_API_BASE_URL" 2>&1 | tee /tmp/flutter-build.log
+          flutter build apk --release --dart-define=SHIA_DATA_BASE_URL="$SHIA_DATA_BASE_URL" 2>&1 | tee /tmp/flutter-build.log
           status=${PIPESTATUS[0]}
           set -e
           if [[ $status -ne 0 ]]; then
@@ -146,12 +167,14 @@ jobs:
 
           lines = [line for line in Path('/tmp/flutter-build.log').read_text(errors='replace').splitlines() if line.strip()]
           detail = chr(10).join(lines[-80:])
-          detail = detail.replace('%', '%25').replace(chr(13), '%0D').replace(chr(10), '%0A')
           detail = detail[-3000:]
           print(f'::error title=Flutter APK build failed::{detail}')
           PY
             exit "$status"
           fi
+
+      - name: Report APK size
+        run: ls -lh app/build/app/outputs/flutter-apk/app-release.apk
 
       - name: Upload signed APK
         uses: actions/upload-artifact@v4

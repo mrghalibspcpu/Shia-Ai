@@ -4,30 +4,32 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'ai_repository.dart';
 import 'app_theme.dart';
+import 'data_installer.dart';
 import 'library_repository.dart';
 import 'models.dart';
-import 'screens/ai_chat_screen.dart';
+import 'reader_navigation.dart';
+import 'screens/data_screen.dart';
 import 'screens/library_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/settings_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ShiaAiApp());
+  runApp(const ShiaLibraryApp());
 }
 
-class ShiaAiApp extends StatefulWidget {
-  const ShiaAiApp({super.key});
+class ShiaLibraryApp extends StatefulWidget {
+  const ShiaLibraryApp({super.key});
 
   @override
-  State<ShiaAiApp> createState() => _ShiaAiAppState();
+  State<ShiaLibraryApp> createState() => _ShiaLibraryAppState();
 }
 
-class _ShiaAiAppState extends State<ShiaAiApp> {
+class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
   final LibraryRepository _library = LibraryRepository();
-  late final AiRepository _ai = AiRepository(library: _library);
+  late final DataInstaller _installer =
+      DataInstaller(directory: () => _library.dataDirectoryHandle);
   final AppLinks _appLinks = AppLinks();
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   final GlobalKey<HomeShellState> _homeShellKey = GlobalKey<HomeShellState>();
@@ -74,7 +76,7 @@ class _ShiaAiAppState extends State<ShiaAiApp> {
   @override
   void dispose() {
     unawaited(_linkSubscription?.cancel() ?? Future<void>.value());
-    _ai.dispose();
+    unawaited(_installer.close());
     unawaited(_library.close());
     super.dispose();
   }
@@ -83,7 +85,11 @@ class _ShiaAiAppState extends State<ShiaAiApp> {
     if (uri == null || uri.scheme != 'shiaai' || uri.host != 'reader') return;
     final now = DateTime.now();
     final link = uri.toString();
-    if (_lastHandledLink == link && _lastHandledAt != null && now.difference(_lastHandledAt!).inSeconds < 3) return;
+    if (_lastHandledLink == link &&
+        _lastHandledAt != null &&
+        now.difference(_lastHandledAt!).inSeconds < 3) {
+      return;
+    }
     _lastHandledLink = link;
     _lastHandledAt = now;
     final book = uri.queryParameters['book'];
@@ -109,29 +115,27 @@ class _ShiaAiAppState extends State<ShiaAiApp> {
   }
 
   void _openReaderTarget(ReaderTarget target) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final navigator = _navigatorKey.currentState;
       final book = BookDefinition.byKey(target.book);
-      if (!mounted || navigator == null || book == null) {
+      if (!mounted || navigator == null || book == null || !_library.isInstalled(book)) {
         _pendingTarget = target;
         return;
       }
-      navigator.push(MaterialPageRoute(
-        builder: (_) => ReaderScreen(
-          library: _library,
-          book: book,
-          recordId: target.recordId,
-          sectionId: target.sectionId,
-          onOpenAi: (book, passage) => _homeShellKey.currentState?.openAiWithContext(book, passage),
-        ),
-      ));
+      await pushReaderFor(
+        navigator.context,
+        library: _library,
+        book: book,
+        recordId: target.recordId,
+        sectionId: target.sectionId,
+      );
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Shia AI',
+      title: 'Shia Library',
       navigatorKey: _navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: buildLightTheme(),
@@ -143,7 +147,7 @@ class _ShiaAiAppState extends State<ShiaAiApp> {
       ),
       home: LibraryBootstrap(
         library: _library,
-        ai: _ai,
+        installer: _installer,
         themeMode: _themeMode,
         onThemeModeChanged: _setThemeMode,
         onReady: _openPendingReaderTarget,
@@ -157,7 +161,7 @@ class LibraryBootstrap extends StatefulWidget {
   const LibraryBootstrap({
     super.key,
     required this.library,
-    required this.ai,
+    required this.installer,
     required this.themeMode,
     required this.onThemeModeChanged,
     required this.onReady,
@@ -165,7 +169,7 @@ class LibraryBootstrap extends StatefulWidget {
   });
 
   final LibraryRepository library;
-  final AiRepository ai;
+  final DataInstaller installer;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
   final VoidCallback onReady;
@@ -210,13 +214,22 @@ class _LibraryBootstrapState extends State<LibraryBootstrap> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.library.isInitialized) {
+    if (widget.library.isInitialized && widget.library.hasAnyBook) {
       return HomeShell(
         key: widget.homeShellKey,
         library: widget.library,
-        ai: widget.ai,
+        installer: widget.installer,
         themeMode: widget.themeMode,
         onThemeModeChanged: widget.onThemeModeChanged,
+      );
+    }
+    if (widget.library.isInitialized) {
+      // Nothing on disk yet: the app is usable as soon as one book is fetched.
+      return DataScreen(
+        library: widget.library,
+        installer: widget.installer,
+        setupMode: true,
+        key: const ValueKey('first-run-data'),
       );
     }
     return Scaffold(
@@ -231,10 +244,15 @@ class _LibraryBootstrapState extends State<LibraryBootstrap> {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(26),
-                    child: Image.asset('assets/images/tasneemlogo.png', width: 116, height: 116, fit: BoxFit.cover),
+                    child: Image.asset(
+                      'assets/images/tasneemlogo.png',
+                      width: 116,
+                      height: 116,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                   const SizedBox(height: 22),
-                  const Text('شیعہ اے آئی', style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold)),
+                  const Text('شیعہ لائبریری', style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
                   JustifiedText(_error == null ? _status : 'کتب تیار کرتے ہوئے مسئلہ پیش آیا: $_error'),
                   const SizedBox(height: 18),
@@ -262,13 +280,13 @@ class HomeShell extends StatefulWidget {
   const HomeShell({
     super.key,
     required this.library,
-    required this.ai,
+    required this.installer,
     required this.themeMode,
     required this.onThemeModeChanged,
   });
 
   final LibraryRepository library;
-  final AiRepository ai;
+  final DataInstaller installer;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
 
@@ -278,23 +296,21 @@ class HomeShell extends StatefulWidget {
 
 class HomeShellState extends State<HomeShell> {
   int _selectedIndex = 0;
-  final GlobalKey<AiChatScreenState> _aiChatKey = GlobalKey<AiChatScreenState>();
-  late final Widget _libraryPage = LibraryHomeScreen(library: widget.library, onOpenAi: openAiWithContext);
-  late final Widget _searchPage = SearchScreen(library: widget.library, onOpenAi: openAiWithContext);
-  late final Widget _aiPage = AiChatScreen(
-    key: _aiChatKey,
-    library: widget.library,
-    ai: widget.ai,
-    onOpenSettings: openSettings,
-  );
+  late final Widget _libraryPage =
+      LibraryHomeScreen(library: widget.library, onOpenData: openData);
+  late final Widget _searchPage =
+      SearchScreen(library: widget.library, onOpenData: openData);
+  late final Widget _savedPage = SavedItemsScreen(library: widget.library);
 
-  void openAiWithContext(BookDefinition book, Passage passage) {
-    _aiChatKey.currentState?.setReaderContext(book, passage);
-    if (mounted) setState(() => _selectedIndex = 2);
-  }
-
-  void openSettings() {
-    if (mounted) setState(() => _selectedIndex = 3);
+  void openData() {
+    if (!mounted) return;
+    unawaited(Navigator.of(context)
+        .push(MaterialPageRoute(
+          builder: (_) => DataScreen(library: widget.library, installer: widget.installer),
+        ))
+        .then((_) {
+      if (mounted) setState(() {});
+    }));
   }
 
   @override
@@ -305,9 +321,10 @@ class HomeShellState extends State<HomeShell> {
         children: [
           _libraryPage,
           _searchPage,
-          _aiPage,
+          _savedPage,
           SettingsScreen(
-            ai: widget.ai,
+            library: widget.library,
+            installer: widget.installer,
             themeMode: widget.themeMode,
             onThemeModeChanged: widget.onThemeModeChanged,
           ),
@@ -317,10 +334,22 @@ class HomeShellState extends State<HomeShell> {
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) => setState(() => _selectedIndex = index),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'کتب'),
+          NavigationDestination(
+            icon: Icon(Icons.menu_book_outlined),
+            selectedIcon: Icon(Icons.menu_book),
+            label: 'کتب',
+          ),
           NavigationDestination(icon: Icon(Icons.search), label: 'تلاش'),
-          NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), selectedIcon: Icon(Icons.auto_awesome), label: 'شیعہ اے آئی'),
-          NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'ترتیبات'),
+          NavigationDestination(
+            icon: Icon(Icons.bookmark_outline),
+            selectedIcon: Icon(Icons.bookmark),
+            label: 'محفوظات',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: 'ترتیبات',
+          ),
         ],
       ),
     );

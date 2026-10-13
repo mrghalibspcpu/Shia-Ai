@@ -2,23 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shia_ai/text_utils.dart';
 
 void main() {
-  group('Gemini key detection', () {
-    test('accepts Google AI Studio keys that start with AIza', () {
-      expect(looksLikeGeminiApiKey('AIzaSyDummyTestKeyValueForUnitTests12345'), isTrue);
-    });
-
-    test('rejects backend URLs and short strings', () {
-      expect(looksLikeGeminiApiKey('https://api.example.com'), isFalse);
-      expect(looksLikeGeminiApiKey('AIzaShort'), isFalse);
-      expect(looksLikeGeminiApiKey(''), isFalse);
-    });
-  });
-
   group('Arabic display spacing', () {
     test('collapses extra spaces, CRLF, and bidi marks', () {
-      const raw = 'قَالَ\u200f  أَبُو جَعْفَرٍ\r\n  عَلَيْهِ السَّلَامُ';
+      const raw = 'قَالَ\u200f  أَبُو جَعْفَرٍ\r\n  عَلَيْهِ السَّلَامُ';
       final compact = compactDisplayText(raw);
-      expect(compact, 'قَالَ أَبُو جَعْفَرٍ\nعَلَيْهِ السَّلَامُ');
+      expect(compact, 'قَالَ أَبُو جَعْفَرٍ\nعَلَيْهِ السَّلَامُ');
       expect(compact.contains('  '), isFalse);
       expect(compact.contains('\u200f'), isFalse);
       expect(compact.contains('\r'), isFalse);
@@ -27,7 +15,7 @@ void main() {
 
   group('search tokens and FTS', () {
     test('normalizes diacritics and common letter variants', () {
-      expect(normalizeArabicUrdu('آلِ كَافِيٌّ'), 'ال کافی');
+      expect(normalizeArabicUrdu('آلِ كَافِيٌّ'), 'ال کافی');
       expect(searchTokens('الشيخ علي'), containsAll(['الشیخ', 'علی']));
     });
 
@@ -60,16 +48,22 @@ void main() {
       expect(queries.any((query) => query.toLowerCase().contains('hussain')), isFalse);
     });
 
-    test('strips markdown so answers stay readable Urdu', () {
-      expect(
-        stripModelMarkup('**روایات سے وضاحت:** 1. **یزید**'),
-        'روایات سے وضاحت: 1. یزید',
-      );
+    test('builds LIKE needles that cannot inject wildcards', () {
+      expect(likeNeedle('ع%ل_ی'), '%علی%');
+      expect(likeNeedle('علی'), '%علی%');
+    });
+  });
+
+  group('display helpers', () {
+    test('writes numbers with Arabic-Indic digits', () {
+      expect(arabicNumerals(1), '۱');
+      expect(arabicNumerals(114), '۱۱۴');
+      expect(arabicNumerals(6236), '۶۲۳۶');
     });
   });
 
   group('citations', () {
-    test('lists book, volume/chapter, section, and hadith number', () {
+    test('lists book, volume/chapter, section, and record number', () {
       final citation = formatCitation(
         bookTitle: 'وسائل الشیعہ',
         chapterTitle: 'جلد ۴ · باب الجمع بین الصلاتین',
@@ -82,6 +76,18 @@ void main() {
       expect(citation, contains('فصل: جواز الجمع'));
       expect(citation, contains('حدیث نمبر: 565809'));
       expect(citation, contains('صفحہ: 12'));
+    });
+
+    test('uses the record label of the collection being cited', () {
+      final citation = formatCitation(
+        bookTitle: 'قرآنِ کریم',
+        chapterTitle: 'سورہ البقرہ',
+        sectionTitle: '',
+        recordId: 8,
+        recordLabel: 'آیت',
+      );
+      expect(citation, contains('آیت: 8'));
+      expect(citation, isNot(contains('حدیث نمبر')));
     });
   });
 }

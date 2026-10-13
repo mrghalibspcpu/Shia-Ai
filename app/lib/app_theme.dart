@@ -92,27 +92,38 @@ ThemeData buildDarkTheme() {
 }
 
 class ReaderPalette {
-  const ReaderPalette({required this.background, required this.foreground, required this.name});
+  const ReaderPalette({
+    required this.background,
+    required this.foreground,
+    required this.name,
+    required this.key,
+  });
 
   final Color background;
   final Color foreground;
   final String name;
+  final String key;
 
   static const paper = ReaderPalette(
     background: Color(0xFFFFFEFA),
     foreground: Color(0xFF252721),
     name: 'کاغذی',
+    key: 'paper',
   );
   static const sepia = ReaderPalette(
     background: Color(0xFFF3E8D1),
     foreground: Color(0xFF3F3322),
     name: 'سیپیا',
+    key: 'sepia',
   );
   static const night = ReaderPalette(
     background: Color(0xFF171E1C),
     foreground: Color(0xFFE5E7DC),
     name: 'رات',
+    key: 'night',
   );
+
+  static const List<ReaderPalette> all = [paper, sepia, night];
 
   static ReaderPalette fromName(String? name) => switch (name) {
         'sepia' => sepia,

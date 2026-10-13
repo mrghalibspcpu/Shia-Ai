@@ -6,13 +6,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../app_theme.dart';
 import '../library_repository.dart';
 import '../models.dart';
-import 'library_screen.dart';
+import '../reader_navigation.dart';
+import '../widgets/reader_kit.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key, required this.library, required this.onOpenAi});
+  const SearchScreen({super.key, required this.library, this.onOpenData});
 
   final LibraryRepository library;
-  final void Function(BookDefinition book, Passage passage) onOpenAi;
+  final VoidCallback? onOpenData;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -27,6 +28,7 @@ class _SearchScreenState extends State<SearchScreen> {
   String? _error;
   String _language = 'all';
   String? _bookKey;
+  CorpusSource? _source;
   int _requestId = 0;
 
   @override
@@ -60,10 +62,17 @@ class _SearchScreenState extends State<SearchScreen> {
   void _scheduleSearch(String value) {
     _debounce?.cancel();
     if (value.trim().isEmpty) {
-      setState(() { _results = []; _loading = false; _error = null; });
+      setState(() {
+        _results = [];
+        _loading = false;
+        _error = null;
+      });
       return;
     }
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     _debounce = Timer(const Duration(milliseconds: 220), () => _runSearch(value));
   }
 
@@ -72,27 +81,42 @@ class _SearchScreenState extends State<SearchScreen> {
     final query = value.trim();
     final request = ++_requestId;
     if (query.isEmpty) {
-      setState(() { _results = []; _loading = false; _error = null; });
+      setState(() {
+        _results = [];
+        _loading = false;
+        _error = null;
+      });
       return;
     }
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final results = await widget.library.searchMany(
         expandSearchQueries(query),
         limit: 40,
         bookKey: _bookKey,
         language: _language,
+        source: _source,
       );
       if (!mounted || request != _requestId) return;
-      setState(() { _results = results; _loading = false; });
+      setState(() {
+        _results = results;
+        _loading = false;
+      });
       if (query.length >= 3 && results.isNotEmpty) unawaited(_remember(query));
     } catch (error) {
       if (!mounted || request != _requestId) return;
-      setState(() { _error = error.toString(); _loading = false; });
+      setState(() {
+        _error = error.toString();
+        _loading = false;
+      });
     }
   }
 
   Future<void> _chooseBook() async {
+    final books = widget.library.installedBooks;
     final selected = await showModalBottomSheet<String?>(
       context: context,
       isScrollControlled: true,
@@ -100,9 +124,19 @@ class _SearchScreenState extends State<SearchScreen> {
         child: ListView(
           shrinkWrap: true,
           children: [
-            const Padding(padding: EdgeInsets.all(18), child: JustifiedText('کتاب منتخب کریں', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
-            ListTile(title: const Text('تمام کتب'), trailing: _bookKey == null ? const Icon(Icons.check) : null, onTap: () => Navigator.pop(context, '')),
-            for (final book in BookDefinition.all)
+            const Padding(
+              padding: EdgeInsets.all(18),
+              child: JustifiedText(
+                'کتاب منتخب کریں',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ListTile(
+              title: const JustifiedText('تمام کتب'),
+              trailing: _bookKey == null ? const Icon(Icons.check) : null,
+              onTap: () => Navigator.pop(context, ''),
+            ),
+            for (final book in books)
               ListTile(
                 title: JustifiedText(book.titleUrdu),
                 trailing: _bookKey == book.key ? const Icon(Icons.check) : null,
@@ -113,7 +147,10 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
     );
     if (selected == null) return;
-    setState(() => _bookKey = selected.isEmpty ? null : selected);
+    setState(() {
+      _bookKey = selected.isEmpty ? null : selected;
+      _source = null;
+    });
     if (_controller.text.trim().isNotEmpty) _runSearch(_controller.text);
   }
 
@@ -143,12 +180,53 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
                 suffixIcon: _controller.text.isEmpty
                     ? null
-                    : IconButton(onPressed: () { _controller.clear(); _scheduleSearch(''); }, icon: const Icon(Icons.close)),
+                    : IconButton(
+                        onPressed: () {
+                          _controller.clear();
+                          _scheduleSearch('');
+                        },
+                        icon: const Icon(Icons.close),
+                      ),
               ),
             ),
           ),
+          SizedBox(
+            height: 46,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              reverse: true,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                ChoiceChip(
+                  label: const Text('تمام مصادر'),
+                  selected: _source == null && _bookKey == null,
+                  onSelected: (_) {
+                    setState(() {
+                      _source = null;
+                      _bookKey = null;
+                    });
+                    if (_controller.text.trim().isNotEmpty) _runSearch(_controller.text);
+                  },
+                ),
+                for (final source in CorpusSource.values) ...[
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: Text(source.label),
+                    selected: _source == source && _bookKey == null,
+                    onSelected: (_) {
+                      setState(() {
+                        _source = source;
+                        _bookKey = null;
+                      });
+                      if (_controller.text.trim().isNotEmpty) _runSearch(_controller.text);
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: Row(
               children: [
                 Expanded(
@@ -173,7 +251,11 @@ class _SearchScreenState extends State<SearchScreen> {
                 OutlinedButton.icon(
                   onPressed: _chooseBook,
                   icon: const Icon(Icons.filter_list, size: 18),
-                  label: Text(selectedBook?.titleUrdu ?? 'تمام کتب', maxLines: 1, overflow: TextOverflow.ellipsis),
+                  label: Text(
+                    selectedBook?.titleUrdu ?? 'کتاب چنیں',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
@@ -197,18 +279,32 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildResults() {
     if (_loading && _results.isEmpty) return const Center(child: CircularProgressIndicator());
-    if (_error != null) {
-      return Center(child: Padding(padding: const EdgeInsets.all(22), child: JustifiedText(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))));
-    }
+    if (_error != null) return ErrorPanel(error: _error!);
     if (_controller.text.trim().isEmpty) {
+      final missing = BookDefinition.all.length - widget.library.installedBooks.length;
       return ListView(
         padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
         children: [
           Icon(Icons.manage_search, size: 58, color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)),
           const SizedBox(height: 12),
-          const JustifiedText('تمام کتب میں عربی اور اردو عبارت تلاش کریں۔', style: TextStyle(fontSize: 18)),
+          const JustifiedText(
+            'قرآن، دعائیں، نہج البلاغہ اور تمام کتبِ احادیث میں عربی و اردو عبارت تلاش کریں۔',
+            style: TextStyle(fontSize: 18),
+          ),
           const SizedBox(height: 6),
-          Text('96 ہزار سے زائد روایات، مقامی فہرست کے ساتھ', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          Text(
+            '${widget.library.installedBooks.length} کتب کی مقامی فہرست تیار ہے',
+            textDirection: TextDirection.rtl,
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+          if (missing > 0 && widget.onOpenData != null) ...[
+            const SizedBox(height: 14),
+            OutlinedButton.icon(
+              onPressed: widget.onOpenData,
+              icon: const Icon(Icons.download_outlined),
+              label: Text('$missing کتب ابھی باقی ہیں — ڈاؤن لوڈ کریں'),
+            ),
+          ],
           if (_history.isNotEmpty) ...[
             const SizedBox(height: 22),
             const JustifiedText('حالیہ تلاشیں', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -233,7 +329,10 @@ class _SearchScreenState extends State<SearchScreen> {
       );
     }
     if (!_loading && _results.isEmpty) {
-      return const Center(child: JustifiedText('اس تلاش کے مطابق کوئی نتیجہ نہیں ملا۔ دوسرا لفظ یا مختصر کلیدی لفظ آزمائیں۔', style: TextStyle(fontSize: 18)));
+      return const CollectionMessage(
+        'اس تلاش کے مطابق کوئی نتیجہ نہیں ملا۔ دوسرا لفظ یا مختصر کلیدی لفظ آزمائیں۔',
+        icon: Icons.search_off,
+      );
     }
     return Stack(
       children: [
@@ -244,15 +343,12 @@ class _SearchScreenState extends State<SearchScreen> {
           itemBuilder: (context, index) => _SearchResultCard(
             hit: _results[index],
             query: _controller.text,
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => ReaderScreen(
-                library: widget.library,
-                book: _results[index].book,
-                recordId: _results[index].passage.recordId,
-                sectionTitle: _results[index].passage.sectionTitle,
-                onOpenAi: widget.onOpenAi,
-              ),
-            )),
+            onTap: () => pushReaderFor(
+              context,
+              library: widget.library,
+              book: _results[index].book,
+              passage: _results[index].passage,
+            ),
           ),
         ),
         if (_loading)
@@ -272,6 +368,9 @@ class _SearchResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final passage = hit.passage;
+    final body = passage.urdu.isNotEmpty
+        ? passage.urdu
+        : (passage.commentary.isNotEmpty ? passage.commentary : passage.arabic);
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
@@ -283,14 +382,34 @@ class _SearchResultCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Expanded(child: JustifiedText(hit.book.titleUrdu, style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 14, fontWeight: FontWeight.bold), maxLines: 1)),
+                  Expanded(
+                    child: JustifiedText(
+                      hit.book.titleUrdu,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                    ),
+                  ),
                   const SizedBox(width: 6),
-                  Text('حدیث ${passage.recordId}', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                  Text(
+                    passage.locator.isNotEmpty
+                        ? passage.locator
+                        : '${hit.book.recordLabel} ${passage.recordId}',
+                    textDirection: TextDirection.rtl,
+                    style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
                 ],
               ),
               if (passage.sectionTitle.isNotEmpty) ...[
                 const SizedBox(height: 4),
-                JustifiedText(passage.sectionTitle, style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant), maxLines: 1),
+                JustifiedText(
+                  passage.sectionTitle,
+                  style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  maxLines: 1,
+                ),
               ],
               if (passage.arabic.trim().isNotEmpty) ...[
                 const SizedBox(height: 10),
@@ -302,10 +421,10 @@ class _SearchResultCard extends StatelessWidget {
                   style: const TextStyle(fontFamily: kArabicFont, fontSize: 18, height: 1.65, letterSpacing: 0),
                 ),
               ],
-              if (passage.urdu.trim().isNotEmpty) ...[
+              if (body.trim().isNotEmpty) ...[
                 const SizedBox(height: 8),
                 HighlightedText(
-                  passage.urdu,
+                  body,
                   query: query,
                   maxLines: 3,
                   style: const TextStyle(fontFamily: kUrduFont, fontSize: 17, height: 1.5),
@@ -314,7 +433,13 @@ class _SearchResultCard extends StatelessWidget {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Expanded(child: JustifiedText(hit.citation, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant), maxLines: 5)),
+                  Expanded(
+                    child: JustifiedText(
+                      hit.citation,
+                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      maxLines: 5,
+                    ),
+                  ),
                   const Icon(Icons.open_in_new, size: 16),
                 ],
               ),
