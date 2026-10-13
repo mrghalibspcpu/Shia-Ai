@@ -145,8 +145,9 @@ jobs:
           from pathlib import Path
 
           lines = [line for line in Path('/tmp/flutter-build.log').read_text(errors='replace').splitlines() if line.strip()]
-          detail = chr(10).join(lines[-80:])[-8000:]
+          detail = chr(10).join(lines[-80:])
           detail = detail.replace('%', '%25').replace(chr(13), '%0D').replace(chr(10), '%0A')
+          detail = detail[-3000:]
           print(f'::error title=Flutter APK build failed::{detail}')
           PY
             exit "$status"
