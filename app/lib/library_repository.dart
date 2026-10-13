@@ -14,6 +14,7 @@ const int _indexPageSize = 400;
 String normalizeArabicUrdu(String value) {
   var text = value.toLowerCase();
   text = text.replaceAll(RegExp(r'[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u08D3-\u08FF\u0640]'), '');
+  text = text.replaceAll(RegExp(r'[\u0609-\u060D\u061B-\u061F\u066A-\u066D\u06D4\uFD3E\uFD3F]'), ' ');
   const variants = <String, String>{
     'آ': 'ا',
     'أ': 'ا',
