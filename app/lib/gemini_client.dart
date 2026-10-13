@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'text_utils.dart';
+
 const List<String> kGeminiModelFallbacks = [
   'gemini-2.0-flash',
   'gemini-2.5-flash',
@@ -88,7 +90,7 @@ class GeminiClient {
       temperature: 0.4,
       maxOutputTokens: 2800,
     );
-    return _retainKnownMarkers(answer.trim(), passages.length);
+    return stripModelMarkup(_retainKnownMarkers(answer.trim(), passages.length));
   }
 
   Future<String> verifyApiKey(String apiKey, {String? preferredModel}) async {
@@ -304,11 +306,15 @@ class GeminiClient {
     final contextNote = context.isEmpty ? '' : '\n\nReader position:\n${context.length > 3000 ? context.substring(0, 3000) : context}';
     final safeQuestion = question.trim();
     final corpus = chunks.isEmpty
-        ? 'No on-device excerpts were retrieved for this wording. Still answer the question from well-known Jaʿfari teaching, and say that a direct local hit was limited.'
+        ? 'No excerpts are attached this round. Still answer helpfully from well-known Shia history and fiqh. Do NOT say the library is empty, that riwayat were unavailable, or label the answer as فتویٰ/آموزش.'
         : chunks.join('\n\n');
+    final groundRule = chunks.isEmpty
+        ? ''
+        : '\n\nThese excerpts ARE the on-device library. Use them. Cite [R#]. Never claim that no riwayat were found.';
     return 'Local Shia corpus excerpts follow. Read them ALL together before answering.\n\n'
         '$corpus'
-        '$contextNote\n\nQuestion: ${safeQuestion.length > 4000 ? safeQuestion.substring(0, 4000) : safeQuestion}';
+        '$contextNote'
+        '$groundRule\n\nQuestion: ${safeQuestion.length > 4000 ? safeQuestion.substring(0, 4000) : safeQuestion}';
   }
 
   static String _statusMessage(int status, {String? preferredModel}) {
@@ -329,30 +335,28 @@ class GeminiClient {
 
 const String _draftInstruction =
     'You are an internal Shia hadith librarian. The user will never see this text. '
+    'The user may write Roman Urdu or English. '
     'Write 4 to 8 short lines: (1) what they are asking, (2) the Arabic and Urdu '
-    'fiqh/hadith terms that should be searched in al-Kafi, Tahdhib, Wasa\'il, '
-    'Man la yahduruhu al-faqih and similar books. Do not answer the question. '
-    'Do not cite books. Plain text only.';
+    'names, places, and book phrases to search in al-Kafi, Tahdhib, Wasa\'il, '
+    'Mizan al-Hikmah, Hikam of the Imams, and similar. Include historical names '
+    '(یزید، عبید اللہ بن زیاد، عمر بن سعد، شمر، کربلا، قتل الحسین) when relevant. '
+    'Do not answer the question. Do not cite books. Plain text only.';
 
 const String _keywordInstruction =
     'You prepare search phrases for a bilingual Shia hadith library '
-    '(al-Kafi, Tahdhib, Wasa\'il, Man la yahduruhu al-faqih, and similar). '
+    '(al-Kafi, Tahdhib, Wasa\'il, Mizan, Hikam of the Imams, and similar). '
+    'The user may write Roman Urdu or English; convert into Arabic/Urdu book language. '
     'Use the question and any internal briefing. '
     'Return ONLY JSON of the form {"queries":["..."]} with 8 to 12 short '
     'Arabic and Urdu phrases that would actually appear in those books. '
-    'Include classical fiqh terms (for example جمع بین الصلاتین). No markdown.';
+    'Include names, places, maqtal/history terms, and fiqh terms. No Latin script. No markdown.';
 
 const String _systemInstruction =
     'You are Shia AI, a warm, clear teacher of the Ahl al-Bayt narrations. '
-    'Always answer the user\'s question. Never say that no information exists. '
-    'Read every supplied excerpt together: a ruling is often proven by several '
-    'riwayat, not by one complete recipe in a single report. Synthesize, compare, '
-    'and summarize them into a practical answer. Cite [R#] when a claim comes from '
-    'an excerpt. Ignore off-topic excerpts. '
-    'Priority: (1) combined corpus evidence; (2) well-known Jaʿfari/Shia teaching '
-    'that does not contradict the corpus, clearly marked as مشہور شیعہ فتویٰ/آموزش; '
-    '(3) never invent a specific hadith text, narrator chain, book+number, or grading. '
-    'Use your reasoning to explain, but do not outrank the books. '
-    'Respond in the same language as the question, usually simple, interesting Urdu. '
-    'Structure: (1) سیدھا جواب in 2–5 lines; (2) روایات سے وضاحت with [R#]; '
-    '(3) آسان خلاصہ. Do not dump a raw list of [R1], [R2] as the answer.';
+    'Always answer the user\'s question. Never say that no riwayat exist or that '
+    'the library had no information. If excerpts are listed, they ARE the data: '
+    'use them and cite [R#]. Do not write headings like مشہور شیعہ فتویٰ or آموزش. '
+    'Read every supplied excerpt together and synthesize. Ignore only clearly off-topic excerpts. '
+    'Never invent a specific hadith text, narrator chain, book+number, or grading. '
+    'No markdown: no **, __, #, or asterisk lists. Number as 1. 2. 3. '
+    'Simple interesting Urdu. Structure: سیدھا جواب; روایات سے وضاحت with [R#]; آسان خلاصہ.';

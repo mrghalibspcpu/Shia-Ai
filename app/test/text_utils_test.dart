@@ -48,6 +48,24 @@ void main() {
       final queries = expandSearchQueries('نمازوں کو ملا کر پڑھنا کیسا ہے');
       expect(queries.join(' '), contains('جمع بین'));
     });
+
+    test('maps Roman Urdu Hussain questions onto Arabic book phrases', () {
+      final queries = expandSearchQueries(
+        'imam Hussain ko shadeed karny waloon mein sar e fehrist 5 afraad',
+      );
+      final blob = queries.join(' ');
+      expect(blob, contains('قتل الحسین'));
+      expect(blob, contains('یزید بن معاویہ'));
+      expect(blob, contains('عمر بن سعد'));
+      expect(queries.any((query) => query.toLowerCase().contains('hussain')), isFalse);
+    });
+
+    test('strips markdown so answers stay readable Urdu', () {
+      expect(
+        stripModelMarkup('**روایات سے وضاحت:** 1. **یزید**'),
+        'روایات سے وضاحت: 1. یزید',
+      );
+    });
   });
 
   group('citations', () {

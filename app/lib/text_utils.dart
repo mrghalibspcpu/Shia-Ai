@@ -82,7 +82,10 @@ List<String> searchTokens(String query, {int limit = 12}) {
 
 const List<(List<String>, List<String>)> kTopicExpansions = [
   (
-    ['ملا کر', 'ملاکر', 'جمع بین', 'صلاتین', 'صلوٰتین', 'دو نماز', 'نمازوں کو ملا', 'نمازیں جمع'],
+    [
+      'ملا کر', 'ملاکر', 'جمع بین', 'صلاتین', 'صلوٰتین', 'دو نماز', 'نمازوں کو ملا', 'نمازیں جمع',
+      'mila kar', 'milakar', 'jama kar', 'combine namaz', 'combine prayer', 'jam bayn',
+    ],
     ['جمع بین الصلاتین', 'جمع بین الصلوٰتین', 'يجمع بين الصلاتين', 'ظہر اور عصر جمع'],
   ),
   (
@@ -106,7 +109,7 @@ const List<(List<String>, List<String>)> kTopicExpansions = [
     ['نماز جمعہ', 'صلاة الجمعة'],
   ),
   (
-    ['خمس', 'خمس'],
+    ['خمس'],
     ['خمس', 'الخمس'],
   ),
   (
@@ -122,8 +125,53 @@ const List<(List<String>, List<String>)> kTopicExpansions = [
     ['غدیر خم', 'من کنت مولاه', 'ولایت علی'],
   ),
   (
-    ['کربلا', 'عاشور', 'حسین'],
-    ['کربلا', 'عاشوراء', 'الحسین'],
+    [
+      'کربلا', 'كربلا', 'عاشور', 'حسین', 'شهید', 'شہید', 'مقتل',
+      'hussain', 'husain', 'hussein', 'husein',
+      'karbala', 'ashura', 'aashura', 'shaheed', 'shadeed',
+      'yazid', 'yazeed', 'ziyad', 'shimr', 'shimar', 'shimer',
+      'harmala', 'harmalah', 'maqtal', 'maktel',
+    ],
+    [
+      'قتل الحسین',
+      'مقتل الحسین',
+      'امام حسین',
+      'کربلا',
+      'یزید بن معاویہ',
+      'عبید اللہ بن زیاد',
+      'عمر بن سعد',
+      'شمر بن ذی الجوشن',
+      'حرملہ',
+      'عاشوراء',
+    ],
+  ),
+  (
+    ['namaz', 'namaaz', 'salat', 'salaat'],
+    ['نماز', 'الصلاة'],
+  ),
+  (
+    ['wazu', 'wuzu', 'wudhu', 'wazo', 'wudu'],
+    ['وضو', 'الوضوء'],
+  ),
+  (
+    ['roza', 'rozah', 'sawm', 'siyam'],
+    ['روزہ', 'الصوم'],
+  ),
+  (
+    ['khums', 'khumus'],
+    ['خمس', 'الخمس'],
+  ),
+  (
+    ['mutah', 'muta'],
+    ['متعہ', 'المتعة'],
+  ),
+  (
+    ['ghadir', 'ghadeer'],
+    ['غدیر خم', 'من کنت مولاه'],
+  ),
+  (
+    ['mahdi', 'mehdi', 'imam zaman'],
+    ['امام مہدی', 'صاحب الزمان', 'الغیبة'],
   ),
   (
     ['مہدی', 'امام زمان', 'غیبت'],
@@ -143,6 +191,7 @@ List<String> expandSearchQueries(String question) {
   final original = question.trim();
   if (original.isEmpty) return const [];
   final norm = ' ${normalizeArabicUrdu(original)} ';
+  final scripted = hasUrduLetters(original) || hasArabicScript(original);
   final queries = <String>[];
   void add(String value) {
     final text = value.trim();
@@ -150,7 +199,8 @@ List<String> expandSearchQueries(String question) {
     if (queries.every((item) => item != text)) queries.add(text);
   }
 
-  add(original);
+  // Latin-only (Roman Urdu / English) questions do not exist in the FTS index.
+  if (scripted) add(original);
   for (final entry in kTopicExpansions) {
     final triggered = entry.$1.any((trigger) {
       final needle = normalizeArabicUrdu(trigger);
@@ -162,9 +212,21 @@ List<String> expandSearchQueries(String question) {
       }
     }
   }
-  final tokens = searchTokens(original);
-  if (tokens.length >= 2) add(tokens.take(4).join(' '));
+  if (scripted) {
+    final tokens = searchTokens(original);
+    if (tokens.length >= 2) add(tokens.take(4).join(' '));
+  }
+  if (queries.isEmpty) add(original);
   return queries;
+}
+
+String stripModelMarkup(String value) {
+  var text = value.replaceAll('**', '').replaceAll('__', '');
+  text = text.replaceAll(RegExp(r'`+'), '');
+  text = text.replaceAll(RegExp(r'^#{1,6}\s*', multiLine: true), '');
+  text = text.replaceAll(RegExp(r'[ \t]+\n'), '\n');
+  text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+  return text.trim();
 }
 
 int relevanceScore(String blob, Iterable<String> terms) {
