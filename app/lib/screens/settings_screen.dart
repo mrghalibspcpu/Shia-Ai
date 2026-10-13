@@ -156,7 +156,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   isExpanded: true,
-                  value: kGeminiModelFallbacks.contains(_model) ? _model : kGeminiModelFallbacks.first,
+                  initialValue: kGeminiModelFallbacks.contains(_model) ? _model : kGeminiModelFallbacks.first,
                   decoration: const InputDecoration(labelText: 'ماڈل'),
                   items: [
                     for (final model in kGeminiModelFallbacks)

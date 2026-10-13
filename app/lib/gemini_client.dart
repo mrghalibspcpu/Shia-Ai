@@ -172,7 +172,7 @@ class GeminiClient {
     }
 
     final answer = _extractAnswer(body);
-    if (answer == null || answer.trim().isEmpty) {
+    if (answer.trim().isEmpty) {
       throw GeminiClientException(
         'Gemini نے خالی جواب دیا۔',
         retryWithNextModel: true,
