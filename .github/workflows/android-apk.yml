@@ -20,15 +20,15 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -52,7 +52,34 @@ jobs:
 
       - name: Analyze Flutter client
         working-directory: app
-        run: flutter analyze
+        shell: bash
+        run: |
+          set +e
+          flutter analyze --no-pub 2>&1 | tee /tmp/flutter-analyze.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [[ $status -ne 0 ]]; then
+            python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          for raw in Path('/tmp/flutter-analyze.log').read_text(errors='replace').splitlines():
+              parts = raw.strip().split(' • ')
+              if len(parts) < 4:
+                  continue
+              severity = parts[0].split()[0].lower()
+              location = parts[-2]
+              match = re.fullmatch(r'(.+):(\d+):(\d+)', location)
+              if not match:
+                  continue
+              source, line, column = match.groups()
+              message = ' • '.join(parts[1:-2]) + f' ({parts[-1]})'
+              message = message.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              level = 'error' if severity in {'error', 'warning'} else 'warning'
+              print(f'::{level} file=app/{source},line={line},col={column},title=Flutter analyzer::{message}')
+          PY
+            exit "$status"
+          fi
 
       - name: Run Flutter tests
         working-directory: app
