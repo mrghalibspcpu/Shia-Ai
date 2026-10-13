@@ -83,7 +83,23 @@ jobs:
 
       - name: Run Flutter tests
         working-directory: app
-        run: flutter test
+        shell: bash
+        run: |
+          set +e
+          flutter test --reporter expanded 2>&1 | tee /tmp/flutter-test.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [[ $status -ne 0 ]]; then
+            python3 - <<'PY'
+          from pathlib import Path
+
+          lines = [line for line in Path('/tmp/flutter-test.log').read_text(errors='replace').splitlines() if line.strip()]
+          detail = chr(10).join(lines[-60:])[-6000:]
+          detail = detail.replace('%', '%25').replace(chr(13), '%0D').replace(chr(10), '%0A')
+          print(f'::error title=Flutter tests failed::{detail}')
+          PY
+            exit "$status"
+          fi
 
       - name: Configure optional production signing
         id: signing

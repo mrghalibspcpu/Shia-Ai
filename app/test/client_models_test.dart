@@ -55,6 +55,8 @@ void main() {
       final restored = ChatMessage.fromJson(original.toJson());
       expect(restored.sources.single.target.recordId, 9001);
       expect(restored.sources.single.target.book, 'alkafi');
+      expect(restored.sources.single.target.sectionId, 7);
+      expect(restored.sources.single.target.page, 12);
     });
   });
 }

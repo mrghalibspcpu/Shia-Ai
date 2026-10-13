@@ -113,9 +113,9 @@ class AiSource {
         ? Map<String, dynamic>.from(json['reader_target'] as Map)
         : <String, dynamic>{
             'book': json['book'],
-            'record_id': json['paragraph_id'],
+            'record_id': json['paragraph_id'] ?? json['record_id'],
             'section_id': json['section_id'],
-            'page': json['page_no'],
+            'page': json['page_no'] ?? json['page'],
           };
     final bookKey = (targetJson['book'] ?? json['book'] ?? '').toString().toLowerCase();
     return AiSource(
