@@ -199,7 +199,12 @@ class LibraryRepository {
     }
 
     await index.insert('search_meta', {'key': 'index_version', 'value': '$_searchIndexVersion'});
-    await index.insert('search_meta', {'key': 'ready', 'value': '1'});
+    await index.update(
+      'search_meta',
+      {'value': '1'},
+      where: 'key = ?',
+      whereArgs: const ['ready'],
+    );
     onProgress(1, 'کتب تیار ہیں');
   }
 
