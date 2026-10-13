@@ -86,11 +86,19 @@ class Passage {
         recordId: _asInt(row['record_id'] ?? row['ID']) ?? 0,
         sectionId: _asInt(row['section_id'] ?? row['Secid']),
         page: _asInt(row['page_no'] ?? row['paganum']),
-        arabic: (row['arabic'] ?? row['txt'] ?? '').toString(),
-        urdu: (row['urdu'] ?? row['mean'] ?? '').toString(),
-        sectionTitle: (row['section_title'] ?? '').toString(),
-        chapterTitle: (row['chapter_title'] ?? '').toString(),
+        arabic: _compact((row['arabic'] ?? row['txt'] ?? '').toString()),
+        urdu: _compact((row['urdu'] ?? row['mean'] ?? '').toString()),
+        sectionTitle: _compact((row['section_title'] ?? '').toString()),
+        chapterTitle: _compact((row['chapter_title'] ?? '').toString()),
       );
+
+  String get copyableText {
+    final parts = <String>[
+      if (arabic.trim().isNotEmpty) arabic.trim(),
+      if (urdu.trim().isNotEmpty) urdu.trim(),
+    ];
+    return parts.join('\n\n');
+  }
 }
 
 class SearchHit {
@@ -171,4 +179,15 @@ int? _asInt(Object? value) {
   if (value is int) return value;
   if (value is num) return value.toInt();
   return int.tryParse(value.toString());
+}
+
+String _compact(String value) {
+  if (value.isEmpty) return value;
+  var text = value.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+  text = text.replaceAll('\u0640', '');
+  text = text.replaceAll(RegExp(r'[\u200e\u200f\u200b\ufeff]'), '');
+  text = text.replaceAll(RegExp(r'[^\S\n]+'), ' ');
+  text = text.replaceAll(RegExp(r' *\n *'), '\n');
+  text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+  return text.trim();
 }

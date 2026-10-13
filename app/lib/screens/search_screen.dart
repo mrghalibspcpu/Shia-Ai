@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app_theme.dart';
 import '../library_repository.dart';
@@ -21,11 +22,33 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _controller = TextEditingController();
   Timer? _debounce;
   List<SearchHit> _results = [];
+  List<String> _history = [];
   bool _loading = false;
   String? _error;
   String _language = 'all';
   String? _bookKey;
   int _requestId = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadHistory());
+  }
+
+  Future<void> _loadHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _history = prefs.getStringList('search_history') ?? const []);
+  }
+
+  Future<void> _remember(String query) async {
+    final value = query.trim();
+    if (value.isEmpty) return;
+    final next = [value, ..._history.where((item) => item != value)].take(12).toList();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('search_history', next);
+    if (mounted) setState(() => _history = next);
+  }
 
   @override
   void dispose() {
@@ -41,22 +64,28 @@ class _SearchScreenState extends State<SearchScreen> {
       return;
     }
     setState(() { _loading = true; _error = null; });
-    _debounce = Timer(const Duration(milliseconds: 280), () => _runSearch(value));
+    _debounce = Timer(const Duration(milliseconds: 220), () => _runSearch(value));
   }
 
   Future<void> _runSearch(String value) async {
     _debounce?.cancel();
+    final query = value.trim();
     final request = ++_requestId;
+    if (query.isEmpty) {
+      setState(() { _results = []; _loading = false; _error = null; });
+      return;
+    }
     setState(() { _loading = true; _error = null; });
     try {
       final results = await widget.library.search(
-        value,
+        query,
         limit: 40,
         bookKey: _bookKey,
         language: _language,
       );
       if (!mounted || request != _requestId) return;
       setState(() { _results = results; _loading = false; });
+      if (query.length >= 3 && results.isNotEmpty) unawaited(_remember(query));
     } catch (error) {
       if (!mounted || request != _requestId) return;
       setState(() { _error = error.toString(); _loading = false; });
@@ -107,7 +136,11 @@ class _SearchScreenState extends State<SearchScreen> {
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
                 hintText: 'اردو یا عربی لفظ لکھیں',
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: IconButton(
+                  tooltip: 'تلاش',
+                  onPressed: () => _runSearch(_controller.text),
+                  icon: const Icon(Icons.search),
+                ),
                 suffixIcon: _controller.text.isEmpty
                     ? null
                     : IconButton(onPressed: () { _controller.clear(); _scheduleSearch(''); }, icon: const Icon(Icons.close)),
@@ -145,6 +178,17 @@ class _SearchScreenState extends State<SearchScreen> {
               ],
             ),
           ),
+          if (_controller.text.trim().isNotEmpty && !_loading)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  _results.isEmpty ? 'کوئی نتیجہ نہیں' : '${_results.length} نتائج',
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
+                ),
+              ),
+            ),
           Expanded(child: _buildResults()),
         ],
       ),
@@ -157,24 +201,39 @@ class _SearchScreenState extends State<SearchScreen> {
       return Center(child: Padding(padding: const EdgeInsets.all(22), child: JustifiedText(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))));
     }
     if (_controller.text.trim().isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.manage_search, size: 58, color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)),
-              const SizedBox(height: 12),
-              const JustifiedText('تمام کتب میں عربی اور اردو عبارت تلاش کریں۔', style: TextStyle(fontSize: 18),),
-              const SizedBox(height: 6),
-              Text('96 ہزار سے زائد روایات، مقامی فہرست کے ساتھ', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-            ],
-          ),
-        ),
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
+        children: [
+          Icon(Icons.manage_search, size: 58, color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)),
+          const SizedBox(height: 12),
+          const JustifiedText('تمام کتب میں عربی اور اردو عبارت تلاش کریں۔', style: TextStyle(fontSize: 18)),
+          const SizedBox(height: 6),
+          Text('96 ہزار سے زائد روایات، مقامی فہرست کے ساتھ', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          if (_history.isNotEmpty) ...[
+            const SizedBox(height: 22),
+            const JustifiedText('حالیہ تلاشیں', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final item in _history)
+                  ActionChip(
+                    label: Text(item),
+                    onPressed: () {
+                      _controller.text = item;
+                      _controller.selection = TextSelection.collapsed(offset: item.length);
+                      _runSearch(item);
+                    },
+                  ),
+              ],
+            ),
+          ],
+        ],
       );
     }
     if (!_loading && _results.isEmpty) {
-      return const Center(child: JustifiedText('اس تلاش کے مطابق کوئی نتیجہ نہیں ملا۔', style: TextStyle(fontSize: 18)));
+      return const Center(child: JustifiedText('اس تلاش کے مطابق کوئی نتیجہ نہیں ملا۔ دوسرا لفظ یا مختصر کلیدی لفظ آزمائیں۔', style: TextStyle(fontSize: 18)));
     }
     return Stack(
       children: [
@@ -184,6 +243,7 @@ class _SearchScreenState extends State<SearchScreen> {
           separatorBuilder: (_, __) => const SizedBox(height: 10),
           itemBuilder: (context, index) => _SearchResultCard(
             hit: _results[index],
+            query: _controller.text,
             onTap: () => Navigator.of(context).push(MaterialPageRoute(
               builder: (_) => ReaderScreen(
                 library: widget.library,
@@ -203,10 +263,11 @@ class _SearchScreenState extends State<SearchScreen> {
 }
 
 class _SearchResultCard extends StatelessWidget {
-  const _SearchResultCard({required this.hit, required this.onTap});
+  const _SearchResultCard({required this.hit, required this.onTap, required this.query});
 
   final SearchHit hit;
   final VoidCallback onTap;
+  final String query;
 
   @override
   Widget build(BuildContext context) {
@@ -233,15 +294,22 @@ class _SearchResultCard extends StatelessWidget {
               ],
               if (passage.arabic.trim().isNotEmpty) ...[
                 const SizedBox(height: 10),
-                Directionality(
-                  textDirection: TextDirection.rtl,
-                  child: Text(passage.arabic, maxLines: 3, overflow: TextOverflow.ellipsis, textAlign: TextAlign.justify,
-                      style: const TextStyle(fontFamily: kArabicFont, fontSize: 18, height: 1.65)),
+                HighlightedText(
+                  passage.arabic,
+                  query: query,
+                  arabic: true,
+                  maxLines: 3,
+                  style: const TextStyle(fontFamily: kArabicFont, fontSize: 18, height: 1.65, letterSpacing: 0),
                 ),
               ],
               if (passage.urdu.trim().isNotEmpty) ...[
                 const SizedBox(height: 8),
-                JustifiedText(passage.urdu, maxLines: 3, style: const TextStyle(fontSize: 17, height: 1.55)),
+                HighlightedText(
+                  passage.urdu,
+                  query: query,
+                  maxLines: 3,
+                  style: const TextStyle(fontFamily: kUrduFont, fontSize: 17, height: 1.5),
+                ),
               ],
               const SizedBox(height: 8),
               Row(
@@ -254,6 +322,64 @@ class _SearchResultCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class HighlightedText extends StatelessWidget {
+  const HighlightedText(
+    this.text, {
+    required this.query,
+    this.style,
+    this.maxLines,
+    this.arabic = false,
+  });
+
+  final String text;
+  final String query;
+  final TextStyle? style;
+  final int? maxLines;
+  final bool arabic;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = query
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((token) => token.length > 1)
+        .toSet()
+        .toList();
+    final base = (style ?? const TextStyle()).copyWith(letterSpacing: arabic ? 0 : style?.letterSpacing);
+    if (tokens.isEmpty) {
+      return Text(
+        text,
+        maxLines: maxLines,
+        overflow: maxLines == null ? TextOverflow.visible : TextOverflow.ellipsis,
+        textAlign: TextAlign.start,
+        textDirection: TextDirection.rtl,
+        style: base,
+      );
+    }
+    final pattern = RegExp(tokens.map(RegExp.escape).join('|'));
+    final spans = <TextSpan>[];
+    var start = 0;
+    for (final match in pattern.allMatches(text)) {
+      if (match.start > start) {
+        spans.add(TextSpan(text: text.substring(start, match.start)));
+      }
+      spans.add(TextSpan(
+        text: match.group(0),
+        style: TextStyle(backgroundColor: kGold.withValues(alpha: 0.28), fontWeight: FontWeight.w700),
+      ));
+      start = match.end;
+    }
+    if (start < text.length) spans.add(TextSpan(text: text.substring(start)));
+    return Text.rich(
+      TextSpan(style: base, children: spans),
+      maxLines: maxLines,
+      overflow: maxLines == null ? TextOverflow.visible : TextOverflow.ellipsis,
+      textAlign: TextAlign.start,
+      textDirection: TextDirection.rtl,
     );
   }
 }

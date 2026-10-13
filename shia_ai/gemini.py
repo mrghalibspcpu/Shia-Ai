@@ -12,6 +12,13 @@ from urllib.request import Request, urlopen
 from .search import Passage
 
 _MODEL_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+_DEFAULT_MODELS = (
+    "gemini-2.0-flash",
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-latest",
+)
 
 
 class GeminiError(RuntimeError):
@@ -41,7 +48,7 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     payload = json.dumps({"requests": requests}, ensure_ascii=False).encode("utf-8")
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{quote(model, safe='')}:batchEmbedContents"
+        f"{quote(model, safe='')}:batchEmbedContents?key={quote(api_key, safe='')}"
     )
     request = Request(
         url,
@@ -133,8 +140,8 @@ def generate_grounded_answer(
     if not passages:
         raise GeminiError("No verified database passages were supplied to Gemini.")
 
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
-    if not _MODEL_RE.fullmatch(model):
+    preferred = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash").strip().removeprefix("models/")
+    if preferred and not _MODEL_RE.fullmatch(preferred):
         raise GeminiError("GEMINI_MODEL contains an unsupported model identifier.")
     timeout = max(5, min(int(os.environ.get("GEMINI_TIMEOUT_SECONDS", "45")), 120))
     context = _source_context(passages[:8])
@@ -174,40 +181,57 @@ def generate_grounded_answer(
         {
             "systemInstruction": {"parts": [{"text": system_instruction}]},
             "contents": contents,
-            "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1200},
+            "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2048},
         },
         ensure_ascii=False,
     ).encode("utf-8")
-    url = (
-        "https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{quote(model, safe='')}:generateContent"
-    )
-    request = Request(
-        url,
-        data=payload,
-        headers={
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "X-Goog-Api-Key": api_key,
-        },
-        method="POST",
-    )
-    try:
-        with urlopen(request, timeout=timeout) as response:
-            result = json.loads(response.read().decode("utf-8"))
-    except HTTPError as exc:
-        # Do not echo provider diagnostics; they can contain user-supplied text.
-        raise GeminiError(f"Gemini returned HTTP {exc.code}.") from None
-    except (URLError, TimeoutError, OSError) as exc:
-        raise GeminiError(f"Gemini request failed: {type(exc).__name__}") from None
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise GeminiError("Gemini returned an unreadable response.") from exc
+    models: list[str] = []
+    if preferred:
+        models.append(preferred)
+    for candidate in _DEFAULT_MODELS:
+        if candidate not in models:
+            models.append(candidate)
+
+    result: dict | None = None
+    last_error: GeminiError | None = None
+    for model in models:
+        url = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{quote(model, safe='')}:generateContent?key={quote(api_key, safe='')}"
+        )
+        request = Request(
+            url,
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "X-Goog-Api-Key": api_key,
+            },
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=timeout) as response:
+                result = json.loads(response.read().decode("utf-8"))
+            last_error = None
+            break
+        except HTTPError as exc:
+            # Do not echo provider diagnostics; they can contain user-supplied text.
+            if exc.code in {400, 404}:
+                last_error = GeminiError(f"Gemini returned HTTP {exc.code}.")
+                continue
+            raise GeminiError(f"Gemini returned HTTP {exc.code}.") from None
+        except (URLError, TimeoutError, OSError) as exc:
+            raise GeminiError(f"Gemini request failed: {type(exc).__name__}") from None
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise GeminiError("Gemini returned an unreadable response.") from exc
+    if result is None:
+        raise last_error or GeminiError("Gemini returned HTTP 404.")
 
     try:
         answer = "".join(
             part.get("text", "")
             for part in result["candidates"][0]["content"]["parts"]
-            if isinstance(part, dict)
+            if isinstance(part, dict) and not part.get("thought")
         ).strip()
     except (KeyError, IndexError, TypeError):
         prompt_feedback = result.get("promptFeedback", {})

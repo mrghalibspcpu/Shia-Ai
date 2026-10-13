@@ -128,27 +128,39 @@ class JustifiedText extends StatelessWidget {
     this.arabic = false,
     this.style,
     this.maxLines,
+    this.selectable = false,
   });
 
   final String text;
   final bool arabic;
   final TextStyle? style;
   final int? maxLines;
+  final bool selectable;
 
   @override
   Widget build(BuildContext context) {
+    final resolved = (arabic
+            ? const TextStyle(fontFamily: kArabicFont, height: 1.7, letterSpacing: 0)
+            : const TextStyle(fontFamily: kUrduFont, height: 1.55))
+        .merge(style);
+    // Arabic justification in Flutter inserts huge word gaps; keep natural RTL start alignment.
+    final align = arabic ? TextAlign.start : TextAlign.start;
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Text(
-        text,
-        textAlign: TextAlign.justify,
-        maxLines: maxLines,
-        overflow: maxLines == null ? TextOverflow.visible : TextOverflow.ellipsis,
-        style: (arabic
-                ? const TextStyle(fontFamily: kArabicFont)
-                : const TextStyle(fontFamily: kUrduFont))
-            .merge(style),
-      ),
+      child: selectable
+          ? SelectableText(
+              text,
+              textAlign: align,
+              maxLines: maxLines,
+              style: resolved,
+            )
+          : Text(
+              text,
+              textAlign: align,
+              maxLines: maxLines,
+              overflow: maxLines == null ? TextOverflow.visible : TextOverflow.ellipsis,
+              style: resolved,
+            ),
     );
   }
 }
@@ -161,5 +173,3 @@ TextDirection directionFor(String text) {
   }
   return TextDirection.ltr;
 }
-
-bool hasArabicScript(String text) => directionFor(text) == TextDirection.rtl;

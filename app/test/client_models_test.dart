@@ -9,6 +9,16 @@ void main() {
       expect(normalizeArabicUrdu('قَالَ الشَّيْخُ عَلِيٌّ'), 'قال الشیخ علی');
     });
 
+    test('compacts Arabic display text used by the reader', () {
+      final passage = Passage.fromMap({
+        'record_id': 1,
+        'arabic': 'قَالَ\u200f  أَبُو جَعْفَرٍ',
+        'urdu': 'امام  نے  فرمایا',
+      });
+      expect(passage.arabic.contains('  '), isFalse);
+      expect(passage.urdu, 'امام نے فرمایا');
+    });
+
     test('does not produce terms for punctuation-only input', () {
       expect(normalizeArabicUrdu('  ؟ ؛ ،  '), isEmpty);
     });

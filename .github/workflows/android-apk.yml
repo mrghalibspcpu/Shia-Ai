@@ -2,7 +2,7 @@ name: Android APK
 
 on:
   push:
-    branches: [main, arena/17c56817-shia-ai]
+    branches: [main, 'arena/**']
   pull_request:
   workflow_dispatch:
 

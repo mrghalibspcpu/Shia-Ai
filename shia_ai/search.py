@@ -209,7 +209,7 @@ class SearchIndex:
                 );
                 """
             )
-            connection.execute("PRAGMA user_version = 1")
+            connection.execute(f"PRAGMA user_version = {int(INDEX_VERSION)}")
             connection.execute(
                 "INSERT INTO metadata(key, value) VALUES('source_signature', ?)",
                 (self._signature,),

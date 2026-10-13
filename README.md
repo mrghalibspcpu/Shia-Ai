@@ -29,14 +29,16 @@ The app provides the book → chapter → section → reader hierarchy, bookmark
 
 ## Run the AI backend
 
-The reader and local search work without Gemini. To serve citation-grounded chat, configure the backend (never the APK) with `GEMINI_API_KEY` and `SHIA_API_TOKEN`, then run:
+The reader and local search work without Gemini. For citation-grounded chat on the phone, open **ترتیبات** and paste a Google AI Studio API key (`AIza…`). The key stays in Android secure storage and is never compiled into the APK. Search still runs against the on-device books; Gemini only drafts the answer from those hits.
+
+To serve the same chat from a hosted backend instead, configure the server (never the APK) with `GEMINI_API_KEY` and `SHIA_API_TOKEN`, then run:
 
 ```sh
 python3 scripts/prepare_databases.py
 python3 -m shia_ai.api
 ```
 
-The client settings screen accepts the backend HTTPS base URL and, if required, its service access token. That access token is stored in Android secure storage on the device, not compiled into the APK. A shared token in a public client is not strong user authentication; use a properly protected/rate-limited backend for a public deployment. See [`.env.example`](.env.example) and [`docs/api.md`](docs/api.md). No live Gemini credentials are present and a real Gemini request has not been tested in this workspace.
+If a Google AI Studio key is pasted into the old URL/token fields, the app treats it as a Gemini key. Optional backend URL/token fields remain under advanced settings. A shared token in a public client is not strong user authentication; use a properly protected/rate-limited backend for a public deployment. See [`.env.example`](.env.example) and [`docs/api.md`](docs/api.md). No live Gemini credentials are present and a real Gemini request has not been tested in this workspace.
 
 Run backend tests with:
 

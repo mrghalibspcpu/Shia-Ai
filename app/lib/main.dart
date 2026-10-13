@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'ai_repository.dart';
 import 'app_theme.dart';
@@ -10,6 +11,7 @@ import 'models.dart';
 import 'screens/ai_chat_screen.dart';
 import 'screens/library_screen.dart';
 import 'screens/search_screen.dart';
+import 'screens/settings_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +27,7 @@ class ShiaAiApp extends StatefulWidget {
 
 class _ShiaAiAppState extends State<ShiaAiApp> {
   final LibraryRepository _library = LibraryRepository();
-  final AiRepository _ai = AiRepository();
+  late final AiRepository _ai = AiRepository(library: _library);
   final AppLinks _appLinks = AppLinks();
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   final GlobalKey<HomeShellState> _homeShellKey = GlobalKey<HomeShellState>();
@@ -33,12 +35,40 @@ class _ShiaAiAppState extends State<ShiaAiApp> {
   ReaderTarget? _pendingTarget;
   String? _lastHandledLink;
   DateTime? _lastHandledAt;
+  ThemeMode _themeMode = ThemeMode.system;
 
   @override
   void initState() {
     super.initState();
+    unawaited(_loadTheme());
     _linkSubscription = _appLinks.uriLinkStream.listen(_handleIncomingLink, onError: (_) {});
     unawaited(_appLinks.getInitialLink().then(_handleIncomingLink, onError: (_) {}));
+  }
+
+  Future<void> _loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString('theme_mode');
+    if (!mounted) return;
+    setState(() {
+      _themeMode = switch (stored) {
+        'light' => ThemeMode.light,
+        'dark' => ThemeMode.dark,
+        _ => ThemeMode.system,
+      };
+    });
+  }
+
+  Future<void> _setThemeMode(ThemeMode mode) async {
+    setState(() => _themeMode = mode);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'theme_mode',
+      switch (mode) {
+        ThemeMode.light => 'light',
+        ThemeMode.dark => 'dark',
+        ThemeMode.system => 'system',
+      },
+    );
   }
 
   @override
@@ -106,7 +136,7 @@ class _ShiaAiAppState extends State<ShiaAiApp> {
       debugShowCheckedModeBanner: false,
       theme: buildLightTheme(),
       darkTheme: buildDarkTheme(),
-      themeMode: ThemeMode.system,
+      themeMode: _themeMode,
       builder: (context, child) => Directionality(
         textDirection: TextDirection.rtl,
         child: child ?? const SizedBox.shrink(),
@@ -114,6 +144,8 @@ class _ShiaAiAppState extends State<ShiaAiApp> {
       home: LibraryBootstrap(
         library: _library,
         ai: _ai,
+        themeMode: _themeMode,
+        onThemeModeChanged: _setThemeMode,
         onReady: _openPendingReaderTarget,
         homeShellKey: _homeShellKey,
       ),
@@ -126,12 +158,16 @@ class LibraryBootstrap extends StatefulWidget {
     super.key,
     required this.library,
     required this.ai,
+    required this.themeMode,
+    required this.onThemeModeChanged,
     required this.onReady,
     required this.homeShellKey,
   });
 
   final LibraryRepository library;
   final AiRepository ai;
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
   final VoidCallback onReady;
   final GlobalKey<HomeShellState> homeShellKey;
 
@@ -175,7 +211,13 @@ class _LibraryBootstrapState extends State<LibraryBootstrap> {
   @override
   Widget build(BuildContext context) {
     if (widget.library.isInitialized) {
-      return HomeShell(key: widget.homeShellKey, library: widget.library, ai: widget.ai);
+      return HomeShell(
+        key: widget.homeShellKey,
+        library: widget.library,
+        ai: widget.ai,
+        themeMode: widget.themeMode,
+        onThemeModeChanged: widget.onThemeModeChanged,
+      );
     }
     return Scaffold(
       body: SafeArea(
@@ -217,10 +259,18 @@ class _LibraryBootstrapState extends State<LibraryBootstrap> {
 }
 
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key, required this.library, required this.ai});
+  const HomeShell({
+    super.key,
+    required this.library,
+    required this.ai,
+    required this.themeMode,
+    required this.onThemeModeChanged,
+  });
 
   final LibraryRepository library;
   final AiRepository ai;
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
 
   @override
   State<HomeShell> createState() => HomeShellState();
@@ -229,21 +279,40 @@ class HomeShell extends StatefulWidget {
 class HomeShellState extends State<HomeShell> {
   int _selectedIndex = 0;
   final GlobalKey<AiChatScreenState> _aiChatKey = GlobalKey<AiChatScreenState>();
-  late final List<Widget> _pages = [
-    LibraryHomeScreen(library: widget.library, onOpenAi: openAiWithContext),
-    SearchScreen(library: widget.library, onOpenAi: openAiWithContext),
-    AiChatScreen(key: _aiChatKey, library: widget.library, ai: widget.ai),
-  ];
+  late final Widget _libraryPage = LibraryHomeScreen(library: widget.library, onOpenAi: openAiWithContext);
+  late final Widget _searchPage = SearchScreen(library: widget.library, onOpenAi: openAiWithContext);
+  late final Widget _aiPage = AiChatScreen(
+    key: _aiChatKey,
+    library: widget.library,
+    ai: widget.ai,
+    onOpenSettings: openSettings,
+  );
 
   void openAiWithContext(BookDefinition book, Passage passage) {
     _aiChatKey.currentState?.setReaderContext(book, passage);
     if (mounted) setState(() => _selectedIndex = 2);
   }
 
+  void openSettings() {
+    if (mounted) setState(() => _selectedIndex = 3);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: _pages),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          _libraryPage,
+          _searchPage,
+          _aiPage,
+          SettingsScreen(
+            ai: widget.ai,
+            themeMode: widget.themeMode,
+            onThemeModeChanged: widget.onThemeModeChanged,
+          ),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) => setState(() => _selectedIndex = index),
@@ -251,6 +320,7 @@ class HomeShellState extends State<HomeShell> {
           NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'کتب'),
           NavigationDestination(icon: Icon(Icons.search), label: 'تلاش'),
           NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), selectedIcon: Icon(Icons.auto_awesome), label: 'شیعہ اے آئی'),
+          NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'ترتیبات'),
         ],
       ),
     );

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -8,22 +9,48 @@ import '../app_theme.dart';
 import '../library_repository.dart';
 import '../models.dart';
 
-class LibraryHomeScreen extends StatelessWidget {
+class LibraryHomeScreen extends StatefulWidget {
   const LibraryHomeScreen({super.key, required this.library, required this.onOpenAi});
 
   final LibraryRepository library;
   final void Function(BookDefinition book, Passage passage) onOpenAi;
 
   @override
+  State<LibraryHomeScreen> createState() => _LibraryHomeScreenState();
+}
+
+class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
+  ReaderTarget? _lastRead;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadLastRead());
+  }
+
+  Future<void> _loadLastRead() async {
+    final last = await widget.library.getLastRead();
+    if (mounted) setState(() => _lastRead = last);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final lastBook = BookDefinition.byKey(_lastRead?.book);
     return Scaffold(
       appBar: AppBar(
         title: const JustifiedText('کتبِ احادیث'),
         actions: [
           IconButton(
+            tooltip: 'نوٹس',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => NotesScreen(library: widget.library, onOpenAi: widget.onOpenAi),
+            )),
+            icon: const Icon(Icons.edit_note),
+          ),
+          IconButton(
             tooltip: 'محفوظ روایات',
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => BookmarksScreen(library: library, onOpenAi: onOpenAi),
+              builder: (_) => BookmarksScreen(library: widget.library, onOpenAi: widget.onOpenAi),
             )),
             icon: const Icon(Icons.bookmark_outline),
           ),
@@ -34,11 +61,35 @@ class LibraryHomeScreen extends StatelessWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
-              child: _LibraryBanner(onOpenBookmarks: () {
-                Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => BookmarksScreen(library: library, onOpenAi: onOpenAi),
-                ));
-              }),
+              child: Column(
+                children: [
+                  _LibraryBanner(onOpenBookmarks: () {
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => BookmarksScreen(library: widget.library, onOpenAi: widget.onOpenAi),
+                    ));
+                  }),
+                  if (lastBook != null && _lastRead != null) ...[
+                    const SizedBox(height: 12),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.history, color: kForest),
+                        title: const JustifiedText('آخری مطالعہ جاری رکھیں'),
+                        subtitle: JustifiedText(lastBook.titleUrdu, maxLines: 1),
+                        trailing: const Icon(Icons.chevron_left),
+                        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => ReaderScreen(
+                            library: widget.library,
+                            book: lastBook,
+                            recordId: _lastRead!.recordId,
+                            sectionId: _lastRead!.sectionId,
+                            onOpenAi: widget.onOpenAi,
+                          ),
+                        )).then((_) => _loadLastRead()),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
           SliverPadding(
@@ -54,7 +105,7 @@ class LibraryHomeScreen extends StatelessWidget {
               itemBuilder: (context, index) => _BookCard(
                 book: BookDefinition.all[index],
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => ChapterListScreen(library: library, book: BookDefinition.all[index], onOpenAi: onOpenAi),
+                  builder: (_) => ChapterListScreen(library: widget.library, book: BookDefinition.all[index], onOpenAi: widget.onOpenAi),
                 )),
               ),
             ),
@@ -293,6 +344,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
   bool _loading = true;
   String? _error;
   ReaderPalette _palette = ReaderPalette.paper;
+  double _fontScale = 1.0;
+  String _script = 'both';
 
   @override
   void initState() {
@@ -319,6 +372,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final palette = ReaderPalette.fromName(prefs.getString('reader_palette'));
+      final fontScale = (prefs.getDouble('reader_font_scale') ?? 1.0).clamp(0.85, 1.6);
+      final script = prefs.getString('reader_script') ?? 'both';
       List<Passage> passages;
       if (widget.recordId != null) {
         final passage = await widget.library.getPassageById(widget.book, widget.recordId!);
@@ -340,11 +395,21 @@ class _ReaderScreenState extends State<ReaderScreen> {
       if (mounted) {
         setState(() {
           _palette = palette;
+          _fontScale = fontScale.toDouble();
+          _script = script;
           _passages = passages;
           _initialIndex = index;
           _currentIndex = index;
           _loading = false;
         });
+        if (passages.isNotEmpty) {
+          final current = passages[index.clamp(0, passages.length - 1)];
+          unawaited(widget.library.saveLastRead(
+            bookKey: widget.book.key,
+            recordId: current.recordId,
+            sectionId: current.sectionId,
+          ));
+        }
         if (widget.recordId != null && passages.isNotEmpty) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (_itemScrollController.isAttached) {
@@ -378,6 +443,24 @@ class _ReaderScreenState extends State<ReaderScreen> {
     if (mounted) setState(() => _palette = ReaderPalette.fromName(selected));
   }
 
+  Future<void> _adjustFont(double delta) async {
+    final next = (_fontScale + delta).clamp(0.85, 1.6);
+    setState(() => _fontScale = next);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('reader_font_scale', next);
+  }
+
+  Future<void> _cycleScript() async {
+    final next = switch (_script) {
+      'arabic' => 'urdu',
+      'urdu' => 'both',
+      _ => 'arabic',
+    };
+    setState(() => _script = next);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('reader_script', next);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -387,6 +470,13 @@ class _ReaderScreenState extends State<ReaderScreen> {
         foregroundColor: _palette.foreground,
         title: JustifiedText(widget.sectionTitle ?? widget.book.titleUrdu, style: TextStyle(color: _palette.foreground), maxLines: 1),
         actions: [
+          IconButton(tooltip: 'حروف چھوٹے', onPressed: () => _adjustFont(-0.08), icon: const Icon(Icons.text_decrease)),
+          IconButton(tooltip: 'حروف بڑے', onPressed: () => _adjustFont(0.08), icon: const Icon(Icons.text_increase)),
+          IconButton(
+            tooltip: _script == 'arabic' ? 'صرف عربی' : _script == 'urdu' ? 'صرف اردو' : 'عربی و اردو',
+            onPressed: _cycleScript,
+            icon: Icon(_script == 'arabic' ? Icons.translate : _script == 'urdu' ? Icons.text_fields : Icons.language),
+          ),
           IconButton(tooltip: 'مطالعے کا انداز', onPressed: _choosePalette, icon: const Icon(Icons.palette_outlined)),
         ],
       ),
@@ -409,6 +499,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
                         book: widget.book,
                         passage: _passages[index],
                         palette: _palette,
+                        fontScale: _fontScale,
+                        script: _script,
                       ),
                     ),
       floatingActionButton: widget.cameFromAi || (widget.onOpenAi != null && _passages.isNotEmpty)
@@ -434,12 +526,22 @@ class _ReaderScreenState extends State<ReaderScreen> {
 }
 
 class _PassageCard extends StatefulWidget {
-  const _PassageCard({super.key, required this.library, required this.book, required this.passage, required this.palette});
+  const _PassageCard({
+    super.key,
+    required this.library,
+    required this.book,
+    required this.passage,
+    required this.palette,
+    this.fontScale = 1.0,
+    this.script = 'both',
+  });
 
   final LibraryRepository library;
   final BookDefinition book;
   final Passage passage;
   final ReaderPalette palette;
+  final double fontScale;
+  final String script;
 
   @override
   State<_PassageCard> createState() => _PassageCardState();
@@ -471,7 +573,7 @@ class _PassageCardState extends State<_PassageCard> {
           controller: controller,
           autofocus: true,
           maxLines: 5,
-          textAlign: TextAlign.justify,
+          textAlign: TextAlign.start,
           textDirection: TextDirection.rtl,
           decoration: const InputDecoration(hintText: 'اپنا نوٹ لکھیں'),
         ),
@@ -486,9 +588,19 @@ class _PassageCardState extends State<_PassageCard> {
     if (mounted) setState(() => _note = note.trim().isEmpty ? null : note.trim());
   }
 
+  Future<void> _copyText() async {
+    final value = widget.passage.copyableText;
+    if (value.trim().isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: '${widget.book.titleUrdu}\n$value'));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('روایت کاپی ہو گئی۔')));
+  }
+
   @override
   Widget build(BuildContext context) {
     final textColor = widget.palette.foreground;
+    final showArabic = widget.script != 'urdu' && widget.passage.arabic.trim().isNotEmpty;
+    final showUrdu = widget.script != 'arabic' && widget.passage.urdu.trim().isNotEmpty;
     return Card(
       color: widget.palette.background,
       margin: const EdgeInsets.only(bottom: 14),
@@ -509,24 +621,37 @@ class _PassageCardState extends State<_PassageCard> {
                   },
                   icon: Icon(_bookmarked ? Icons.bookmark : Icons.bookmark_border, color: _bookmarked ? kGold : textColor),
                 ),
+                IconButton(tooltip: 'کاپی', onPressed: _copyText, icon: Icon(Icons.copy, color: textColor)),
                 IconButton(tooltip: 'نوٹ', onPressed: _editNote, icon: Icon(Icons.edit_note, color: textColor)),
               ],
             ),
-            if (widget.passage.arabic.trim().isNotEmpty) ...[
+            if (showArabic) ...[
               Directionality(
                 textDirection: TextDirection.rtl,
-                child: Text(
+                child: SelectableText(
                   widget.passage.arabic,
-                  textAlign: TextAlign.justify,
-                  style: TextStyle(fontFamily: kArabicFont, fontSize: 23, height: 1.9, color: textColor),
+                  textAlign: TextAlign.start,
+                  style: TextStyle(
+                    fontFamily: kArabicFont,
+                    fontSize: 22 * widget.fontScale,
+                    height: 1.65,
+                    letterSpacing: 0,
+                    color: textColor,
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
-              Divider(color: textColor.withValues(alpha: 0.12)),
-              const SizedBox(height: 8),
+              if (showUrdu) ...[
+                const SizedBox(height: 12),
+                Divider(color: textColor.withValues(alpha: 0.12)),
+                const SizedBox(height: 8),
+              ],
             ],
-            if (widget.passage.urdu.trim().isNotEmpty)
-              JustifiedText(widget.passage.urdu, style: TextStyle(fontSize: 20, height: 1.75, color: textColor)),
+            if (showUrdu)
+              JustifiedText(
+                widget.passage.urdu,
+                selectable: true,
+                style: TextStyle(fontSize: 19 * widget.fontScale, height: 1.6, color: textColor),
+              ),
             if (_note != null) ...[
               const SizedBox(height: 12),
               Container(
@@ -537,6 +662,46 @@ class _PassageCardState extends State<_PassageCard> {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class NotesScreen extends StatelessWidget {
+  const NotesScreen({super.key, required this.library, required this.onOpenAi});
+
+  final LibraryRepository library;
+  final void Function(BookDefinition book, Passage passage) onOpenAi;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const JustifiedText('نوٹس')),
+      body: FutureBuilder<List<(BookDefinition, Passage, String)>>(
+        future: library.getNotes(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+          final items = snapshot.data ?? [];
+          if (items.isEmpty) return const Center(child: JustifiedText('ابھی کوئی نوٹ محفوظ نہیں۔'));
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final (book, passage, note) = items[index];
+              return Card(
+                child: ListTile(
+                  title: JustifiedText(book.titleUrdu, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  subtitle: JustifiedText(note, maxLines: 3),
+                  trailing: const Icon(Icons.chevron_left),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => ReaderScreen(library: library, book: book, recordId: passage.recordId, onOpenAi: onOpenAi),
+                  )),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }

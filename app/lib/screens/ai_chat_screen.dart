@@ -11,10 +11,11 @@ import '../models.dart';
 import 'library_screen.dart';
 
 class AiChatScreen extends StatefulWidget {
-  const AiChatScreen({super.key, required this.library, required this.ai});
+  const AiChatScreen({super.key, required this.library, required this.ai, this.onOpenSettings});
 
   final LibraryRepository library;
   final AiRepository ai;
+  final VoidCallback? onOpenSettings;
 
   @override
   AiChatScreenState createState() => AiChatScreenState();
@@ -135,54 +136,15 @@ class AiChatScreenState extends State<AiChatScreen> {
     });
   }
 
-  Future<void> _openSettings() async {
-    final initialUrl = await widget.ai.configuredBaseUrl();
-    final initialToken = await widget.ai.configuredApiToken();
-    final controller = TextEditingController(text: initialUrl);
-    final tokenController = TextEditingController(text: initialToken);
-    if (!mounted) return;
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const JustifiedText('شیعہ اے آئی سروس'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const JustifiedText('اپنے HTTPS API سروس کا بنیادی پتہ درج کریں۔ Gemini کی چابی کبھی موبائل ایپ میں نہیں رکھی جاتی۔', style: TextStyle(fontSize: 14)),
-            const SizedBox(height: 14),
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.url,
-              textDirection: TextDirection.ltr,
-              textAlign: TextAlign.left,
-              decoration: const InputDecoration(hintText: 'https://api.example.com'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: tokenController,
-              obscureText: true,
-              textDirection: TextDirection.ltr,
-              textAlign: TextAlign.left,
-              decoration: const InputDecoration(labelText: 'سروس access token (اختیاری)'),
-            ),
-            const SizedBox(height: 8),
-            const JustifiedText('یہ ٹوکن صرف اس آلے کے محفوظ اسٹوریج میں رکھا جاتا ہے؛ یہ Gemini API key نہیں ہے۔', style: TextStyle(fontSize: 12)),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('منسوخ')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('محفوظ کریں')),
-        ],
-      ),
-    );
-    if (saved == true) {
-      await widget.ai.saveBaseUrl(controller.text);
-      await widget.ai.saveApiToken(tokenController.text);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سروس کی ترتیبات محفوظ ہوگئیں۔')));
+  void _openSettings() {
+    final opener = widget.onOpenSettings;
+    if (opener != null) {
+      opener();
+      return;
     }
-    controller.dispose();
-    tokenController.dispose();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('ترتیبات والے صفحے پر Google AI Studio کی کلید درج کریں۔')),
+    );
   }
 
   Future<void> _clearConversation() async {
@@ -237,7 +199,7 @@ class AiChatScreenState extends State<AiChatScreen> {
           children: [Icon(Icons.auto_awesome, color: kGold, size: 21), SizedBox(width: 8), Text('شیعہ اے آئی')],
         ),
         actions: [
-          IconButton(tooltip: 'سروس کی ترتیب', onPressed: _openSettings, icon: const Icon(Icons.settings_outlined)),
+          IconButton(tooltip: 'API کلید', onPressed: _openSettings, icon: const Icon(Icons.settings_outlined)),
           IconButton(tooltip: 'گفتگو صاف کریں', onPressed: _clearConversation, icon: const Icon(Icons.delete_outline)),
         ],
       ),
@@ -267,7 +229,7 @@ class AiChatScreenState extends State<AiChatScreen> {
           const SizedBox(height: 18),
           const Center(child: JustifiedText('السلام علیکم', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold))),
           const SizedBox(height: 8),
-          const Center(child: JustifiedText('شیعہ روایات کے بارے میں سوال کریں۔ جواب مقامی کتب سے تلاش کیے گئے حوالوں کے ساتھ آئے گا۔', style: TextStyle(fontSize: 17))),
+          const Center(child: JustifiedText('شیعہ روایات کے بارے میں سوال کریں۔ تلاش فون پر ہوتی ہے؛ مکمل جواب کے لیے ترتیبات میں Google AI Studio کی AIza کلید لگائیں۔', style: TextStyle(fontSize: 17))),
           const SizedBox(height: 22),
           for (final prompt in const [
             'امیرالمومنینؑ کے فضائل پر روایات دکھائیں',
@@ -385,11 +347,12 @@ class _MessageText extends StatelessWidget {
       textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
       child: SelectableText(
         text,
-        textAlign: TextAlign.justify,
+        textAlign: TextAlign.start,
         style: TextStyle(
           fontFamily: rtl ? (hasUrduLetters ? kUrduFont : kArabicFont) : 'sans-serif',
           fontSize: 17,
-          height: 1.65,
+          height: rtl && !hasUrduLetters ? 1.7 : 1.55,
+          letterSpacing: 0,
           color: color,
         ),
       ),
@@ -474,7 +437,7 @@ class _Composer extends StatelessWidget {
                 minLines: 1,
                 maxLines: 5,
                 textDirection: TextDirection.rtl,
-                textAlign: TextAlign.justify,
+                textAlign: TextAlign.start,
                 keyboardType: TextInputType.multiline,
                 textInputAction: TextInputAction.newline,
                 decoration: const InputDecoration(hintText: 'اپنا سوال لکھیں…', isDense: true),
