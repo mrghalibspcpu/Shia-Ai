@@ -35,16 +35,36 @@ class GeminiClient {
     return models;
   }
 
-  Future<List<String>> extractSearchKeywords({
+  Future<String> draftSilentUnderstanding({
     required String apiKey,
     required String question,
     String? preferredModel,
   }) async {
+    return _generateWithRetry(
+      apiKey: apiKey,
+      preferredModel: preferredModel,
+      system: _draftInstruction,
+      userText: 'User question:\n${question.trim()}\n\nInternal briefing:',
+      temperature: 0.2,
+      maxOutputTokens: 500,
+    );
+  }
+
+  Future<List<String>> extractSearchKeywords({
+    required String apiKey,
+    required String question,
+    String? preferredModel,
+    String? internalDraft,
+  }) async {
+    final draft = (internalDraft ?? '').trim();
+    final userText = draft.isEmpty
+        ? 'Question:\n${question.trim()}\n\nJSON:'
+        : 'Question:\n${question.trim()}\n\nInternal briefing (never shown to the user):\n$draft\n\nJSON:';
     final raw = await _generateWithRetry(
       apiKey: apiKey,
       preferredModel: preferredModel,
       system: _keywordInstruction,
-      userText: 'Question:\n${question.trim()}\n\nJSON:',
+      userText: userText,
       temperature: 0,
       maxOutputTokens: 400,
     );
@@ -307,9 +327,17 @@ class GeminiClient {
   }
 }
 
+const String _draftInstruction =
+    'You are an internal Shia hadith librarian. The user will never see this text. '
+    'Write 4 to 8 short lines: (1) what they are asking, (2) the Arabic and Urdu '
+    'fiqh/hadith terms that should be searched in al-Kafi, Tahdhib, Wasa\'il, '
+    'Man la yahduruhu al-faqih and similar books. Do not answer the question. '
+    'Do not cite books. Plain text only.';
+
 const String _keywordInstruction =
     'You prepare search phrases for a bilingual Shia hadith library '
     '(al-Kafi, Tahdhib, Wasa\'il, Man la yahduruhu al-faqih, and similar). '
+    'Use the question and any internal briefing. '
     'Return ONLY JSON of the form {"queries":["..."]} with 8 to 12 short '
     'Arabic and Urdu phrases that would actually appear in those books. '
     'Include classical fiqh terms (for example جمع بین الصلاتین). No markdown.';

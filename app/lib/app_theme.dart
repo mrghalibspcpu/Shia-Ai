@@ -143,20 +143,18 @@ class JustifiedText extends StatelessWidget {
             ? const TextStyle(fontFamily: kArabicFont, height: 1.7, letterSpacing: 0)
             : const TextStyle(fontFamily: kUrduFont, height: 1.55))
         .merge(style);
-    // Arabic justification in Flutter inserts huge word gaps; keep natural RTL start alignment.
-    final align = arabic ? TextAlign.start : TextAlign.start;
     return Directionality(
       textDirection: TextDirection.rtl,
       child: selectable
           ? SelectableText(
               text,
-              textAlign: align,
+              textAlign: TextAlign.justify,
               maxLines: maxLines,
               style: resolved,
             )
           : Text(
               text,
-              textAlign: align,
+              textAlign: TextAlign.justify,
               maxLines: maxLines,
               overflow: maxLines == null ? TextOverflow.visible : TextOverflow.ellipsis,
               style: resolved,

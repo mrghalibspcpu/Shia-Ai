@@ -49,4 +49,21 @@ void main() {
       expect(queries.join(' '), contains('جمع بین'));
     });
   });
+
+  group('citations', () {
+    test('lists book, volume/chapter, section, and hadith number', () {
+      final citation = formatCitation(
+        bookTitle: 'وسائل الشیعہ',
+        chapterTitle: 'جلد ۴ · باب الجمع بین الصلاتین',
+        sectionTitle: 'جواز الجمع',
+        recordId: 565809,
+        page: 12,
+      );
+      expect(citation, contains('کتاب: وسائل الشیعہ'));
+      expect(citation, contains('جلد / باب: جلد ۴ · باب الجمع بین الصلاتین'));
+      expect(citation, contains('فصل: جواز الجمع'));
+      expect(citation, contains('حدیث نمبر: 565809'));
+      expect(citation, contains('صفحہ: 12'));
+    });
+  });
 }

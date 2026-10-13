@@ -503,8 +503,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
                         script: _script,
                       ),
                     ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: widget.cameFromAi || (widget.onOpenAi != null && _passages.isNotEmpty)
           ? FloatingActionButton.extended(
+              heroTag: widget.cameFromAi ? 'return-to-shia-ai' : 'ask-from-reader',
               onPressed: () {
                 if (widget.cameFromAi) {
                   Navigator.of(context).pop();
@@ -517,7 +519,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                 Navigator.of(context).pop();
                 callback?.call(widget.book, passage);
               },
-              icon: const Icon(Icons.auto_awesome),
+              icon: Icon(widget.cameFromAi ? Icons.chat_bubble_outline : Icons.auto_awesome),
               label: Text(widget.cameFromAi ? 'واپس شیعہ اے آئی' : 'اس روایت سے سوال کریں'),
             )
           : null,
@@ -630,7 +632,7 @@ class _PassageCardState extends State<_PassageCard> {
                 textDirection: TextDirection.rtl,
                 child: SelectableText(
                   widget.passage.arabic,
-                  textAlign: TextAlign.start,
+                  textAlign: TextAlign.justify,
                   style: TextStyle(
                     fontFamily: kArabicFont,
                     fontSize: 22 * widget.fontScale,

@@ -314,7 +314,7 @@ class _SearchResultCard extends StatelessWidget {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Expanded(child: JustifiedText(hit.citation, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant), maxLines: 2)),
+                  Expanded(child: JustifiedText(hit.citation, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant), maxLines: 5)),
                   const Icon(Icons.open_in_new, size: 16),
                 ],
               ),
@@ -355,7 +355,7 @@ class HighlightedText extends StatelessWidget {
         text,
         maxLines: maxLines,
         overflow: maxLines == null ? TextOverflow.visible : TextOverflow.ellipsis,
-        textAlign: TextAlign.start,
+        textAlign: TextAlign.justify,
         textDirection: TextDirection.rtl,
         style: base,
       );
@@ -378,7 +378,7 @@ class HighlightedText extends StatelessWidget {
       TextSpan(style: base, children: spans),
       maxLines: maxLines,
       overflow: maxLines == null ? TextOverflow.visible : TextOverflow.ellipsis,
-      textAlign: TextAlign.start,
+      textAlign: TextAlign.justify,
       textDirection: TextDirection.rtl,
     );
   }

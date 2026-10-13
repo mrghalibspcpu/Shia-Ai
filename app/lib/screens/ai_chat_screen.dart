@@ -166,22 +166,29 @@ class AiChatScreenState extends State<AiChatScreen> {
     await widget.ai.resetSession();
   }
 
-  void _openCitation(AiSource source) {
+  Future<void> _openCitation(AiSource source) async {
     final book = BookDefinition.byKey(source.target.book);
     if (book == null || source.target.recordId <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اس حوالہ کا مطالعہ پتہ دستیاب نہیں۔')));
       return;
     }
-    Navigator.of(context).push(MaterialPageRoute(
+    final offset = _scrollController.hasClients ? _scrollController.offset : null;
+    await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => ReaderScreen(
         library: widget.library,
         book: book,
         recordId: source.target.recordId,
         sectionId: source.target.sectionId,
-        sectionTitle: source.citation,
+        sectionTitle: source.citation.split('\n').first,
         cameFromAi: true,
       ),
     ));
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients || offset == null) return;
+      final max = _scrollController.position.maxScrollExtent;
+      _scrollController.jumpTo(offset.clamp(0.0, max));
+    });
   }
 
   @override
@@ -205,7 +212,11 @@ class AiChatScreenState extends State<AiChatScreen> {
       ),
       body: Column(
         children: [
-          Expanded(child: _restoring ? const Center(child: CircularProgressIndicator()) : _buildConversation()),
+          Expanded(
+            child: SelectionArea(
+              child: _restoring ? const Center(child: CircularProgressIndicator()) : _buildConversation(),
+            ),
+          ),
           if (_readerContext != null) _ContextBanner(text: _readerContext!, onClose: () => setState(() { _readerContext = null; _readerTarget = null; })),
           if (_error != null) _ErrorBanner(message: _error!, onRetry: _retryLast),
           _Composer(
@@ -222,6 +233,7 @@ class AiChatScreenState extends State<AiChatScreen> {
     if (_messages.isEmpty) {
       return ListView(
         controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
         children: [
           const SizedBox(height: 32),
@@ -250,7 +262,9 @@ class AiChatScreenState extends State<AiChatScreen> {
     return ListView.builder(
       key: const PageStorageKey('shia-ai-chat-scroll'),
       controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(14, 16, 14, 22),
+      physics: const AlwaysScrollableScrollPhysics(),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.fromLTRB(14, 16, 14, 48),
       itemCount: _messages.length + (_sending ? 1 : 0),
       itemBuilder: (context, index) {
         if (_sending && index == _messages.length) return const _ThinkingBubble();
@@ -296,6 +310,7 @@ class _ChatBubble extends StatelessWidget {
           boxShadow: [if (!isUser) BoxShadow(color: Colors.black.withValues(alpha: 0.035), blurRadius: 8, offset: const Offset(0, 3))],
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _MessageText(message.text, color: textColor),
@@ -304,23 +319,11 @@ class _ChatBubble extends StatelessWidget {
               Divider(color: textColor.withValues(alpha: 0.2), height: 1),
               const SizedBox(height: 9),
               for (final source in message.sources)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: isUser ? Colors.white : colors.primary,
-                      side: BorderSide(color: textColor.withValues(alpha: 0.35)),
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                    ),
-                    onPressed: () => onCheckSource(source),
-                    icon: const Icon(Icons.menu_book_outlined, size: 17),
-                    label: JustifiedText(
-                      '${source.marker.isEmpty ? '[R]' : source.marker}  چیک کریں  ·  ${source.citation}',
-                      style: TextStyle(color: isUser ? Colors.white : colors.primary, fontSize: 13),
-                      maxLines: 2,
-                    ),
-                  ),
+                _CitationCard(
+                  source: source,
+                  foreground: textColor,
+                  accent: isUser ? Colors.white : colors.primary,
+                  onCheck: () => onCheckSource(source),
                 ),
             ],
             if (message.createdAt != null) ...[
@@ -329,6 +332,56 @@ class _ChatBubble extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CitationCard extends StatelessWidget {
+  const _CitationCard({
+    required this.source,
+    required this.onCheck,
+    required this.foreground,
+    required this.accent,
+  });
+
+  final AiSource source;
+  final VoidCallback onCheck;
+  final Color foreground;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          JustifiedText(
+            source.marker.isEmpty ? 'حوالہ' : source.marker,
+            style: TextStyle(color: accent, fontWeight: FontWeight.bold, fontSize: 15),
+          ),
+          const SizedBox(height: 4),
+          JustifiedText(
+            source.citation,
+            style: TextStyle(color: foreground, fontSize: 14, height: 1.5),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: FilledButton.icon(
+              onPressed: onCheck,
+              icon: const Icon(Icons.menu_book, size: 18),
+              label: const Text('Check / Jump'),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -345,9 +398,9 @@ class _MessageText extends StatelessWidget {
     final hasUrduLetters = RegExp(r'[پچژگٹڈڑںےھکیہۍ]').hasMatch(text);
     return Directionality(
       textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
-      child: SelectableText(
+      child: Text(
         text,
-        textAlign: TextAlign.start,
+        textAlign: TextAlign.justify,
         style: TextStyle(
           fontFamily: rtl ? (hasUrduLetters ? kUrduFont : kArabicFont) : 'sans-serif',
           fontSize: 17,
@@ -471,7 +524,7 @@ class _ThinkingBubble extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
           decoration: BoxDecoration(color: Theme.of(context).cardTheme.color, borderRadius: BorderRadius.circular(18)),
-          child: const Row(mainAxisSize: MainAxisSize.min, children: [SizedBox(width: 6, height: 6, child: CircularProgressIndicator(strokeWidth: 1.5)), SizedBox(width: 10), Text('روایات ملا کر جواب بن رہا ہے…')]),
+          child: const Row(mainAxisSize: MainAxisSize.min, children: [SizedBox(width: 6, height: 6, child: CircularProgressIndicator(strokeWidth: 1.5)), SizedBox(width: 10), Text('روایات تلاش ہو رہی ہیں…')]),
         ),
       );
 }

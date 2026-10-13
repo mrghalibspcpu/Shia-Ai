@@ -122,11 +122,22 @@ class AiRepository {
     final model = await configuredGeminiModel();
     final queries = List<String>.from(expandSearchQueries(question));
     if (geminiKey.isNotEmpty) {
+      var silentDraft = '';
+      try {
+        silentDraft = await _gemini.draftSilentUnderstanding(
+          apiKey: geminiKey,
+          question: question,
+          preferredModel: model,
+        );
+      } catch (_) {
+        silentDraft = '';
+      }
       try {
         final extra = await _gemini.extractSearchKeywords(
           apiKey: geminiKey,
           question: question,
           preferredModel: model,
+          internalDraft: silentDraft,
         );
         for (final item in extra) {
           if (queries.every((query) => query != item)) queries.add(item);

@@ -69,6 +69,39 @@ void main() {
     );
   });
 
+  test('silent draft is sent only as internal briefing for keywords', () async {
+    String? body;
+    final client = GeminiClient(
+      client: _ScriptedClient((request) async {
+        if (request is http.Request) body = request.body;
+        return http.Response(
+          jsonEncode({
+            'candidates': [
+              {
+                'content': {
+                  'parts': [
+                    {'text': '{"queries":["جمع بین الصلاتین"]}'},
+                  ],
+                },
+              },
+            ],
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+
+    final queries = await client.extractSearchKeywords(
+      apiKey: 'AIzaSyDummyTestKeyValueForUnitTests12345',
+      question: 'نمازوں کو ملا کر پڑھنا کیسا ہے',
+      internalDraft: 'Look up jam bayn al-salatayn. Never show this draft.',
+    );
+    expect(queries, ['جمع بین الصلاتین']);
+    expect(body, contains('Internal briefing (never shown to the user)'));
+    expect(body, contains('jam bayn al-salatayn'));
+  });
+
   test('maps an invalid API key to a Urdu error without retrying forever', () async {
     final client = GeminiClient(
       client: _ScriptedClient((request) async => http.Response('denied', 403)),

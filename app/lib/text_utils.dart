@@ -254,10 +254,10 @@ String formatCitation({
   required int recordId,
   int? page,
 }) {
-  final parts = <String>[bookTitle];
-  if (chapterTitle.isNotEmpty) parts.add(chapterTitle);
-  if (sectionTitle.isNotEmpty) parts.add(sectionTitle);
-  parts.add('حدیث نمبر $recordId');
-  if (page != null) parts.add('صفحہ $page');
-  return parts.join(' · ');
+  final lines = <String>['کتاب: $bookTitle'];
+  if (chapterTitle.isNotEmpty) lines.add('جلد / باب: $chapterTitle');
+  if (sectionTitle.isNotEmpty) lines.add('فصل: $sectionTitle');
+  lines.add('حدیث نمبر: $recordId');
+  if (page != null) lines.add('صفحہ: $page');
+  return lines.join('\n');
 }
