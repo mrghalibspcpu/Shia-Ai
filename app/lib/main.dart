@@ -28,7 +28,7 @@ class _ShiaAiAppState extends State<ShiaAiApp> {
   final AiRepository _ai = AiRepository();
   final AppLinks _appLinks = AppLinks();
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
-  final GlobalKey<HomeShellState> _homeShellKey = GlobalKey<_HomeShellState>();
+  final GlobalKey<HomeShellState> _homeShellKey = GlobalKey<HomeShellState>();
   StreamSubscription<Uri>? _linkSubscription;
   ReaderTarget? _pendingTarget;
   String? _lastHandledLink;
@@ -156,7 +156,7 @@ class _LibraryBootstrapState extends State<LibraryBootstrap> {
     _starting = true;
     setState(() => _error = null);
     try {
-      await widget.library.initialize((progress, message) {
+      await widget.library.initialize(onProgress: (progress, message) {
         if (!mounted) return;
         setState(() {
           _progress = progress;
