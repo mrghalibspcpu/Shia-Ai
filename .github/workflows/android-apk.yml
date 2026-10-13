@@ -1,0 +1,106 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main, arena/17c56817-shia-ai]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test and build APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+          cache-key: flutter-${{ runner.os }}-${{ hashFiles('app/pubspec.yaml') }}
+
+      - name: Validate source corpus and unpack Android assets
+        run: python scripts/prepare_databases.py --output app/assets/databases
+
+      - name: Run backend tests
+        run: python -m unittest discover -v
+
+      - name: Resolve Flutter packages
+        working-directory: app
+        run: flutter pub get
+
+      - name: Analyze Flutter client
+        working-directory: app
+        run: flutter analyze
+
+      - name: Run Flutter tests
+        working-directory: app
+        run: flutter test
+
+      - name: Configure optional production signing
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$KEYSTORE_BASE64" && -n "$KEYSTORE_PASSWORD" && -n "$KEY_ALIAS" && -n "$KEY_PASSWORD" ]]; then
+            KEYSTORE_PATH="$GITHUB_WORKSPACE/app/android/app/owner-release-key.jks"
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+            chmod 600 "$KEYSTORE_PATH"
+            {
+              echo "production=true"
+              echo "artifact_name=shia-ai-production-signed-${GITHUB_SHA}"
+              echo "ANDROID_KEYSTORE_PATH=$KEYSTORE_PATH"
+              echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
+              echo "ANDROID_KEY_ALIAS=$KEY_ALIAS"
+              echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD"
+            } >> "$GITHUB_ENV"
+            echo "production=true" >> "$GITHUB_OUTPUT"
+            echo "artifact_name=shia-ai-production-signed-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          else
+            echo "production=false" >> "$GITHUB_OUTPUT"
+            echo "artifact_name=shia-ai-preview-debug-signed-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+            echo "Production signing secrets are incomplete; building with the Android debug key. This APK is for testing only."
+          fi
+
+      - name: Build APK
+        working-directory: app
+        env:
+          SHIA_AI_API_BASE_URL: ${{ vars.SHIA_AI_API_BASE_URL }}
+        run: flutter build apk --release --dart-define=SHIA_AI_API_BASE_URL="$SHIA_AI_API_BASE_URL"
+
+      - name: Upload signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.signing.outputs.artifact_name }}
+          path: app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f app/android/app/owner-release-key.jks

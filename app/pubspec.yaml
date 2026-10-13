@@ -1,0 +1,38 @@
+name: shia_ai
+publish_to: "none"
+description: Offline Shia library reader with citation-grounded AI chat.
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.4.0
+  app_links: ^6.4.1
+  flutter_secure_storage: ^9.2.4
+  path: ^1.9.1
+  scrollable_positioned_list: ^0.3.8
+  shared_preferences: ^2.5.3
+  sqflite: ^2.4.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/databases/
+    - assets/images/logo.png
+    - assets/images/tasneemlogo.png
+  fonts:
+    - family: JameelNooriNastaleeq
+      fonts:
+        - asset: assets/fonts/JameelNooriNastaleeq.ttf
+    - family: Amiri
+      fonts:
+        - asset: assets/fonts/Amiri-Regular.ttf

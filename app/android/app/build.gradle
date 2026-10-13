@@ -1,0 +1,56 @@
+plugins {
+    id "com.android.application"
+    id "org.jetbrains.kotlin.android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+android {
+    namespace "com.shiaai.app"
+    compileSdk flutter.compileSdkVersion
+    ndkVersion flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17.toString()
+    }
+
+    defaultConfig {
+        applicationId "com.shiaai.app"
+        minSdk 24
+        targetSdk flutter.targetSdkVersion
+        versionCode flutter.versionCode
+        versionName flutter.versionName
+    }
+
+    def keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+    if (keystorePath != null && !keystorePath.isBlank()) {
+        signingConfigs {
+            release {
+                storeFile file(keystorePath)
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // If release secrets are configured in GitHub, use the owner's key.
+            // Otherwise this is a locally installable debug-key-signed release,
+            // not an update-compatible Play Store release.
+            signingConfig = (keystorePath != null && !keystorePath.isBlank())
+                    ? signingConfigs.release
+                    : signingConfigs.debug
+            minifyEnabled false
+        }
+    }
+}
+
+flutter {
+    source "../.."
+}

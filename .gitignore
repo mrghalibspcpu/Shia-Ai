@@ -1,0 +1,27 @@
+# Expanded database files are produced from the checked-in compressed bundle.
+assets/databases/*.db
+assets/databases/*.db-shm
+assets/databases/*.db-wal
+app/assets/databases/*.db
+app/assets/databases/*.db-shm
+app/assets/databases/*.db-wal
+
+# Local search indexes, Flutter/Android build outputs, and secrets.
+.cache/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+*.p12
+app/.dart_tool/
+app/build/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.packages
+app/android/.gradle/
+app/android/local.properties
+app/android/app/key.properties
+app/android/app/owner-release-key.jks
