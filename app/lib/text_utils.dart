@@ -51,7 +51,7 @@ const Set<String> kSearchStopwords = {
   'the', 'a', 'an', 'is', 'are', 'was', 'of', 'in', 'to', 'for', 'how', 'what', 'why',
   'when', 'where', 'who', 'with', 'about', 'please', 'me', 'my', 'your',
   'في', 'من', 'على', 'الى', 'عن', 'ما', 'هل', 'كيف', 'ماذا', 'الذي', 'التي', 'هذا', 'هذه',
-  'و', 'أو', 'لا', 'ان', 'إن', 'أن', 'ف', 'ثم', 'قد', 'لم', 'لن',
+  'و', 'أو', 'لا', 'إن', 'أن', 'ف', 'ثم', 'قد', 'لم', 'لن',
 };
 
 String stemToken(String token) {
