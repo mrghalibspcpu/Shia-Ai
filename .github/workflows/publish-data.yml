@@ -1,0 +1,68 @@
+name: Publish data release
+
+# Builds the compressed SQLite collections (dist/*.gz) and uploads them to a
+# GitHub Release. The app downloads `<name>.db.gz` from
+# `releases/latest/download/`, verifies SHA-256 against its bundled manifest,
+# and unpacks it on the device — so the APK itself stays small.
+#
+# Asset uploads must happen here: they go to a storage host that restricted
+# networks cannot reach, while a runner always can.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to create or update
+        type: string
+        default: databases-v1
+      title:
+        description: Release title
+        type: string
+        default: Corpus v1 — Shia Library databases
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build and publish databases
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Build compressed databases
+        run: python3 scripts/publish_databases.py
+
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          TITLE: ${{ inputs.title }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG already exists — uploading assets to it."
+          else
+            gh release create "$TAG" \
+              --title "$TITLE" \
+              --notes "SQLite collections for the Shia Library app (17 databases, gzip-compressed). The app downloads these on first launch, verifies SHA-256 against its bundled manifest, then reads them fully offline."
+          fi
+          gh release upload "$TAG" dist/*.gz dist/database-manifest.json --clobber
+
+      - name: Verify every asset is published
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          gh release view "$TAG" --json assets \
+            --jq '.assets[] | "\(.name)\t\(.size)"' | sort | tee published-assets.txt
+          expected=$(ls dist/*.gz | wc -l)
+          published=$(grep -c '\.db\.gz$' published-assets.txt || true)
+          echo "expected $expected .db.gz assets, published $published"
+          test "$published" -eq "$expected"
+          grep -q '^database-manifest\.json' published-assets.txt
