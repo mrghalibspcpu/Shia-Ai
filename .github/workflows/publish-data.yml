@@ -7,6 +7,12 @@ name: Publish data release
 #
 # Asset uploads must happen here: they go to a storage host that restricted
 # networks cannot reach, while a runner always can.
+#
+# Triggers:
+#   - manually (workflow_dispatch, once this file is on the default branch);
+#   - on any push that changes the corpus manifest — which is exactly when a
+#     fresh data release is needed. Uploads use --clobber, so re-runs are
+#     safe and idempotent.
 
 on:
   workflow_dispatch:
@@ -19,9 +25,17 @@ on:
         description: Release title
         type: string
         default: Corpus v1 — Shia Library databases
+  push:
+    paths:
+      - 'assets/database-manifest.json'
+      - '.github/workflows/publish-data.yml'
 
 permissions:
   contents: write
+
+concurrency:
+  group: publish-data-release
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -36,14 +50,20 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Resolve release settings
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_TITLE: ${{ inputs.title }}
+        run: |
+          echo "TAG=${INPUT_TAG:-databases-v1}" >> "$GITHUB_ENV"
+          echo "TITLE=${INPUT_TITLE:-Corpus v1 — Shia Library databases}" >> "$GITHUB_ENV"
+
       - name: Build compressed databases
         run: python3 scripts/publish_databases.py
 
       - name: Create or update the release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
-          TITLE: ${{ inputs.title }}
         run: |
           if gh release view "$TAG" > /dev/null 2>&1; then
             echo "Release $TAG already exists — uploading assets to it."
@@ -53,11 +73,11 @@ jobs:
               --notes "SQLite collections for the Shia Library app (17 databases, gzip-compressed). The app downloads these on first launch, verifies SHA-256 against its bundled manifest, then reads them fully offline."
           fi
           gh release upload "$TAG" dist/*.gz dist/database-manifest.json --clobber
+          gh release edit "$TAG" --draft=false
 
       - name: Verify every asset is published
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
         run: |
           gh release view "$TAG" --json assets \
             --jq '.assets[] | "\(.name)\t\(.size)"' | sort | tee published-assets.txt
