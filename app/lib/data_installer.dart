@@ -141,7 +141,12 @@ class DataInstaller {
             .get(Uri.parse('${base}database-manifest.json'))
             .timeout(const Duration(seconds: 25));
         if (response.statusCode == 200) {
-          final parsed = DataCatalog.parse(response.body);
+          // GitHub serves the manifest as application/octet-stream with no
+          // charset, so response.body would decode it as Latin-1 and corrupt
+          // every Urdu title. Always decode the bytes as UTF-8.
+          final parsed = DataCatalog.parse(
+            utf8.decode(response.bodyBytes, allowMalformed: true),
+          );
           if (!parsed.isEmpty) return parsed;
         }
       } catch (_) {

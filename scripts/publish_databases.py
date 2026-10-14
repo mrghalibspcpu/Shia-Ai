@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import json
 import shutil
 import sys
 from pathlib import Path
@@ -25,6 +26,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from database_specs import MANIFEST_PATH, ROOT  # noqa: E402
 from prepare_databases import collect_databases, verify_against_manifest, build_records  # noqa: E402
+
+
+def write_release_manifest(source: Path, destination: Path) -> None:
+    """Write the manifest the app downloads from the release.
+
+    Serialized with ``ensure_ascii=True`` on purpose. The release asset is
+    served as ``application/octet-stream`` without a charset, so an HTTP
+    client that falls back to Latin-1 corrupts the Urdu titles if the file
+    contains raw UTF-8 bytes. ``\\uXXXX`` escapes pass through any single-byte
+    decoding untouched, and JSON parsers restore the original text — so this
+    one file is safe for every client, old or new.
+    """
+    data = json.loads(source.read_text(encoding="utf-8"))
+    destination.write_text(
+        json.dumps(data, ensure_ascii=True, indent=2) + "\n", encoding="ascii"
+    )
 
 
 def compress(source: Path, destination: Path, level: int = 6) -> int:
@@ -62,7 +79,7 @@ def main() -> int:
                 f"({100 - packed * 100 // max(record['size_bytes'], 1)}% smaller)"
             )
 
-    shutil.copyfile(MANIFEST_PATH, args.output / "database-manifest.json")
+    write_release_manifest(MANIFEST_PATH, args.output / "database-manifest.json")
     print(
         f"\n{len(records)} files in {args.output.resolve()}: "
         f"{total_raw:,} -> {total_packed:,} bytes"

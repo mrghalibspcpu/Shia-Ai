@@ -193,5 +193,29 @@ class ValidationTests(unittest.TestCase):
             )
 
 
+class ReleaseManifestTests(unittest.TestCase):
+    def test_release_manifest_is_pure_ascii_with_identical_content(self):
+        """The published manifest must survive Latin-1 decoding unscathed.
+
+        GitHub serves release assets without a charset, so clients may decode
+        the bytes as Latin-1. The release copy therefore uses \\uXXXX escapes:
+        single-byte decodings leave it untouched and JSON parsers restore the
+        original Urdu text.
+        """
+        import tempfile
+
+        import publish_databases
+
+        source = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as tmp:
+            destination = Path(tmp) / "database-manifest.json"
+            publish_databases.write_release_manifest(MANIFEST_PATH, destination)
+            raw = destination.read_bytes()
+        raw.decode("ascii")  # raises unless every byte is ASCII
+        self.assertEqual(json.loads(raw), source)
+        # Exactly what a charset-less HTTP client would hand the JSON parser:
+        self.assertEqual(json.loads(raw.decode("latin-1")), source)
+
+
 if __name__ == "__main__":
     unittest.main()
