@@ -32,6 +32,7 @@ class CheckDartTests(TestCase):
                 0,
                 f"{path.name} imports something it never uses",
             )
+            self.assertEqual(self.guard.check_sdk_imports([path]), 0, path.name)
             self.assertEqual(self.guard.check_forbidden([path]), 0, path.name)
             self.assertEqual(self.guard.check_balance([path]), 0, path.name)
             self.assertEqual(self.guard.check_imports([path]), 0, path.name)
@@ -54,6 +55,26 @@ class CheckDartTests(TestCase):
         finally:
             target.write_text(original, encoding="utf-8")
         self.assertEqual(self.guard.check_unused_imports([target]), 0)
+
+    def test_sdk_import_guard_detects_a_missing_dart_convert(self) -> None:
+        """Regression: utf8.decode shipped once without importing dart:convert."""
+        target = ROOT / "app" / "lib" / "screens" / "settings_screen.dart"
+        original = target.read_text(encoding="utf-8")
+        self.assertNotIn("dart:convert", original)
+        try:
+            target.write_text(
+                original + "\nfinal _decoded = utf8.decode(const []);\n", encoding="utf-8"
+            )
+            self.assertEqual(self.guard.check_sdk_imports([target]), 1)
+            target.write_text(original + "\n// utf8.decode\n", encoding="utf-8")
+            self.assertEqual(
+                self.guard.check_sdk_imports([target]),
+                0,
+                "comments should not trip the guard",
+            )
+        finally:
+            target.write_text(original, encoding="utf-8")
+        self.assertEqual(self.guard.check_sdk_imports([target]), 0)
 
     def test_forbidden_guard_detects_a_reintroduced_ai_symbol(self) -> None:
         target = ROOT / "app" / "lib" / "screens" / "settings_screen.dart"

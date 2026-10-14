@@ -218,6 +218,38 @@ def check_unused_imports(paths: list[Path]) -> int:
     return errors
 
 
+#: Well-known SDK symbols and the library that provides them. Without the Dart
+#: SDK these are invisible locally but ``flutter analyze`` fails the build with
+#: ``undefined_identifier`` when the import is missing (this exact mistake once
+#: shipped: ``utf8.decode`` without ``dart:convert``).
+SDK_SYMBOLS = {
+    "utf8": "dart:convert",
+    "jsonDecode": "dart:convert",
+    "jsonEncode": "dart:convert",
+    "base64Encode": "dart:convert",
+    "base64Decode": "dart:convert",
+}
+
+
+def check_sdk_imports(paths: list[Path]) -> int:
+    """Flag uses of well-known SDK symbols whose library is not imported."""
+    errors = 0
+    for path in paths:
+        source = path.read_text(encoding="utf-8", errors="replace")
+        imported = {uri for uri, _clauses in IMPORT_RE.findall(source)}
+        text = strip_noise(source)
+        for symbol, library in SDK_SYMBOLS.items():
+            if library in imported:
+                continue
+            if re.search(rf"\b{re.escape(symbol)}\b", text):
+                errors += 1
+                print(
+                    f"MISSING IMPORT {path.relative_to(ROOT)}: '{symbol}' "
+                    f"needs import '{library}';"
+                )
+    return errors
+
+
 def check_forbidden(paths: list[Path]) -> int:
     errors = 0
     for path in paths:
@@ -258,6 +290,7 @@ def main() -> int:
     total = syntax_errors
     total += check_imports(paths)
     total += check_unused_imports(paths)
+    total += check_sdk_imports(paths)
     total += check_forbidden(paths)
     total += check_balance(paths)
 
