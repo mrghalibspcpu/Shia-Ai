@@ -795,9 +795,10 @@ class LibraryRepository {
       FROM Lines WHERE L_M_id = ?
       ORDER BY L_prio, rowid
     ''', [itemId]);
+    // The source holds a few completely blank rows; never render them.
     return [
-      for (final row in rows) _duaPassage(row, title: title, category: category, itemRowId: itemRowId),
-    ];
+      for (final row in rows) _duaPassage(row, title: title, category: category, itemRowId: itemRowId)
+    ].where((passage) => !passage.isEmpty).toList();
   }
 
   Passage _duaPassage(
@@ -808,17 +809,23 @@ class LibraryRepository {
   }) {
     final text = _compact((row['L_text'] ?? '').toString());
     final translate = _compact((row['L_Translate'] ?? '').toString());
-    final isNote = _asInt(row['L_type']) == 2 || translate.isEmpty || translate == '0';
+    final type = _asInt(row['L_type']) ?? 1;
+    // Mafatih rows are of two kinds in the source database: the dua itself
+    // (Arabic with an Urdu translation) and Urdu instructions to the reciter
+    // printed between segments ("پھر سات مرتبہ پڑھیں"), where L_Translate
+    // holds the sentinel '0'. Keep the kinds distinct so the reader renders
+    // each the way the book does — no "سطر نمبر" labels, and instructions are
+    // never dressed up as tafseer.
+    final isInstruction = type == 2;
     return Passage(
       recordId: _asInt(row['record_id']) ?? 0,
-      arabic: isNote ? '' : text,
-      urdu: isNote ? '' : translate,
-      commentary: isNote ? text : '',
+      arabic: isInstruction ? '' : text,
+      urdu: isInstruction ? text : (translate == '0' ? '' : translate),
       containerType: category,
       containerId: itemRowId,
       chapterTitle: duaCategoryTitles[category] ?? 'مفاتیح الجنان',
       sectionTitle: title,
-      locator: _asInt(row['L_prio']) == null ? '' : 'سطر ${_asInt(row['L_prio'])}',
+      format: type,
     );
   }
 
@@ -892,7 +899,7 @@ class LibraryRepository {
 
     final rows = await db.rawQuery('''
       SELECT x.ID AS record_id, x.AR AS arabic, x.UR AS urdu, x.ParaNo AS page_no,
-             x.Type AS container_type, x.TypeNo AS container_id
+             x.ParaFormat AS format, x.Type AS container_type, x.TypeNo AS container_id
       FROM balaghatext AS x
       WHERE x.Type = ? AND x.TypeNo = ?
       ORDER BY (x.ParaNo IS NULL), x.ParaNo, x.ID
@@ -906,7 +913,10 @@ class LibraryRepository {
         containerType: type,
         containerId: typeNo,
         chapterTitle: balaghaSectionTitles[type] ?? 'نہج البلاغہ',
-        locator: _asInt(row['page_no']) == null ? '' : 'فقرا ${_asInt(row['page_no'])}',
+        // The database's own paragraph role (title / text / sub-heading /
+        // separator) — shown as book typography, never as a "فقرا نمبر" label,
+        // which is an internal ordering field readers found confusing.
+        format: _asInt(row['format']),
       );
       paragraphs.add(passage);
     }
@@ -1162,9 +1172,8 @@ class LibraryRepository {
           bookTitle: book.titleUrdu,
           chapterTitle: chapter,
           sectionTitle: section,
-          recordId: passage.recordId,
+          locator: passage.locator,
           page: passage.page,
-          recordLabel: book.recordLabel,
         ),
       ));
     }

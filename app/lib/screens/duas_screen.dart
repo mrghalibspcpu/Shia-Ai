@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'package:flutter/services.dart';
 
 import '../app_theme.dart';
 import '../library_repository.dart';
@@ -176,16 +176,6 @@ class DuaCategoryScreen extends StatelessWidget {
                 child: ListTile(
                   leading: const Icon(Icons.menu_book_outlined),
                   title: JustifiedText(item.name, style: const TextStyle(fontSize: 16), maxLines: 2),
-                  subtitle: item.lineCount == 0
-                      ? null
-                      : Text(
-                          '${item.lineCount} سطور',
-                          textDirection: TextDirection.rtl,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
                   trailing: item.isFeatured
                       ? Icon(Icons.star, size: 18, color: kGold)
                       : const Icon(Icons.chevron_left),
@@ -214,12 +204,13 @@ class DuaReaderScreen extends StatefulWidget {
 
 class _DuaReaderScreenState extends State<DuaReaderScreen> {
   final BookDefinition _book = BookDefinition.bookFor(CorpusSource.dua)!;
-  final ItemScrollController _scrollController = ItemScrollController();
 
   List<Passage> _lines = const [];
   ReaderPreferences _preferences = const ReaderPreferences();
   bool _loading = true;
   String? _error;
+  bool _bookmarked = false;
+  String? _note;
 
   @override
   void initState() {
@@ -231,10 +222,14 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
     try {
       final preferences = await ReaderPreferences.load();
       final lines = await widget.library.getDuaLines(widget.item.rowId);
+      final bookmarked = await widget.library.isBookmarked(_book.key, widget.item.rowId);
+      final note = await widget.library.getNote(_book.key, widget.item.rowId);
       if (!mounted) return;
       setState(() {
         _preferences = preferences;
         _lines = lines;
+        _bookmarked = bookmarked;
+        _note = note;
         _loading = false;
       });
       if (lines.isNotEmpty) {
@@ -253,9 +248,50 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
     }
   }
 
+  Future<void> _editNote() async {
+    final controller = TextEditingController(text: _note ?? '');
+    final note = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const JustifiedText('اپنا نوٹ'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 5,
+          textAlign: TextAlign.start,
+          textDirection: TextDirection.rtl,
+          decoration: const InputDecoration(hintText: 'یہاں لکھیں'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('منسوخ')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('محفوظ کریں'),
+          ),
+        ],
+      ),
+    );
+    if (note == null) return;
+    await widget.library.saveNote(_book.key, widget.item.rowId, note);
+    if (mounted) setState(() => _note = note.trim().isEmpty ? null : note.trim());
+  }
+
+  Future<void> _copyAll() async {
+    final buffer = StringBuffer(widget.item.name);
+    for (final line in _lines) {
+      if (line.format == 2) continue;
+      if (line.arabic.trim().isNotEmpty) buffer.write('\n\n${line.arabic.trim()}');
+      if (line.urdu.trim().isNotEmpty) buffer.write('\n${line.urdu.trim()}');
+    }
+    await Clipboard.setData(ClipboardData(text: buffer.toString()));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('کاپی ہو گیا۔')));
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = _preferences.palette;
+    final textColor = palette.foreground;
     return Scaffold(
       backgroundColor: palette.background,
       appBar: AppBar(
@@ -275,23 +311,126 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
               ? ErrorPanel(error: _error!)
               : _lines.isEmpty
                   ? const CollectionMessage('اس دعا کا متن موجود نہیں۔')
-                  : ScrollablePositionedList.builder(
-                      key: PageStorageKey('dua-${widget.item.rowId}'),
-                      itemScrollController: _scrollController,
-                      itemCount: _lines.length,
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 40),
-                      itemBuilder: (context, index) => PassageCard(
-                        key: ValueKey('dua-${widget.item.rowId}-${_lines[index].recordId}'),
-                        library: widget.library,
-                        book: _book,
-                        passage: _lines[index],
-                        // Bookmark/note the whole supplication, not one line of it.
-                        stateId: widget.item.rowId,
-                        palette: palette,
-                        fontScale: _preferences.fontScale,
-                        script: _preferences.script,
+                  : SelectionArea(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(18, 12, 18, 48),
+                        itemCount: _lines.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == 0) return _header(textColor);
+                          return _lineBlock(_lines[index - 1], textColor);
+                        },
                       ),
                     ),
+    );
+  }
+
+  /// Title and the item-level actions (one bookmark for the whole dua,
+  /// not one per line as the old card-per-line layout suggested).
+  Widget _header(Color textColor) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          JustifiedText(
+            widget.item.name,
+            style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: kForest),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              IconButton(
+                tooltip: _bookmarked ? 'محفوظ سے ہٹائیں' : 'محفوظ کریں',
+                onPressed: () async {
+                  await widget.library.toggleBookmark(_book.key, widget.item.rowId);
+                  if (mounted) setState(() => _bookmarked = !_bookmarked);
+                },
+                icon: Icon(
+                  _bookmarked ? Icons.bookmark : Icons.bookmark_border,
+                  color: _bookmarked ? kGold : textColor,
+                ),
+              ),
+              IconButton(
+                tooltip: 'کاپی',
+                onPressed: _copyAll,
+                icon: Icon(Icons.copy, color: textColor),
+              ),
+              IconButton(
+                tooltip: 'نوٹ',
+                onPressed: _editNote,
+                icon: Icon(Icons.edit_note, color: textColor),
+              ),
+            ],
+          ),
+          if (_note != null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: kGold.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: kGold.withValues(alpha: 0.3)),
+              ),
+              child: JustifiedText(_note!, style: TextStyle(color: textColor, fontSize: 15)),
+            ),
+          const Divider(height: 22),
+        ],
+      ),
+    );
+  }
+
+  /// One row of the supplication, rendered the way the printed book lays it
+  /// out: dua text with its translation, and Urdu instructions as guidance
+  /// strips between segments — no "سطر نمبر" badges, no card per line.
+  Widget _lineBlock(Passage line, Color textColor) {
+    if (line.format == 2) {
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: kForest.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.info_outline, size: 17, color: kForest),
+            const SizedBox(width: 8),
+            Expanded(
+              child: JustifiedText(
+                line.urdu,
+                style: TextStyle(fontSize: 15.5 * _preferences.fontScale, color: textColor),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    final showArabic = _preferences.script != 'urdu' && line.arabic.trim().isNotEmpty;
+    final showUrdu = _preferences.script != 'arabic' && line.urdu.trim().isNotEmpty;
+    if (!showArabic && !showUrdu) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (showArabic)
+            JustifiedText(
+              line.arabic,
+              arabic: true,
+              style: TextStyle(fontSize: 22 * _preferences.fontScale, color: textColor),
+            ),
+          if (showArabic && showUrdu) const SizedBox(height: 6),
+          if (showUrdu)
+            JustifiedText(
+              line.urdu,
+              style: TextStyle(
+                fontSize: 16.5 * _preferences.fontScale,
+                height: 1.6,
+                color: textColor.withValues(alpha: 0.88),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

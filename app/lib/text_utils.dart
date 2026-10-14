@@ -272,18 +272,24 @@ String arabicNumerals(int value) => value.toString().split('').map((digit) {
       return _arabicDigits[parsed];
     }).join();
 
+/// Human citation for a passage: book, volume/chapter, section, the readable
+/// locator (verse / juz / page), and the printed page when known.
+///
+/// It deliberately never prints the database row id. That number (e.g. a
+/// `Parags.ID` like 562276) is an internal storage key — readers mistook it
+/// for the hadith number, which it is not. Hadith are cited by book, chapter
+/// and page, exactly as the printed editions do.
 String formatCitation({
   required String bookTitle,
   required String chapterTitle,
   required String sectionTitle,
-  required int recordId,
+  String locator = '',
   int? page,
-  String recordLabel = 'حدیث نمبر',
 }) {
   final lines = <String>['کتاب: $bookTitle'];
   if (chapterTitle.isNotEmpty) lines.add('جلد / باب: $chapterTitle');
   if (sectionTitle.isNotEmpty) lines.add('فصل: $sectionTitle');
-  lines.add('$recordLabel: $recordId');
+  if (locator.isNotEmpty) lines.add('حوالہ: $locator');
   if (page != null) lines.add('صفحہ: $page');
   return lines.join('\n');
 }

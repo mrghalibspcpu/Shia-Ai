@@ -394,12 +394,21 @@ class _SearchResultCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    passage.locator.isNotEmpty
-                        ? passage.locator
-                        : '${hit.book.recordLabel} ${passage.recordId}',
-                    textDirection: TextDirection.rtl,
-                    style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  Flexible(
+                    child: Text(
+                      // A readable locator or the section name — never the
+                      // raw database row id (e.g. Parags.ID 562276), which
+                      // readers mistook for a hadith number.
+                      passage.locator.isNotEmpty
+                          ? passage.locator
+                          : (passage.sectionTitle.isNotEmpty
+                              ? passage.sectionTitle
+                              : passage.chapterTitle),
+                      textDirection: TextDirection.rtl,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    ),
                   ),
                 ],
               ),

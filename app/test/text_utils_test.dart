@@ -63,31 +63,29 @@ void main() {
   });
 
   group('citations', () {
-    test('lists book, volume/chapter, section, and record number', () {
+    test('lists book, volume/chapter, section, and page — never a raw row id', () {
       final citation = formatCitation(
         bookTitle: 'وسائل الشیعہ',
         chapterTitle: 'جلد ۴ · باب الجمع بین الصلاتین',
         sectionTitle: 'جواز الجمع',
-        recordId: 565809,
         page: 12,
       );
       expect(citation, contains('کتاب: وسائل الشیعہ'));
       expect(citation, contains('جلد / باب: جلد ۴ · باب الجمع بین الصلاتین'));
       expect(citation, contains('فصل: جواز الجمع'));
-      expect(citation, contains('حدیث نمبر: 565809'));
       expect(citation, contains('صفحہ: 12'));
+      expect(citation, isNot(contains('حدیث نمبر')));
     });
 
-    test('uses the record label of the collection being cited', () {
+    test('includes the readable locator when one exists', () {
       final citation = formatCitation(
         bookTitle: 'قرآنِ کریم',
         chapterTitle: 'سورہ البقرہ',
         sectionTitle: '',
-        recordId: 8,
-        recordLabel: 'آیت',
+        locator: 'آیت 8 • پارہ 1 • صفحہ 2',
       );
-      expect(citation, contains('آیت: 8'));
-      expect(citation, isNot(contains('حدیث نمبر')));
+      expect(citation, contains('حوالہ: آیت 8'));
+      expect(citation, isNot(contains('فصل')));
     });
   });
 }

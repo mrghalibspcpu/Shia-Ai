@@ -52,15 +52,13 @@ class ReaderPreferences {
         fontScale: fontScale ?? this.fontScale,
         script: script ?? this.script,
       );
-
-  String get nextScript => switch (script) {
-        'arabic' => 'urdu',
-        'urdu' => 'both',
-        _ => 'arabic',
-      };
 }
 
-/// The font/palette/script controls used by every reader app bar.
+/// The font size and palette controls used by every reader app bar.
+///
+/// The Arabic/Urdu/both choice intentionally lives in Settings, not here: a
+/// toolbar button for it (the old globe icon) was removed at readers'
+/// request so the reading screen stays uncluttered.
 class ReaderControls extends StatelessWidget {
   const ReaderControls({
     super.key,
@@ -102,12 +100,6 @@ class ReaderControls extends StatelessWidget {
     onChanged(preferences.copyWith(fontScale: next));
   }
 
-  Future<void> _cycleScript() async {
-    final next = preferences.nextScript;
-    await preferences.saveScript(next);
-    onChanged(preferences.copyWith(script: next));
-  }
-
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -123,19 +115,6 @@ class ReaderControls extends StatelessWidget {
           tooltip: 'حروف بڑے',
           onPressed: () => _adjustFont(0.08),
           icon: const Icon(Icons.text_increase),
-        ),
-        IconButton(
-          tooltip: switch (preferences.script) {
-            'arabic' => 'صرف عربی',
-            'urdu' => 'صرف اردو',
-            _ => 'عربی و اردو',
-          },
-          onPressed: _cycleScript,
-          icon: Icon(switch (preferences.script) {
-            'arabic' => Icons.translate,
-            'urdu' => Icons.text_fields,
-            _ => Icons.language,
-          }),
         ),
         IconButton(
           tooltip: 'مطالعے کا انداز',
@@ -182,6 +161,11 @@ class _PassageCardState extends State<PassageCard> {
   bool _bookmarked = false;
   String? _note;
 
+  /// Tafseer and footnotes stay folded until the reader asks for them; a wall
+  /// of auto-expanded commentary under every verse made surahs unreadable.
+  bool _showCommentary = false;
+  bool _showFootnote = false;
+
   int get _stateId => widget.stateId ?? widget.passage.recordId;
 
   @override
@@ -196,6 +180,8 @@ class _PassageCardState extends State<PassageCard> {
     if (oldWidget.passage.recordId != widget.passage.recordId ||
         oldWidget.book.key != widget.book.key ||
         oldWidget.stateId != widget.stateId) {
+      _showCommentary = false;
+      _showFootnote = false;
       unawaited(_refresh());
     }
   }
@@ -261,10 +247,12 @@ class _PassageCardState extends State<PassageCard> {
     final showCommentary =
         widget.script != 'arabic' && passage.commentary.trim().isNotEmpty;
     final showFootnote = widget.script != 'arabic' && passage.footnote.trim().isNotEmpty;
-    final header = widget.indexLabel ??
-        (passage.locator.isNotEmpty
-            ? passage.locator
-            : (passage.recordId > 0 ? '${widget.book.recordLabel} ${passage.recordId}' : ''));
+    // Never fall back to the raw database id: Parags.ID 562276 is a storage
+    // key, not a hadith number, and printing it as one confused readers.
+    // Callers pass a proper indexLabel (آیت ٦, حدیث ۵) or a locator instead.
+    final header = widget.indexLabel ?? passage.locator;
+    final isTitle = passage.format == 1;
+    final isSubHeading = passage.format == 3;
 
     return Card(
       color: widget.palette.background,
@@ -310,18 +298,17 @@ class _PassageCardState extends State<PassageCard> {
               ],
             ),
             if (showArabic) ...[
-              Directionality(
-                textDirection: TextDirection.rtl,
-                child: SelectableText(
-                  passage.arabic,
-                  textAlign: TextAlign.justify,
-                  style: TextStyle(
-                    fontFamily: kArabicFont,
-                    fontSize: 22 * widget.fontScale,
-                    height: 1.65,
-                    letterSpacing: 0,
-                    color: textColor,
-                  ),
+              // Plain Text on purpose, inside a SelectionArea provided by the
+              // reader screens: a SelectableText per card made long lists
+              // (286 verse cards, each with three of them) render as grey,
+              // unpainted blocks on slower phones.
+              JustifiedText(
+                passage.arabic,
+                arabic: true,
+                style: TextStyle(
+                  fontSize: (isTitle ? 25 : isSubHeading ? 21 : 22) * widget.fontScale,
+                  fontWeight: isTitle || isSubHeading ? FontWeight.bold : null,
+                  color: isTitle || isSubHeading ? kForest : textColor,
                 ),
               ),
               if (showUrdu || showCommentary) ...[
@@ -333,25 +320,31 @@ class _PassageCardState extends State<PassageCard> {
             if (showUrdu)
               JustifiedText(
                 passage.urdu,
-                selectable: true,
-                style: TextStyle(fontSize: 19 * widget.fontScale, height: 1.6, color: textColor),
+                style: TextStyle(
+                  fontSize: (isTitle ? 18 : 19) * widget.fontScale,
+                  height: 1.6,
+                  fontWeight: isTitle ? FontWeight.bold : null,
+                  color: textColor,
+                ),
               ),
             if (showCommentary) ...[
               const SizedBox(height: 10),
-              _AnnotatedBox(
+              _ExpandableNote(
                 label: 'تفسیری حاشیہ',
                 body: passage.commentary,
-                color: kForest,
+                expanded: _showCommentary,
+                onToggle: () => setState(() => _showCommentary = !_showCommentary),
                 textColor: textColor,
                 fontScale: widget.fontScale,
               ),
             ],
             if (showFootnote) ...[
               const SizedBox(height: 10),
-              _AnnotatedBox(
+              _ExpandableNote(
                 label: 'حاشیہ',
                 body: passage.footnote,
-                color: kForest,
+                expanded: _showFootnote,
+                onToggle: () => setState(() => _showFootnote = !_showFootnote),
                 textColor: textColor,
                 fontScale: widget.fontScale,
               ),
@@ -369,6 +362,65 @@ class _PassageCardState extends State<PassageCard> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A folded annotation — tafseer or footnote — that opens only on tap.
+class _ExpandableNote extends StatelessWidget {
+  const _ExpandableNote({
+    required this.label,
+    required this.body,
+    required this.expanded,
+    required this.onToggle,
+    required this.textColor,
+    required this.fontScale,
+  });
+
+  final String label;
+  final String body;
+  final bool expanded;
+  final VoidCallback onToggle;
+  final Color textColor;
+  final double fontScale;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        InkWell(
+          onTap: onToggle,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+            child: Row(
+              children: [
+                Icon(
+                  expanded ? Icons.expand_less : Icons.expand_more,
+                  size: 18,
+                  color: kForest,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: const TextStyle(color: kForest, fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (expanded) ...[
+          const SizedBox(height: 6),
+          _AnnotatedBox(
+            label: '',
+            body: body,
+            color: kForest,
+            textColor: textColor,
+            fontScale: fontScale,
+          ),
+        ],
+      ],
     );
   }
 }
@@ -400,16 +452,17 @@ class _AnnotatedBox extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            label,
-            style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
-            textDirection: TextDirection.rtl,
-            textAlign: TextAlign.right,
-          ),
-          const SizedBox(height: 4),
+          if (label.isNotEmpty) ...[
+            Text(
+              label,
+              style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
+              textDirection: TextDirection.rtl,
+              textAlign: TextAlign.right,
+            ),
+            const SizedBox(height: 4),
+          ],
           JustifiedText(
             body,
-            selectable: true,
             style: TextStyle(color: textColor, fontSize: 16 * fontScale, height: 1.55),
           ),
         ],

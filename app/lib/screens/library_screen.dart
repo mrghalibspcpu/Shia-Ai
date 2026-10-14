@@ -7,6 +7,7 @@ import '../app_theme.dart';
 import '../library_repository.dart';
 import '../models.dart';
 import '../reader_navigation.dart';
+import '../text_utils.dart' show arabicNumerals;
 import '../widgets/reader_kit.dart';
 import 'balagha_screen.dart';
 import 'duas_screen.dart';
@@ -596,7 +597,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
               ? ErrorPanel(error: _error!)
               : _passages.isEmpty
                   ? const CollectionMessage('اس حصے میں متن موجود نہیں۔')
-                  : ScrollablePositionedList.builder(
+                  : SelectionArea(
+                      child: ScrollablePositionedList.builder(
                       key: PageStorageKey('reader-${widget.book.key}-${widget.sectionId ?? widget.recordId}'),
                       itemScrollController: _itemScrollController,
                       initialScrollIndex: _initialIndex,
@@ -610,6 +612,13 @@ class _ReaderScreenState extends State<ReaderScreen> {
                         palette: palette,
                         fontScale: _preferences.fontScale,
                         script: _preferences.script,
+                        // Numbered within this section (۱، ۲، ۳…) — not the
+                        // database row id, which reached 562276 and was
+                        // mistaken for a hadith count that does not exist.
+                        indexLabel: widget.book.source == CorpusSource.hadith
+                            ? 'حدیث ${arabicNumerals(index + 1)}'
+                            : null,
+                      ),
                       ),
                     ),
     );

@@ -122,16 +122,8 @@ class BalaghaSectionScreen extends StatelessWidget {
                     style: const TextStyle(fontSize: 16),
                     maxLines: 2,
                   ),
-                  subtitle: entry.paragraphCount == 0
-                      ? null
-                      : Text(
-                          '${entry.paragraphCount} فقرے',
-                          textDirection: TextDirection.rtl,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
+                  // No paragraph counts ("۲۳۸ فقرے"): the count is an internal
+                  // detail of the database, not something readers asked for.
                   trailing: const Icon(Icons.chevron_left),
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => BalaghaReaderScreen(
@@ -282,18 +274,41 @@ class _BalaghaPassageListState extends State<_BalaghaPassageList> {
               ? ErrorPanel(error: _error!)
               : _passages.isEmpty
                   ? const CollectionMessage('اس حصے میں متن موجود نہیں۔')
-                  : ListView.builder(
-                      key: PageStorageKey(widget.storageKey),
-                      itemCount: _passages.length,
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 40),
-                      itemBuilder: (context, index) => PassageCard(
-                        key: ValueKey('balagha-${_passages[index].recordId}'),
-                        library: widget.library,
-                        book: _book,
-                        passage: _passages[index],
-                        palette: palette,
-                        fontScale: _preferences.fontScale,
-                        script: _preferences.script,
+                  : SelectionArea(
+                      child: ListView.builder(
+                        key: PageStorageKey(widget.storageKey),
+                        itemCount: _passages.length,
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 40),
+                        itemBuilder: (context, index) {
+                          final passage = _passages[index];
+                          if (passage.format == 4) {
+                            // A decorative separator in the source text
+                            // ('-----٭٭-----'): render it as one, not as a
+                            // card full of dashes.
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 10),
+                              child: Row(
+                                children: [
+                                  Expanded(child: Divider()),
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 10),
+                                    child: Text('٭ ٭ ٭', style: TextStyle(color: kForest)),
+                                  ),
+                                  Expanded(child: Divider()),
+                                ],
+                              ),
+                            );
+                          }
+                          return PassageCard(
+                            key: ValueKey('balagha-${passage.recordId}'),
+                            library: widget.library,
+                            book: _book,
+                            passage: passage,
+                            palette: palette,
+                            fontScale: _preferences.fontScale,
+                            script: _preferences.script,
+                          );
+                        },
                       ),
                     ),
     );

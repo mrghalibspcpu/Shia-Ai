@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../app_theme.dart';
 import '../library_repository.dart';
@@ -277,62 +276,50 @@ class _QuranVerseList extends StatefulWidget {
 }
 
 class _QuranVerseListState extends State<_QuranVerseList> {
-  final ItemScrollController _scrollController = ItemScrollController();
-  final ItemPositionsListener _positionsListener = ItemPositionsListener.create();
+  final ScrollController _scrollController = ScrollController();
+
+  /// One key per verse so search results and bookmarks can scroll straight
+  /// to the verse they opened.
+  final Map<int, GlobalKey> _verseKeys = {};
+
   final BookDefinition _book = BookDefinition.bookFor(CorpusSource.quran)!;
 
   List<Passage> _verses = const [];
   ReaderPreferences _preferences = const ReaderPreferences();
   bool _loading = true;
   String? _error;
-  int _initialIndex = 0;
-  int _currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _positionsListener.itemPositions.addListener(_track);
     unawaited(_load());
   }
 
   @override
   void dispose() {
-    _positionsListener.itemPositions.removeListener(_track);
+    _scrollController.dispose();
     super.dispose();
-  }
-
-  void _track() {
-    final visible = _positionsListener.itemPositions.value
-        .where((position) => position.itemTrailingEdge > 0 && position.itemLeadingEdge < 1)
-        .toList()
-      ..sort((left, right) => left.index.compareTo(right.index));
-    if (visible.isNotEmpty) _currentIndex = visible.first.index;
   }
 
   Future<void> _load() async {
     try {
       final preferences = await ReaderPreferences.load();
       final verses = await widget.loader();
-      var index = 0;
-      final target = widget.initialRecordId;
-      if (target != null) {
-        final found = verses.indexWhere((verse) => verse.recordId == target);
-        if (found >= 0) index = found;
-      }
       if (!mounted) return;
       setState(() {
         _preferences = preferences;
         _verses = verses;
-        _initialIndex = index;
-        _currentIndex = index;
         _loading = false;
       });
-      if (_verses.isNotEmpty && index > 0) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollController.isAttached) {
-            _scrollController.jumpTo(index: index, alignment: 0.04);
-          }
-        });
+      final target = widget.initialRecordId;
+      if (target != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToVerse(target));
+      }
+      if (verses.isNotEmpty) {
+        final opened = target != null && verses.any((verse) => verse.recordId == target)
+            ? target
+            : verses.first.recordId;
+        unawaited(widget.library.saveLastRead(bookKey: _book.key, recordId: opened));
       }
     } catch (error) {
       if (mounted) {
@@ -344,13 +331,31 @@ class _QuranVerseListState extends State<_QuranVerseList> {
     }
   }
 
+  void _scrollToVerse(int recordId) {
+    final target = _verseKeys[recordId]?.currentContext;
+    if (target == null || !mounted) return;
+    Scrollable.ensureVisible(
+      target,
+      alignment: 0.05,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOut,
+    );
+  }
+
+  /// Remembers where reading stopped: the first verse card that starts
+  /// inside the visible area when scrolling ends.
   void _saveLastRead() {
-    if (_verses.isEmpty) return;
-    final index = _currentIndex.clamp(0, _verses.length - 1);
-    unawaited(widget.library.saveLastRead(
-      bookKey: _book.key,
-      recordId: _verses[index].recordId,
-    ));
+    for (final verse in _verses) {
+      final context = _verseKeys[verse.recordId]?.currentContext;
+      final box = context?.findRenderObject();
+      if (box is RenderBox && box.attached && context != null) {
+        final top = box.localToGlobal(Offset.zero).dy;
+        if (top > 60 && top < MediaQuery.sizeOf(context).height * 0.85) {
+          unawaited(widget.library.saveLastRead(bookKey: _book.key, recordId: verse.recordId));
+          return;
+        }
+      }
+    }
   }
 
   @override
@@ -390,29 +395,32 @@ class _QuranVerseListState extends State<_QuranVerseList> {
                         _saveLastRead();
                         return false;
                       },
-                      child: ScrollablePositionedList.builder(
-                        key: PageStorageKey(widget.storageKey),
-                        itemScrollController: _scrollController,
-                        itemPositionsListener: _positionsListener,
-                        initialScrollIndex: _initialIndex,
-                        itemCount: _verses.length + (widget.bismillah ? 1 : 0),
-                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 90),
-                        itemBuilder: (context, index) {
-                          if (widget.bismillah && index == 0) {
-                            return _Bismillah(scale: _preferences.fontScale);
-                          }
-                          final verse = _verses[index - (widget.bismillah ? 1 : 0)];
-                          return PassageCard(
-                            key: ValueKey('quran-${verse.recordId}'),
-                            library: widget.library,
-                            book: _book,
-                            passage: verse,
-                            palette: palette,
-                            fontScale: _preferences.fontScale,
-                            script: _preferences.script,
-                            indexLabel: 'آیت ${arabicNumerals(_verseNumber(verse))}',
-                          );
-                        },
+                      child: SelectionArea(
+                        child: SingleChildScrollView(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 60),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (widget.bismillah) _Bismillah(scale: _preferences.fontScale),
+                              // Every verse is built up front instead of lazily:
+                              // a lazy positioned list left some verse cards
+                              // as grey, unpainted blocks on slower phones,
+                              // which readers reported as "آیات لوڈ نہیں ہوئیں".
+                              for (final verse in _verses)
+                                PassageCard(
+                                  key: _verseKeys.putIfAbsent(verse.recordId, () => GlobalKey()),
+                                  library: widget.library,
+                                  book: _book,
+                                  passage: verse,
+                                  palette: palette,
+                                  fontScale: _preferences.fontScale,
+                                  script: _preferences.script,
+                                  indexLabel: 'آیت ${arabicNumerals(_verseNumber(verse))}',
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
     );

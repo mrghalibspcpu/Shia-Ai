@@ -146,6 +146,7 @@ class Passage {
     this.containerId,
     this.commentary = '',
     this.footnote = '',
+    this.format,
   });
 
   final int recordId;
@@ -167,6 +168,11 @@ class Passage {
   final String commentary;
   final String footnote;
 
+  /// Presentation role kept from the source database (Nahj al-Balagha
+  /// `ParaFormat`: 1 title, 2 text, 3 sub-heading, 4 separator; Mafatih line
+  /// type: 1 dua text, 2 Urdu instruction). Null for the hadith books/Quran.
+  final int? format;
+
   factory Passage.fromMap(Map<String, Object?> row) => Passage(
         recordId: _asInt(row['record_id'] ?? row['ID']) ?? 0,
         sectionId: _asInt(row['section_id'] ?? row['Secid']),
@@ -180,6 +186,7 @@ class Passage {
         containerId: _asInt(row['container_id']),
         commentary: _compact((row['commentary'] ?? '').toString()),
         footnote: _compact((row['footnote'] ?? '').toString()),
+        format: _asInt(row['format'] ?? row['ParaFormat']),
       );
 
   bool get isEmpty => arabic.trim().isEmpty && urdu.trim().isEmpty;
@@ -205,6 +212,7 @@ class Passage {
         containerId: containerId,
         commentary: commentary ?? this.commentary,
         footnote: footnote ?? this.footnote,
+        format: format,
       );
 }
 

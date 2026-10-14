@@ -132,6 +132,19 @@ def quran(connection: sqlite3.Connection) -> None:
     check("quran: juz index", len(index) == 30, f"{len(index)}")
     record = run(connection, "WHERE q.ID = ?", (1,))
     check("quran: verse lookup by ID", len(record) == 1 and bool(record[0][2]))
+    # The reader used to show some verses as grey, unpainted blocks and the
+    # complaint was "آیات لوڈ نہیں ہوئیں" — the data must never be the reason:
+    # every verse carries Arabic text and a translation.
+    empties = connection.execute(
+        "SELECT COUNT(*) FROM Quran WHERE Arabic IS NULL OR trim(Arabic) = '' "
+        "OR tr IS NULL OR trim(tr) = ''"
+    ).fetchone()[0]
+    check("quran: every verse has Arabic text and a translation", empties == 0, f"{empties} incomplete")
+    mismatched = connection.execute(
+        "SELECT COUNT(*) FROM ChapterProperty AS cp "
+        "WHERE cp.Verse != (SELECT COUNT(*) FROM Quran AS q WHERE q.chapter = cp.Id)"
+    ).fetchone()[0]
+    check("quran: per-surah verse counts match the chapter table", mismatched == 0, f"{mismatched} differ")
 
 
 def dua(connection: sqlite3.Connection) -> None:
@@ -155,6 +168,17 @@ def dua(connection: sqlite3.Connection) -> None:
         return
     lines = run(connection, "FROM Lines WHERE L_M_id = ?", (item[0][1],))
     check("mafatih: supplication lines", len(lines) > 0, f"{len(lines)} lines")
+    # Line kinds drive the flowing dua layout: kind 1 must always carry the
+    # Arabic dua text, kind 2 the Urdu instruction between segments. Exactly
+    # one instruction row in the source is blank; the client drops it.
+    no_arabic = connection.execute(
+        "SELECT COUNT(*) FROM Lines WHERE L_type = 1 AND trim(L_text) = ''"
+    ).fetchone()[0]
+    check("mafatih: every dua line has Arabic text", no_arabic == 0, f"{no_arabic} blank")
+    blank_guidance = connection.execute(
+        "SELECT COUNT(*) FROM Lines WHERE L_type = 2 AND trim(L_text) = ''"
+    ).fetchone()[0]
+    check("mafatih: only the one known blank instruction row", blank_guidance == 1, f"{blank_guidance} blank")
     indexed = run(connection, "SELECT m.rowid AS record_id, m.M_name AS section_title", (400, 0))
     check(
         "mafatih: GROUP_CONCAT index query",
@@ -172,6 +196,27 @@ def balagha(connection: sqlite3.Connection) -> None:
     check("balagha: introduction prose", len(prose) > 10, f"{len(prose)} paragraphs")
     main = run(connection, "WHERE x.Type = ? AND x.TypeNo = ?", (1, 3))
     check("balagha: khutba 3 paragraphs", len(main) > 10, f"{len(main)}")
+    # The book's own typography comes from ParaFormat: 1 title, 2 text,
+    # 3 sub-heading, 4 separator. The reader renders those roles and never
+    # prints a "فقرا نمبر" label, so the roles have to be there.
+    first = connection.execute(
+        "SELECT ParaFormat FROM balaghatext WHERE Type = 1 AND TypeNo = 1 ORDER BY ParaNo LIMIT 1"
+    ).fetchone()
+    check("balagha: khutba 1 opens with a title row", first is not None and first[0] == 1)
+    roles = dict(
+        connection.execute(
+            "SELECT ParaFormat, COUNT(*) FROM balaghatext WHERE Type = 1 AND TypeNo = 1 GROUP BY ParaFormat"
+        ).fetchall()
+    )
+    check(
+        "balagha: khutba 1 mixes text, sub-headings, separators",
+        roles.get(2, 0) > 10 and roles.get(3, 0) > 0 and roles.get(4, 0) > 0,
+        str(roles),
+    )
+    separators = connection.execute(
+        "SELECT COUNT(*) FROM balaghatext WHERE ParaFormat = 4 AND trim(AR) LIKE '%٭%'"
+    ).fetchone()[0]
+    check("balagha: separator rows carry the ornament", separators > 100, f"{separators}")
     footnotes = run(connection, "WHERE Type = ? AND TypeNo = ? AND ParaNo IS NOT NULL", (1, 3))
     check("balagha: footnotes for khutba 3", len(footnotes) > 0, f"{len(footnotes)}")
     intro = run(connection, "FROM balaghatext_muqadamat WHERE Type = ?", (1,))
