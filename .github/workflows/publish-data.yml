@@ -82,7 +82,7 @@ jobs:
           gh release view "$TAG" --json assets \
             --jq '.assets[] | "\(.name)\t\(.size)"' | sort | tee published-assets.txt
           expected=$(ls dist/*.gz | wc -l)
-          published=$(grep -c '\.db\.gz$' published-assets.txt || true)
+          published=$(grep -c '\.db\.gz[[:space:]]' published-assets.txt || true)
           echo "expected $expected .db.gz assets, published $published"
           test "$published" -eq "$expected"
           grep -q '^database-manifest\.json' published-assets.txt
