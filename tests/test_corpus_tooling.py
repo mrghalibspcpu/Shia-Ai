@@ -100,9 +100,21 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(totals["dua_items"], 677)
         self.assertEqual(totals["balagha_paragraphs"], 3742)
 
+    def test_asset_names_match_what_the_app_requests(self):
+        """`<name>` + `<extension>` must equal the file publish_databases.py writes."""
+        from prepare_databases import DOWNLOAD_EXTENSION
+
+        manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+        self.assertEqual(DOWNLOAD_EXTENSION, ".gz")
+        self.assertEqual(manifest["download"]["extension"], DOWNLOAD_EXTENSION)
+        for entry in manifest["databases"]:
+            self.assertTrue(entry["name"].endswith(".db"), entry["name"])
+            # publish_databases.py writes f"{spec.name}.gz" into dist/.
+            self.assertEqual(entry["name"] + DOWNLOAD_EXTENSION, f"{entry['name']}.gz")
+
     def test_download_settings_are_absolute_https_urls(self):
         download = self.manifest["download"]
-        self.assertEqual(download["extension"], ".db.gz")
+        self.assertEqual(download["extension"], ".gz")
         for url in download["base_urls"]:
             with self.subTest(url):
                 self.assertTrue(url.startswith("https://"))

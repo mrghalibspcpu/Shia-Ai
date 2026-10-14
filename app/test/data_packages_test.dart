@@ -6,7 +6,7 @@ const String _manifest = '''
   "format_version": 2,
   "database_count": 2,
   "download": {
-    "extension": ".db.gz",
+    "extension": ".gz",
     "base_urls": [
       "https://github.com/mrghalibspcpu/Shia-Ai/releases/latest/download/",
       "https://raw.githubusercontent.com/mrghalibspcpu/Shia-Ai/main/assets"
@@ -40,7 +40,7 @@ void main() {
     test('reads packages, sizes, and download settings', () {
       final catalog = DataCatalog.parse(_manifest);
       expect(catalog.packages, hasLength(2));
-      expect(catalog.extension, '.db.gz');
+      expect(catalog.extension, '.gz');
       expect(catalog.totalBytes, 16943104 + 27953152);
       expect(catalog.byKey('quran')?.fileName, 'quran.db');
       expect(catalog.byKey('alkafi')?.source, 'hadith');
@@ -86,7 +86,7 @@ void main() {
       final urls = downloadUrlsFor(
         package: package,
         baseUrls: const ['https://releases.example/', 'https://repo.example/'],
-        extension: '.db.gz',
+        extension: '.gz',
         overrideBaseUrl: 'https://mirror.example',
       );
       expect(urls.first, 'https://mirror.example/quran.db.gz');

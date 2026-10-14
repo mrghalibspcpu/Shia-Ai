@@ -45,7 +45,7 @@ DOWNLOAD_BASE_URLS = (
     "https://github.com/mrghalibspcpu/Shia-Ai/releases/latest/download/",
     "https://raw.githubusercontent.com/mrghalibspcpu/Shia-Ai/main/assets/",
 )
-DOWNLOAD_EXTENSION = ".db.gz"
+DOWNLOAD_EXTENSION = ".gz"
 MAX_ENTRY_BYTES = 100 * 1024 * 1024
 
 

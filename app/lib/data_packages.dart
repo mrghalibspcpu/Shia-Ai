@@ -41,7 +41,7 @@ class DataCatalog {
   const DataCatalog({
     required this.packages,
     required this.baseUrls,
-    this.extension = '.db.gz',
+    this.extension = '.gz',
   });
 
   final List<DataPackage> packages;
@@ -76,14 +76,20 @@ class DataCatalog {
     return DataCatalog(
       packages: packages,
       baseUrls: baseUrls,
-      extension: (download['extension'] ?? '.db.gz').toString(),
+      extension: (download['extension'] ?? '.gz').toString(),
     );
   }
 
   static DataCatalog parse(String raw) {
-    final decoded = jsonDecode(raw);
-    if (decoded is! Map) return empty;
-    return DataCatalog.fromJson(Map<String, dynamic>.from(decoded));
+    // A truncated or corrupt manifest must never take the app down: the caller
+    // falls back to the bundled copy or to a fresh download.
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return empty;
+      return DataCatalog.fromJson(Map<String, dynamic>.from(decoded));
+    } on FormatException {
+      return empty;
+    }
   }
 
   DataPackage? byKey(String key) {
