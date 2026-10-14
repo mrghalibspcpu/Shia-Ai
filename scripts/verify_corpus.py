@@ -165,15 +165,15 @@ def main() -> int:
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     entries = {row["name"]: row for row in manifest.get("databases", [])}
     check(
-        "manifest lists 17 databases",
-        manifest.get("database_count") == 17 and len(entries) == 17,
+        "manifest lists 20 databases",
+        manifest.get("database_count") == 20 and len(entries) == 20,
         f"{len(entries)} entries",
     )
 
     if args.database_dir:
         collected = [
             (BY_NAME[path.name], path)
-            for path in sorted(args.database_dir.glob("*.db"))
+            for path in sorted(args.database_dir.iterdir())
             if path.name in BY_NAME
         ]
         run_checks(collected, len(entries))

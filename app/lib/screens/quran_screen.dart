@@ -1,11 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../app_theme.dart';
 import '../library_repository.dart';
 import '../models.dart';
-import '../text_utils.dart' show arabicNumerals;
+import '../text_utils.dart' show arabicNumerals, parseReaderNumber;
 import '../widgets/reader_kit.dart';
 
 /// Surah / juz / page browser for the Quran collection.
@@ -28,7 +29,7 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
   }
 
   Future<void> _openPage() async {
-    final page = int.tryParse(_jumpController.text.trim());
+    final page = parseReaderNumber(_jumpController.text);
     if (page == null || page < 1 || page > 604) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('صفحہ نمبر ۱ سے ۶۰۴ کے درمیان لکھیں۔')),
@@ -52,6 +53,8 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
             tabs: [Tab(text: 'سورتیں'), Tab(text: 'پارے')],
           ),
           actions: [
+            IconButton(tooltip: 'سورہ / آیت پر جائیں', icon: const Icon(Icons.my_location),
+              onPressed: () => showQuranJump(context, widget.library)),
             IconButton(
               tooltip: 'صفحہ پر جائیں',
               onPressed: _openPage,
@@ -191,11 +194,13 @@ class SurahReaderScreen extends StatefulWidget {
     required this.library,
     required this.surah,
     this.initialRecordId,
+    this.searchQuery = '',
   });
 
   final LibraryRepository library;
   final QuranSurah surah;
   final int? initialRecordId;
+  final String searchQuery;
 
   @override
   State<SurahReaderScreen> createState() => _SurahReaderScreenState();
@@ -207,10 +212,12 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
     return _QuranVerseList(
       library: widget.library,
       title: widget.surah.displayTitle,
-      subtitle: '${widget.surah.verseCount} آیات • ${widget.surah.revelationPlace}',
+      subtitle: widget.surah.verseCount > 0
+          ? '${widget.surah.verseCount} آیات • ${widget.surah.revelationPlace}' : 'قرآنِ کریم',
       loader: () => widget.library.getSurahVerses(widget.surah.number),
-      bismillah: widget.surah.number > 1,
+      bismillah: widget.surah.number > 1 && widget.surah.number != 9,
       initialRecordId: widget.initialRecordId,
+      searchQuery: widget.searchQuery,
       storageKey: 'quran-surah-${widget.surah.number}',
     );
   }
@@ -261,6 +268,7 @@ class _QuranVerseList extends StatefulWidget {
     required this.storageKey,
     this.bismillah = false,
     this.initialRecordId,
+    this.searchQuery = '',
   });
 
   final LibraryRepository library;
@@ -270,17 +278,17 @@ class _QuranVerseList extends StatefulWidget {
   final String storageKey;
   final bool bismillah;
   final int? initialRecordId;
+  final String searchQuery;
 
   @override
   State<_QuranVerseList> createState() => _QuranVerseListState();
 }
 
 class _QuranVerseListState extends State<_QuranVerseList> {
-  final ScrollController _scrollController = ScrollController();
-
-  /// One key per verse so search results and bookmarks can scroll straight
-  /// to the verse they opened.
-  final Map<int, GlobalKey> _verseKeys = {};
+  final ItemScrollController _itemScrollController = ItemScrollController();
+  final ItemPositionsListener _positions = ItemPositionsListener.create();
+  int _initialIndex = 0;
+  int? _lastSavedRecord;
 
   final BookDefinition _book = BookDefinition.bookFor(CorpusSource.quran)!;
 
@@ -295,12 +303,6 @@ class _QuranVerseListState extends State<_QuranVerseList> {
     unawaited(_load());
   }
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
   Future<void> _load() async {
     try {
       final preferences = await ReaderPreferences.load();
@@ -309,12 +311,11 @@ class _QuranVerseListState extends State<_QuranVerseList> {
       setState(() {
         _preferences = preferences;
         _verses = verses;
+        final index = verses.indexWhere((v) => v.recordId == widget.initialRecordId);
+        _initialIndex = (index < 0 ? 0 : index) + (widget.bismillah ? 1 : 0);
         _loading = false;
       });
       final target = widget.initialRecordId;
-      if (target != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToVerse(target));
-      }
       if (verses.isNotEmpty) {
         final opened = target != null && verses.any((verse) => verse.recordId == target)
             ? target
@@ -331,31 +332,18 @@ class _QuranVerseListState extends State<_QuranVerseList> {
     }
   }
 
-  void _scrollToVerse(int recordId) {
-    final target = _verseKeys[recordId]?.currentContext;
-    if (target == null || !mounted) return;
-    Scrollable.ensureVisible(
-      target,
-      alignment: 0.05,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeOut,
-    );
-  }
-
-  /// Remembers where reading stopped: the first verse card that starts
-  /// inside the visible area when scrolling ends.
+  /// O(visible items), not a scan/layout of hundreds of offscreen verses.
   void _saveLastRead() {
-    for (final verse in _verses) {
-      final context = _verseKeys[verse.recordId]?.currentContext;
-      final box = context?.findRenderObject();
-      if (box is RenderBox && box.attached && context != null) {
-        final top = box.localToGlobal(Offset.zero).dy;
-        if (top > 60 && top < MediaQuery.sizeOf(context).height * 0.85) {
-          unawaited(widget.library.saveLastRead(bookKey: _book.key, recordId: verse.recordId));
-          return;
-        }
-      }
-    }
+    final visible = _positions.itemPositions.value
+        .where((p) => p.itemTrailingEdge > 0 && p.itemLeadingEdge < 1)
+        .toList()..sort((a, b) => a.index.compareTo(b.index));
+    if (visible.isEmpty) return;
+    final index = visible.first.index - (widget.bismillah ? 1 : 0);
+    if (index < 0 || index >= _verses.length) return;
+    final record = _verses[index].recordId;
+    if (record == _lastSavedRecord) return;
+    _lastSavedRecord = record;
+    unawaited(widget.library.saveLastRead(bookKey: _book.key, recordId: record));
   }
 
   @override
@@ -378,6 +366,8 @@ class _QuranVerseListState extends State<_QuranVerseList> {
           ],
         ),
         actions: [
+          IconButton(tooltip: 'سورہ / آیت پر جائیں', icon: const Icon(Icons.my_location),
+            onPressed: () => showQuranJump(context, widget.library)),
           ReaderControls(
             preferences: _preferences,
             onChanged: (value) => setState(() => _preferences = value),
@@ -396,30 +386,28 @@ class _QuranVerseListState extends State<_QuranVerseList> {
                         return false;
                       },
                       child: SelectionArea(
-                        child: SingleChildScrollView(
-                          controller: _scrollController,
+                        child: ScrollablePositionedList.builder(
+                          key: PageStorageKey(widget.storageKey),
+                          itemScrollController: _itemScrollController,
+                          itemPositionsListener: _positions,
+                          initialScrollIndex: _initialIndex,
+                          initialAlignment: 0.04,
+                          minCacheExtent: 400,
                           padding: const EdgeInsets.fromLTRB(16, 10, 16, 60),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              if (widget.bismillah) _Bismillah(scale: _preferences.fontScale),
-                              // Every verse is built up front instead of lazily:
-                              // a lazy positioned list left some verse cards
-                              // as grey, unpainted blocks on slower phones,
-                              // which readers reported as "آیات لوڈ نہیں ہوئیں".
-                              for (final verse in _verses)
-                                PassageCard(
-                                  key: _verseKeys.putIfAbsent(verse.recordId, () => GlobalKey()),
-                                  library: widget.library,
-                                  book: _book,
-                                  passage: verse,
-                                  palette: palette,
-                                  fontScale: _preferences.fontScale,
-                                  script: _preferences.script,
-                                  indexLabel: 'آیت ${arabicNumerals(_verseNumber(verse))}',
-                                ),
-                            ],
-                          ),
+                          itemCount: _verses.length + (widget.bismillah ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            if (widget.bismillah && index == 0) return _Bismillah(scale: _preferences.fontScale);
+                            final verse = _verses[index - (widget.bismillah ? 1 : 0)];
+                            return PassageCard(
+                              key: ValueKey('quran-${verse.recordId}'),
+                              library: widget.library, book: _book, passage: verse,
+                              palette: palette, fontScale: _preferences.fontScale,
+                              script: widget.searchQuery.isEmpty ? _preferences.script : 'both',
+                              searchQuery: widget.searchQuery,
+                              focusMatch: verse.recordId == widget.initialRecordId,
+                              indexLabel: 'آیت ${arabicNumerals(_verseNumber(verse))}',
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -453,5 +441,55 @@ class _Bismillah extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Available from the Quran index and every surah/juz/page reader.
+Future<void> showQuranJump(BuildContext context, LibraryRepository library) async {
+  try {
+    final surahs = await library.getSurahs();
+    if (!context.mounted || surahs.isEmpty) return;
+    final controller = TextEditingController(text: '1');
+    var selected = surahs.first;
+    String? error;
+    final target = await showDialog<({QuranSurah surah, int verse})>(
+      context: context,
+      builder: (context) => StatefulBuilder(builder: (context, setState) => AlertDialog(
+        title: const JustifiedText('سورہ / آیت پر جائیں'),
+        content: SizedBox(width: 320, child: Column(mainAxisSize: MainAxisSize.min, children: [
+          DropdownButton<int>(value: selected.number, isExpanded: true,
+            items: [for (final surah in surahs) DropdownMenuItem(value: surah.number,
+              child: Text('${surah.number}. ${surah.displayTitle}', overflow: TextOverflow.ellipsis))],
+            onChanged: (value) => setState(() {
+              selected = surahs.firstWhere((s) => s.number == value);
+              error = null;
+            })),
+          TextField(controller: controller, keyboardType: TextInputType.number,
+            decoration: InputDecoration(labelText: 'آیت نمبر (۱ تا ${selected.verseCount})', errorText: error),
+            textDirection: TextDirection.rtl),
+        ])),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('منسوخ')),
+          FilledButton(onPressed: () {
+            final verse = parseReaderNumber(controller.text);
+            if (verse == null || verse < 1 || verse > selected.verseCount) {
+              setState(() => error = 'درست آیت نمبر لکھیں');
+              return;
+            }
+            Navigator.pop(context, (surah: selected, verse: verse));
+          }, child: const Text('جائیں')),
+        ],
+      )),
+    );
+    // Let the dialog's TextField leave the tree before releasing its controller.
+    unawaited(Future<void>.delayed(const Duration(milliseconds: 300), controller.dispose));
+    if (target == null) return;
+    final verse = await library.getQuranVerse(target.surah.number, target.verse);
+    if (!context.mounted) return;
+    if (verse == null) throw StateError('آیت دستیاب نہیں');
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => SurahReaderScreen(
+      library: library, surah: target.surah, initialRecordId: verse.recordId)));
+  } catch (error) {
+    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error')));
   }
 }

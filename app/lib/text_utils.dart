@@ -293,3 +293,76 @@ String formatCitation({
   if (page != null) lines.add('صفحہ: $page');
   return lines.join('\n');
 }
+
+/// Match normalized Arabic/Urdu text while preserving original UTF-16 offsets
+/// for highlights and exact-word scrolling (including vowel marks).
+List<({int start, int end})> searchMatchRanges(String text, String query) {
+  final tokens = normalizeArabicUrdu(query).split(' ').where((t) => t.isNotEmpty).toSet();
+  if (tokens.isEmpty) return const [];
+  final buffer = StringBuffer();
+  final starts = <int>[];
+  final ends = <int>[];
+  var offset = 0;
+  var lastSpace = false;
+  final ignored = RegExp(r'[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u08D3-\u08FF\u0640\u200e\u200f\u200b\ufeff]');
+  for (final rune in text.runes) {
+    final char = String.fromCharCode(rune);
+    final end = offset + char.length;
+    if (ignored.hasMatch(char)) {
+      if (ends.isNotEmpty) ends[ends.length - 1] = end;
+    } else {
+      final normalized = normalizeArabicUrdu(char);
+      final part = normalized.isEmpty ? ' ' : normalized;
+      if (part != ' ' || buffer.isEmpty || !lastSpace) {
+        buffer.write(part);
+        lastSpace = part == ' ';
+        for (var i = 0; i < part.length; i++) { starts.add(offset); ends.add(end); }
+      }
+    }
+    offset = end;
+  }
+  final normalized = buffer.toString();
+  final ranges = <({int start, int end})>[];
+  for (final token in tokens) {
+    var from = 0;
+    while (from < normalized.length) {
+      final found = normalized.indexOf(token, from);
+      if (found < 0) break;
+      ranges.add((start: starts[found], end: ends[found + token.length - 1]));
+      from = found + token.length;
+    }
+  }
+  ranges.sort((a, b) => a.start.compareTo(b.start));
+  final merged = <({int start, int end})>[];
+  for (final range in ranges) {
+    if (merged.isNotEmpty && range.start <= merged.last.end) {
+      final previous = merged.removeLast();
+      merged.add((start: previous.start, end: range.end > previous.end ? range.end : previous.end));
+    } else { merged.add(range); }
+  }
+  return merged;
+}
+
+/// Accept Latin, Urdu/Persian, and Arabic-Indic digits in jump fields.
+int? parseReaderNumber(String value) {
+  const persian = '۰۱۲۳۴۵۶۷۸۹';
+  const arabic = '٠١٢٣٤٥٦٧٨٩';
+  var result = value.trim();
+  for (var i = 0; i < 10; i++) {
+    result = result.replaceAll(persian[i], '$i').replaceAll(arabic[i], '$i');
+  }
+  return int.tryParse(result);
+}
+
+/// Put the first match in the preview, even if it occurs near a record's end.
+String searchSnippet(String text, String query, {int radius = 100}) {
+  final matches = searchMatchRanges(text, query);
+  if (matches.isEmpty || text.length <= radius * 2) return text;
+  final match = matches.first;
+  var start = (match.start - radius).clamp(0, text.length);
+  var end = (match.end + radius).clamp(0, text.length);
+  // Avoid breaking surrogate pairs in the rare non-Arabic text in the corpus.
+  if (start > 0 && text.codeUnitAt(start) >= 0xDC00 && text.codeUnitAt(start) <= 0xDFFF) start--;
+  if (end < text.length && text.codeUnitAt(end) >= 0xDC00 && text.codeUnitAt(end) <= 0xDFFF) end++;
+  return '${start > 0 ? '…' : ''}${text.substring(start, end)}${end < text.length ? '…' : ''}';
+}

@@ -215,6 +215,8 @@ def write_manifest(records: list[dict]) -> None:
         "dua_items": sum(r["records"].get("M_items", 0) for r in records),
         "dua_lines": sum(r["records"].get("Lines", 0) for r in records),
         "balagha_paragraphs": sum(r["records"].get("balaghatext", 0) for r in records),
+        "sahifa_rows": sum(r["records"].get("saheefa_data", 0) for r in records),
+        "fatwa_answers": sum(r["records"].get("question_answers", 0) for r in records),
         "balagha_sections": sum(r["records"].get("balaghatoc", 0) for r in records),
     }
     payload = {

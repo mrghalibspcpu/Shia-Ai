@@ -26,7 +26,7 @@ void main() {
 
   group('corpus catalogue', () {
     test('lists the 14 hadith books plus the three new collections', () {
-      expect(BookDefinition.all, hasLength(17));
+      expect(BookDefinition.all, hasLength(20));
       expect(BookDefinition.hadithBooks, hasLength(14));
       expect(BookDefinition.byKey('tahzeeb')?.fileName, 'Tahzeeb.db');
       expect(BookDefinition.byKey('quran')?.source, CorpusSource.quran);

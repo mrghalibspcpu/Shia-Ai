@@ -154,6 +154,9 @@ def main() -> int:
 
     try:
         for spec in EXTRA_DATABASES:
+            if spec.source in {"sahifa", "fatwa"}:
+                print(f"{spec.name}: preserving the uploaded runtime database")
+                continue
             report = normalize_database(spec, apply_changes=not args.dry_run)
             rows = ", ".join(f"{table}={count}" for table, count in report["rows"].items())  # type: ignore[union-attr]
             verb = "needs rebuild" if report["changed"] else "already consistent"

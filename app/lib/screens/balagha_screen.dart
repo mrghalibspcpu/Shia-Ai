@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../app_theme.dart';
 import '../library_repository.dart';
@@ -150,12 +151,16 @@ class BalaghaReaderScreen extends StatelessWidget {
     required this.type,
     required this.typeNo,
     required this.title,
+    this.initialRecordId,
+    this.searchQuery = '',
   });
 
   final LibraryRepository library;
   final int type;
   final int typeNo;
   final String title;
+  final int? initialRecordId;
+  final String searchQuery;
 
   @override
   Widget build(BuildContext context) {
@@ -164,6 +169,8 @@ class BalaghaReaderScreen extends StatelessWidget {
       title: title.isEmpty ? '${balaghaSectionTitles[type] ?? ''} $typeNo' : title,
       loader: () => library.getBalaghaEntry(type, typeNo),
       storageKey: 'balagha-$type-$typeNo',
+      initialRecordId: initialRecordId,
+      searchQuery: searchQuery,
       recordIdForLastRead: typeNo,
     );
   }
@@ -175,11 +182,15 @@ class BalaghaIntroductionScreen extends StatelessWidget {
     required this.library,
     required this.type,
     required this.title,
+    this.initialRecordId,
+    this.searchQuery = '',
   });
 
   final LibraryRepository library;
   final int type;
   final String title;
+  final int? initialRecordId;
+  final String searchQuery;
 
   @override
   Widget build(BuildContext context) {
@@ -188,6 +199,8 @@ class BalaghaIntroductionScreen extends StatelessWidget {
       title: title,
       loader: () => library.getBalaghaIntroduction(type),
       storageKey: 'balagha-intro-$type',
+      initialRecordId: initialRecordId,
+      searchQuery: searchQuery,
       recordIdForLastRead: 0,
     );
   }
@@ -197,6 +210,8 @@ class _BalaghaPassageList extends StatefulWidget {
   const _BalaghaPassageList({
     required this.library,
     required this.title,
+    this.initialRecordId,
+    this.searchQuery = '',
     required this.loader,
     required this.storageKey,
     required this.recordIdForLastRead,
@@ -204,6 +219,8 @@ class _BalaghaPassageList extends StatefulWidget {
 
   final LibraryRepository library;
   final String title;
+  final int? initialRecordId;
+  final String searchQuery;
   final Future<List<Passage>> Function() loader;
   final String storageKey;
   final int recordIdForLastRead;
@@ -216,6 +233,7 @@ class _BalaghaPassageListState extends State<_BalaghaPassageList> {
   final BookDefinition _book = BookDefinition.bookFor(CorpusSource.balagha)!;
 
   List<Passage> _passages = const [];
+  int _initialIndex = 0;
   ReaderPreferences _preferences = const ReaderPreferences();
   bool _loading = true;
   String? _error;
@@ -234,12 +252,14 @@ class _BalaghaPassageListState extends State<_BalaghaPassageList> {
       setState(() {
         _preferences = preferences;
         _passages = passages;
+        final index = passages.indexWhere((p) => p.recordId == widget.initialRecordId);
+        _initialIndex = index < 0 ? 0 : index;
         _loading = false;
       });
       if (passages.isNotEmpty && widget.recordIdForLastRead > 0) {
         unawaited(widget.library.saveLastRead(
           bookKey: _book.key,
-          recordId: passages.first.recordId,
+          recordId: passages[_initialIndex].recordId,
         ));
       }
     } catch (error) {
@@ -275,7 +295,9 @@ class _BalaghaPassageListState extends State<_BalaghaPassageList> {
               : _passages.isEmpty
                   ? const CollectionMessage('اس حصے میں متن موجود نہیں۔')
                   : SelectionArea(
-                      child: ListView.builder(
+                      child: ScrollablePositionedList.builder(
+                        initialScrollIndex: _initialIndex,
+                        initialAlignment: 0.04,
                         key: PageStorageKey(widget.storageKey),
                         itemCount: _passages.length,
                         padding: const EdgeInsets.fromLTRB(16, 10, 16, 40),
@@ -306,11 +328,29 @@ class _BalaghaPassageListState extends State<_BalaghaPassageList> {
                             passage: passage,
                             palette: palette,
                             fontScale: _preferences.fontScale,
-                            script: _preferences.script,
+                            script: widget.searchQuery.isEmpty ? _preferences.script : 'both',
+                            searchQuery: widget.searchQuery,
+                            focusMatch: passage.recordId == widget.initialRecordId,
                           );
                         },
                       ),
                     ),
     );
   }
+}
+
+
+class BalaghaNotesReaderScreen extends StatelessWidget {
+  const BalaghaNotesReaderScreen({super.key, required this.library, required this.type,
+    required this.typeNo, this.initialRecordId, this.searchQuery = ''});
+  final LibraryRepository library;
+  final int type;
+  final int typeNo;
+  final int? initialRecordId;
+  final String searchQuery;
+  @override
+  Widget build(BuildContext context) => _BalaghaPassageList(library: library,
+    title: '${balaghaSectionTitles[type] ?? 'نہج البلاغہ'} — حواشی',
+    loader: () => library.getBalaghaNotes(type, typeNo), storageKey: 'balagha-notes-$type-$typeNo',
+    initialRecordId: initialRecordId, searchQuery: searchQuery, recordIdForLastRead: typeNo);
 }

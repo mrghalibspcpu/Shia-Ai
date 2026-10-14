@@ -17,7 +17,7 @@ export 'text_utils.dart'
         normalizeArabicUrdu,
         relevanceScore;
 
-const int _searchIndexVersion = 4;
+const int _searchIndexVersion = 5;
 const int _indexPageSize = 400;
 
 /// Reads every collection the app can ship: the 14 hadith books, the Quran,
@@ -165,6 +165,9 @@ class LibraryRepository {
     }
     final columns = await db.rawQuery('PRAGMA table_info(search_docs)');
     final names = columns.map((row) => row['name']?.toString()).toSet();
+    for (final name in ['norm_arabic', 'norm_urdu']) {
+      if (!names.contains(name)) await db.execute('ALTER TABLE search_docs ADD COLUMN $name TEXT');
+    }
     if (!names.contains('norm_text')) {
       await db.execute('ALTER TABLE search_docs ADD COLUMN norm_text TEXT');
     }
@@ -188,6 +191,8 @@ class LibraryRepository {
         section_title TEXT NOT NULL,
         container_type INTEGER,
         container_id INTEGER,
+        norm_arabic TEXT,
+        norm_urdu TEXT,
         norm_text TEXT
       )
     ''');
@@ -285,7 +290,11 @@ class LibraryRepository {
     final statement = book.source == CorpusSource.hadith
         ? 'SELECT COUNT(*) AS count FROM Parags '
               'WHERE LENGTH(COALESCE(txt, \'\')) > 0 OR LENGTH(COALESCE(mean, \'\')) > 0'
-        : 'SELECT COUNT(*) AS count FROM ${_sourceTable(book)}';
+        : book.source == CorpusSource.balagha
+            ? 'SELECT (SELECT COUNT(*) FROM balaghatext) + '
+                '(SELECT COUNT(*) FROM balaghatext_hawashi) + '
+                '(SELECT COUNT(*) FROM balaghatext_muqadamat) AS count'
+            : 'SELECT COUNT(*) AS count FROM ${_sourceTable(book)}';
     final rows = await source.rawQuery(statement);
     return (rows.first['count'] as int?) ?? 0;
   }
@@ -295,6 +304,8 @@ class LibraryRepository {
         CorpusSource.quran => 'Quran',
         CorpusSource.dua => 'M_items',
         CorpusSource.balagha => 'balaghatext',
+        CorpusSource.sahifa => 'saheefa_data',
+        CorpusSource.fatwa => 'question_answers',
       };
 
   /// Copies one book into `search_docs` (and the FTS mirror) starting at [startId].
@@ -310,6 +321,19 @@ class LibraryRepository {
     final index = _searchDatabase!;
     final source = await _openBook(book);
     final bookRows = await _countIndexableRows(book, database: source);
+    // A killed incremental install may leave partial rows but no completion
+    // marker. Remove only this book's unfinished index before retrying it.
+    if (_ftsAvailable) {
+      final partial = await index.query('search_docs', columns: ['id'], where: 'book = ?', whereArgs: [book.key]);
+      if (partial.isNotEmpty) {
+        // Contentless FTS tables cannot delete rows reliably on older SQLite.
+        // Rebuild from scratch rather than leave a duplicate/stale mirror.
+        await _rebuildSearchIndex(onProgress);
+        return 0;
+      }
+    } else {
+      await index.delete('search_docs', where: 'book = ?', whereArgs: [book.key]);
+    }
     var id = startId;
     var written = 0;
 
@@ -329,7 +353,7 @@ class LibraryRepository {
           normalizeArabicUrdu(titles.chapter),
           normalizeArabicUrdu(titles.section),
           normalizeArabicUrdu(arabic),
-          normalizeArabicUrdu(urdu),
+          normalizeArabicUrdu('$urdu ${(row['commentary'] ?? '')} ${(row['footnote'] ?? '')}'),
         ];
         batch.insert('search_docs', {
           'id': id,
@@ -341,6 +365,8 @@ class LibraryRepository {
           'section_title': titles.section,
           'container_type': _asInt(row['container_type']),
           'container_id': _asInt(row['container_id']),
+          'norm_arabic': normalized[2],
+          'norm_urdu': normalized[3],
           'norm_text': normalized.where((part) => part.isNotEmpty).join(' '),
         });
         if (_ftsAvailable && normalized.any((part) => part.isNotEmpty)) {
@@ -366,6 +392,7 @@ class LibraryRepository {
       }
     }
 
+    if (written != bookRows) throw StateError('Incomplete index: ${book.key}: $written / $bookRows');
     await index.insert(
       'search_meta',
       {'key': 'indexed:${book.key}', 'value': '1'},
@@ -399,6 +426,9 @@ class LibraryRepository {
           chapter: balaghaSectionTitles[type] ?? 'نہج البلاغہ',
           section: (row['section_title'] ?? '').toString(),
         );
+      case CorpusSource.sahifa:
+      case CorpusSource.fatwa:
+        return (chapter: book.titleUrdu, section: (row['section_title'] ?? '').toString());
       case CorpusSource.hadith:
         final chapter = (row['chapter_title'] ?? '').toString();
         // Twenty records across four books point at a section id that has no
@@ -417,9 +447,12 @@ class LibraryRepository {
     int offset,
   ) async {
     switch (book.source) {
+      case CorpusSource.sahifa:
+      case CorpusSource.fatwa:
+        return source.rawQuery('${_extraQuery(book)} ORDER BY record_id LIMIT ? OFFSET ?', [_indexPageSize, offset]);
       case CorpusSource.hadith:
         return source.rawQuery('''
-          SELECT p.ID AS record_id, p.txt AS arabic, p.Secid AS section_id,
+          SELECT COALESCE(NULLIF(p.ID, ''), -p.rowid) AS record_id, p.txt AS arabic, p.Secid AS section_id,
                  p.paganum AS page_no, p.mean AS urdu,
                  COALESCE(s.title, '') AS section_title,
                  COALESCE(c.title, '') AS chapter_title
@@ -432,7 +465,7 @@ class LibraryRepository {
         ''', [_indexPageSize, offset]);
       case CorpusSource.quran:
         return source.rawQuery('''
-          SELECT q.ID AS record_id, q.Arabic AS arabic, q.tr AS urdu, q.page AS page_no,
+          SELECT q.ID AS record_id, q.Arabic AS arabic, q.tr AS urdu, q.talighe AS commentary, q.page AS page_no,
                  q.chapter AS container_type, q.chapter AS container_id,
                  q.juz AS juz, q.verse AS verse, COALESCE(cp.Name, '') AS surah_name
           FROM Quran AS q
@@ -463,7 +496,14 @@ class LibraryRepository {
                  COALESCE(t.ShortDesc, t.Description, '') AS section_title
           FROM balaghatext AS x
           LEFT JOIN balaghatoc AS t ON t.TypeID = x.Type AND t.TypeNo = x.TypeNo
-          ORDER BY x.ID
+          UNION ALL
+          SELECT -h.ID, '', h.hawashi, h.ParaNo, h.Type, h.TypeNo,
+                 CASE WHEN h.Type = 5 THEN 'مقدمہ' ELSE 'حاشیہ' END
+          FROM balaghatext_hawashi h
+          UNION ALL
+          SELECT -1000000-m.ID, m.mqar, m.mqur, m.ParaNo, m.Type, 0, 'مقدمہ'
+          FROM balaghatext_muqadamat m
+          ORDER BY record_id
           LIMIT ? OFFSET ?
         ''', [_indexPageSize, offset]);
     }
@@ -475,6 +515,12 @@ class LibraryRepository {
     try {
       database = await openDatabase(path);
       final statements = switch (book.source) {
+        CorpusSource.sahifa => const [
+            'CREATE INDEX IF NOT EXISTS shia_sahifa_container ON saheefa_data(t_id, t_no, p_no, ID)',
+          ],
+        CorpusSource.fatwa => const [
+            'CREATE INDEX IF NOT EXISTS shia_fatwa_category ON question_answers(category_id)',
+          ],
         CorpusSource.hadith => const [
             'CREATE INDEX IF NOT EXISTS shia_parags_record ON Parags(ID)',
             'CREATE INDEX IF NOT EXISTS shia_parags_section ON Parags(Secid)',
@@ -589,15 +635,42 @@ class LibraryRepository {
     return database;
   }
 
+  String _extraQuery(BookDefinition book) => book.source == CorpusSource.sahifa
+      ? """
+        SELECT d.ID AS record_id, d.t_id * 10000 + d.t_no AS section_id,
+          CASE WHEN d.oe = 'a' THEN d.p_text ELSE '' END AS arabic,
+          CASE WHEN d.oe != 'a' THEN d.p_text ELSE '' END AS urdu,
+          COALESCE((SELECT i.lnk_text FROM saheefa_index i
+            WHERE CAST(i.lnk_cat AS INTEGER) = d.t_id AND i.lnk_id = d.t_no LIMIT 1),
+            'حصہ ' || d.t_id || ' / ' || d.t_no) AS section_title,
+          d.t_id AS container_type, d.t_no AS container_id, d.p_format AS format
+        FROM saheefa_data d
+      """
+      : """
+        SELECT q.rowid AS record_id, q.category_id AS section_id, '' AS arabic,
+          q.question_ur || char(10) || char(10) || q.answer_ur AS urdu,
+          c.category_title_ur AS section_title, q.collection_title_ur AS chapter_title,
+          COALESCE(q.source_ref, '') || ' — ' || q.source_url AS locator
+        FROM question_answers q JOIN categories c ON c.category_id = q.category_id
+      """;
+
   // ---------------------------------------------------------------- hadith
 
   Future<List<Map<String, Object?>>> getChapters(BookDefinition book) async {
     final db = await _openBook(book);
+    if (book.source == CorpusSource.sahifa || book.source == CorpusSource.fatwa) {
+      return db.rawQuery('SELECT section_id AS ID, section_id AS cid, section_title AS title '
+          'FROM (${_extraQuery(book)}) GROUP BY section_id ORDER BY section_id');
+    }
     return db.rawQuery('SELECT ID, cid, title FROM Chaps ORDER BY cid');
   }
 
   Future<List<Map<String, Object?>>> getSections(BookDefinition book, int chapterId) async {
     final db = await _openBook(book);
+    if (book.source == CorpusSource.sahifa || book.source == CorpusSource.fatwa) {
+      return db.rawQuery('SELECT section_id AS ID, section_title AS title, section_id AS Chapid, section_id AS Secid '
+          'FROM (${_extraQuery(book)}) WHERE section_id = ? GROUP BY section_id', [chapterId]);
+    }
     return db.rawQuery(
       'SELECT ID, title, Chapid, Secid FROM Sections WHERE Chapid = ? ORDER BY Secid',
       [chapterId],
@@ -606,8 +679,12 @@ class LibraryRepository {
 
   Future<List<Passage>> getSectionPassages(BookDefinition book, int sectionId) async {
     final db = await _openBook(book);
+    if (book.source == CorpusSource.sahifa || book.source == CorpusSource.fatwa) {
+      final rows = await db.rawQuery('SELECT * FROM (${_extraQuery(book)}) WHERE section_id = ? ORDER BY record_id', [sectionId]);
+      return rows.map(Passage.fromMap).toList();
+    }
     final rows = await db.rawQuery('''
-      SELECT p.ID AS record_id, p.txt AS arabic, p.Secid AS section_id,
+      SELECT COALESCE(NULLIF(p.ID, ''), -p.rowid) AS record_id, p.txt AS arabic, p.Secid AS section_id,
              p.paganum AS page_no, p.mean AS urdu,
              COALESCE(s.title, '') AS section_title,
              COALESCE(c.title, '') AS chapter_title
@@ -632,6 +709,13 @@ class LibraryRepository {
     return [
       for (var i = 0; i < rows.length; i++) QuranSurah.fromMap(rows[i], index: i),
     ];
+  }
+
+  Future<Passage?> getQuranVerse(int chapter, int verse) async {
+    final book = BookDefinition.bookFor(CorpusSource.quran)!;
+    final db = await _openBook(book);
+    final rows = await db.rawQuery('SELECT ID FROM Quran WHERE chapter = ? AND verse = ? LIMIT 1', [chapter, verse]);
+    return rows.isEmpty ? null : getPassageById(book, _asInt(rows.first['ID'])!);
   }
 
   Future<List<Passage>> getSurahVerses(int chapter) async {
@@ -970,6 +1054,18 @@ class LibraryRepository {
         )).toList();
   }
 
+  Future<List<Passage>> getBalaghaNotes(int type, int typeNo) async {
+    final book = BookDefinition.bookFor(CorpusSource.balagha)!;
+    final db = await _openBook(book);
+    final rows = await db.rawQuery('''
+      SELECT ID, hawashi, ParaNo FROM balaghatext_hawashi
+      WHERE Type = ? AND TypeNo = ? ORDER BY ID
+    ''', [type, typeNo]);
+    return rows.map((row) => Passage(recordId: -(_asInt(row['ID']) ?? 0),
+      arabic: '', urdu: _compact((row['hawashi'] ?? '').toString()),
+      containerType: type, containerId: typeNo, sectionTitle: 'حاشیہ')).toList();
+  }
+
   Future<List<Passage>> getBalaghaIntroduction(int type) async {
     final book = BookDefinition.bookFor(CorpusSource.balagha);
     if (book == null) return const [];
@@ -979,7 +1075,7 @@ class LibraryRepository {
       FROM balaghatext_muqadamat WHERE Type = ? ORDER BY ID
     ''', [type]);
     return rows.map((row) => Passage(
-          recordId: _asInt(row['record_id']) ?? 0,
+          recordId: -1000000 - (_asInt(row['record_id']) ?? 0),
           arabic: _compact((row['arabic'] ?? '').toString()),
           urdu: _compact((row['urdu'] ?? '').toString()),
           containerType: type,
@@ -994,16 +1090,20 @@ class LibraryRepository {
   Future<Passage?> getPassageById(BookDefinition book, int recordId) async {
     final db = await _openBook(book);
     switch (book.source) {
+      case CorpusSource.sahifa:
+      case CorpusSource.fatwa:
+        final rows = await db.rawQuery('SELECT * FROM (${_extraQuery(book)}) WHERE record_id = ?', [recordId]);
+        return rows.isEmpty ? null : Passage.fromMap(rows.first);
       case CorpusSource.hadith:
         final rows = await db.rawQuery('''
-          SELECT p.ID AS record_id, p.txt AS arabic, p.Secid AS section_id,
+          SELECT COALESCE(NULLIF(p.ID, ''), -p.rowid) AS record_id, p.txt AS arabic, p.Secid AS section_id,
                  p.paganum AS page_no, p.mean AS urdu,
                  COALESCE(s.title, '') AS section_title,
                  COALESCE(c.title, '') AS chapter_title
           FROM Parags AS p
           LEFT JOIN Sections AS s ON s.Secid = p.Secid
           LEFT JOIN Chaps AS c ON c.cid = s.Chapid
-          WHERE p.ID = ?
+          WHERE COALESCE(NULLIF(p.ID, ''), -p.rowid) = ?
           LIMIT 1
         ''', [recordId]);
         return rows.isEmpty ? null : Passage.fromMap(rows.first);
@@ -1036,12 +1136,24 @@ class LibraryRepository {
           locator: 'دعا',
         );
       case CorpusSource.balagha:
+        if (recordId < -1000000) {
+          final rows = await db.rawQuery('''
+            SELECT ID AS record_id, mqar AS arabic, mqur AS urdu, Type AS container_type,
+                   0 AS container_id, 'مقدمہ' AS section_title
+            FROM balaghatext_muqadamat WHERE ID = ?
+          ''', [-1000000 - recordId]);
+          if (rows.isEmpty) return null;
+          final row = rows.first;
+          return Passage(recordId: recordId, arabic: _compact((row['arabic'] ?? '').toString()),
+            urdu: _compact((row['urdu'] ?? '').toString()),
+            containerType: _asInt(row['container_type']), containerId: 0, sectionTitle: 'مقدمہ');
+        }
         if (recordId < 0) {
           final prose = await db.rawQuery('''
             SELECT h.ID AS record_id, h.hawashi AS urdu, h.Type AS container_type,
                    h.TypeNo AS container_id
             FROM balaghatext_hawashi AS h
-            WHERE h.Type = 5 AND h.ID = ?
+            WHERE h.ID = ?
             LIMIT 1
           ''', [-recordId]);
           if (prose.isEmpty) return null;
@@ -1054,7 +1166,7 @@ class LibraryRepository {
             containerType: type,
             containerId: _asInt(row['container_id']),
             chapterTitle: balaghaSectionTitles[type] ?? 'نہج البلاغہ',
-            sectionTitle: 'مقدمہ',
+            sectionTitle: type == 5 ? 'مقدمہ' : 'حاشیہ',
           );
         }
         final rows = await db.rawQuery('''
@@ -1069,17 +1181,59 @@ class LibraryRepository {
         if (rows.isEmpty) return null;
         final row = rows.first;
         final type = _asInt(row['container_type']) ?? 1;
+        final footnotes = await _footnotesByParagraph(db, type, _asInt(row['container_id']) ?? 0);
         return Passage(
           recordId: recordId,
           arabic: _compact((row['arabic'] ?? '').toString()),
           urdu: _compact((row['urdu'] ?? '').toString()),
           page: _asInt(row['page_no']),
+          footnote: footnotes[_asInt(row['page_no'])] ?? '',
           containerType: type,
           containerId: _asInt(row['container_id']),
           chapterTitle: balaghaSectionTitles[type] ?? 'نہج البلاغہ',
           sectionTitle: _compact((row['section_title'] ?? '').toString()),
         );
     }
+  }
+
+  /// Literal normalized substring search over EVERY indexed record. Pagination
+  /// limits hydration/rendering, never which part of the book is searched.
+  Future<({List<SearchHit> hits, int total})> searchPage(String query, {
+    int offset = 0, int limit = 40, String? bookKey,
+    String language = 'all', CorpusSource? source,
+  }) async {
+    final tokens = normalizeArabicUrdu(query).split(' ').where((t) => t.isNotEmpty).toSet();
+    final db = _searchDatabase;
+    if (tokens.isEmpty || db == null) return (hits: <SearchHit>[], total: 0);
+    final column = language == 'arabic' ? 'norm_arabic' : language == 'urdu' ? 'norm_urdu' : 'norm_text';
+    final conditions = <String>[];
+    final args = <Object?>[];
+    for (final token in tokens) {
+      conditions.add("COALESCE($column, '') LIKE ?");
+      args.add(likeNeedle(token));
+    }
+    if (bookKey != null) { conditions.add('book = ?'); args.add(bookKey); }
+    final keys = source == null ? _installed.toList() : _installedBookKeysFor(source);
+    if (keys.isEmpty) return (hits: <SearchHit>[], total: 0);
+    conditions.add('book IN (${List.filled(keys.length, '?').join(',')})');
+    args.addAll(keys);
+    final where = conditions.join(' AND ');
+    final counts = await db.rawQuery('SELECT COUNT(*) AS total FROM search_docs WHERE $where', args);
+    final total = _asInt(counts.first['total']) ?? 0;
+    final docs = await db.rawQuery('SELECT * FROM search_docs WHERE $where ORDER BY id LIMIT ? OFFSET ?', [...args, limit, offset]);
+    final hits = <SearchHit>[];
+    for (final doc in docs) {
+      final book = BookDefinition.byKey(doc['book']?.toString());
+      final id = _asInt(doc['record_id']);
+      if (book == null || id == null) continue;
+      final hydrated = await _hydrate(book, [id], tokens.toList());
+      final passage = hydrated[id];
+      if (passage == null) throw StateError('Indexed passage missing: ${book.key}:$id');
+      hits.add(SearchHit(book: book, passage: passage, citation: formatCitation(
+        bookTitle: book.titleUrdu, chapterTitle: passage.chapterTitle,
+        sectionTitle: passage.sectionTitle, locator: passage.locator, page: passage.page)));
+    }
+    return (hits: hits, total: total);
   }
 
   // ---------------------------------------------------------------- search
@@ -1198,16 +1352,20 @@ class LibraryRepository {
     final db = await _openBook(book);
     final placeholders = List.filled(ids.length, '?').join(',');
     switch (book.source) {
+      case CorpusSource.sahifa:
+      case CorpusSource.fatwa:
+        final rows = await db.rawQuery('SELECT * FROM (${_extraQuery(book)}) WHERE record_id IN ($placeholders)', ids);
+        return {for (final row in rows) _asInt(row['record_id'])!: Passage.fromMap(row)};
       case CorpusSource.hadith:
         final rows = await db.rawQuery('''
-          SELECT p.ID AS record_id, p.txt AS arabic, p.Secid AS section_id,
+          SELECT COALESCE(NULLIF(p.ID, ''), -p.rowid) AS record_id, p.txt AS arabic, p.Secid AS section_id,
                  p.paganum AS page_no, p.mean AS urdu,
                  COALESCE(s.title, '') AS section_title,
                  COALESCE(c.title, '') AS chapter_title
           FROM Parags AS p
           LEFT JOIN Sections AS s ON s.Secid = p.Secid
           LEFT JOIN Chaps AS c ON c.cid = s.Chapid
-          WHERE p.ID IN ($placeholders)
+          WHERE COALESCE(NULLIF(p.ID, ''), -p.rowid) IN ($placeholders)
         ''', ids);
         return {
           for (final row in rows)
@@ -1226,28 +1384,12 @@ class LibraryRepository {
             if (_asInt(row['record_id']) != null) _asInt(row['record_id'])!: _quranPassage(row),
         };
       case CorpusSource.balagha:
-        final rows = await db.rawQuery('''
-          SELECT x.ID AS record_id, x.AR AS arabic, x.UR AS urdu, x.ParaNo AS page_no,
-                 x.Type AS container_type, x.TypeNo AS container_id,
-                 COALESCE(t.ShortDesc, t.Description, '') AS section_title
-          FROM balaghatext AS x
-          LEFT JOIN balaghatoc AS t ON t.TypeID = x.Type AND t.TypeNo = x.TypeNo
-          WHERE x.ID IN ($placeholders)
-        ''', ids);
-        return {
-          for (final row in rows)
-            if (_asInt(row['record_id']) != null)
-              _asInt(row['record_id'])!: Passage(
-                recordId: _asInt(row['record_id'])!,
-                arabic: _compact((row['arabic'] ?? '').toString()),
-                urdu: _compact((row['urdu'] ?? '').toString()),
-                page: _asInt(row['page_no']),
-                containerType: _asInt(row['container_type']),
-                containerId: _asInt(row['container_id']),
-                chapterTitle: balaghaSectionTitles[_asInt(row['container_type']) ?? 1] ?? 'نہج البلاغہ',
-                sectionTitle: _compact((row['section_title'] ?? '').toString()),
-              ),
-        };
+        final result = <int, Passage>{};
+        for (final id in ids) {
+          final passage = await getPassageById(book, id);
+          if (passage != null) result[id] = passage;
+        }
+        return result;
       case CorpusSource.dua:
         final rows = await db.rawQuery('''
           SELECT m.rowid AS record_id, m.M_name AS section_title, m.M_cat_id AS container_type,
@@ -1334,7 +1476,7 @@ class LibraryRepository {
       if (query.trim().isEmpty) continue;
       final batch = await search(
         query,
-        limit: 8,
+        limit: limit,
         bookKey: bookKey,
         language: language,
         source: source,
@@ -1463,7 +1605,7 @@ class LibraryRepository {
     return values.map((value) {
       final parts = value.split(':');
       return ReaderTarget(book: parts.first, recordId: int.tryParse(parts.last) ?? 0);
-    }).where((target) => target.recordId > 0).toList();
+    }).where((target) => target.recordId != 0).toList();
   }
 
   Future<String?> getNote(String bookKey, int recordId) async {
@@ -1515,7 +1657,7 @@ class LibraryRepository {
     final parts = value.split(':');
     if (parts.length < 2) return null;
     final recordId = int.tryParse(parts[1]) ?? 0;
-    if (BookDefinition.byKey(parts.first) == null || recordId <= 0) return null;
+    if (BookDefinition.byKey(parts.first) == null || recordId == 0) return null;
     return ReaderTarget(
       book: parts.first,
       recordId: recordId,

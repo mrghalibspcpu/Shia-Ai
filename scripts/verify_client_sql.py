@@ -111,7 +111,7 @@ def hadith(connection: sqlite3.Connection) -> None:
     check("hadith: index query returns bilingual rows", len(rows) > 0, f"{len(rows)} rows in page 1")
     if not rows:
         return
-    first = run(connection, "WHERE p.ID = ?", (rows[0][0],))
+    first = run(connection, "WHERE COALESCE(NULLIF(p.ID, ''), -p.rowid) = ?", (rows[0][0],))
     check("hadith: record lookup by ID", len(first) == 1)
     sections = run(connection, "WHERE p.Secid = ?", (rows[0][2],))
     check("hadith: section passages load", len(sections) > 0, f"{len(sections)} records")
@@ -227,7 +227,7 @@ def balagha(connection: sqlite3.Connection) -> None:
     prose_ids = run(connection, "FROM balaghatext_hawashi WHERE Type = 5 AND TypeNo = ?", (1,))
     prose_id = prose_ids[0][0] if prose_ids else 0
     # The client stores recordId = -hawashiID and binds `-recordId` back.
-    resolved = run(connection, "WHERE h.Type = 5 AND h.ID = ?", (prose_id,))
+    resolved = run(connection, "WHERE h.ID = ?", (prose_id,))
     check(
         "balagha: introduction resolves from a negative id",
         len(resolved) == 1 and bool(resolved[0][1]),
@@ -262,13 +262,18 @@ def build_index(paths: dict[str, Path]) -> sqlite3.Connection:
         "alkafi": "WHERE LENGTH(COALESCE(p.txt, '')) > 0 OR LENGTH(COALESCE(p.mean, '')) > 0",
         "quran": "FROM Quran AS q\n          LEFT JOIN ChapterProperty AS cp ON cp.Id = q.chapter\n          ORDER BY q.ID",
         "mafatih": "SELECT m.rowid AS record_id, m.M_name AS section_title",
-        "nahjul_balagha": "SELECT x.ID AS record_id, x.AR AS arabic, x.UR AS urdu, x.ParaNo AS page_no",
+        "nahjul_balagha": "UNION ALL\n          SELECT -h.ID",
+        "sahifa": "SELECT d.ID AS record_id, d.t_id * 10000",
+        "khamenei": "SELECT q.rowid AS record_id, q.category_id AS section_id",
+        "sistani": "SELECT q.rowid AS record_id, q.category_id AS section_id",
     }
     total = 0
     for source_key, fragment in fragments.items():
         query = extract_query(fragment)
         connection = sqlite3.connect(f"file:{paths[source_key]}?mode=ro", uri=True)
         try:
+            if source_key in {"sahifa", "khamenei", "sistani"}:
+                query = f"SELECT * FROM ({query}) ORDER BY record_id LIMIT ? OFFSET ?"
             cursor = connection.execute(query, (100000, 0))
             columns = [description[0] for description in cursor.description]
             rows = cursor.fetchall()

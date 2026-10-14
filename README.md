@@ -20,11 +20,20 @@ all run on the device.
   three standalone collections, normalised to the same SQLite settings as the
   other books.
 - `assets/database-manifest.json` — sizes, SHA-256 digests, row counts, titles,
-  and download locations for all 17 databases. `app/assets/database-manifest.json`
+  and download locations for all 20 databases. `app/assets/database-manifest.json`
   is the identical copy bundled into the APK.
 - `scripts/` — normalisation, packaging, publishing, and verification tools.
 - `docs/apk-analysis.md` — findings and signing/licensing limits of the supplied
   compiled APK.
+
+## Reader/search update (1.4)
+
+Sahifa Sajjadiyya and the uploaded Khamenei/Sistani Urdu fatawa are now part of
+both the library and unified search. Quran scrolling is lazy, with surah/ayah
+jump controls. Search shows total matches and additional pages, and opens the
+matching text with normalized highlighting. See
+[`docs/reader-search-update.md`](docs/reader-search-update.md) for preservation,
+coverage, migration and verification details.
 
 ## The corpus
 
@@ -33,6 +42,9 @@ all run on the device.
 | Quran | `quran.db` | 6,236 verses, 114 surahs, Urdu translation (`tr`), tafseer notes (`talighe`), juz/page locators |
 | Mafatih al-Jinan | `mafatihdb-v4.db` | 677 catalogue entries and 5,378 text lines across 6 chapters |
 | Nahj al-Balagha | `nahjul_balagha.db` | 3,742 paragraphs, 810 entries, 2,352 footnotes, 504 introduction paragraphs |
+| Sahifa Sajjadiyya | `Sahifa_Sajjadiyya_full_runtime.sqlite3` | All 4,993 supplied text, translation and annotation rows |
+| Khamenei Urdu fatawa | `khamenei_urdu_fatawa.sqlite` | All 428 supplied question/answer records with source references |
+| Sistani Urdu fatawa | `sistani_urdu_fatawa.sqlite` | All 1,619 supplied question/answer records with source references |
 | 14 hadith books | `shia-databases.zip` | 96,513 records, 17,855 sections, 845 chapters |
 
 `python3 scripts/normalize_databases.py` rewrites the three standalone files so

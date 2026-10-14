@@ -1,12 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:flutter/services.dart';
 
 import '../app_theme.dart';
 import '../library_repository.dart';
 import '../models.dart';
 import '../widgets/reader_kit.dart';
+import '../widgets/highlighted_text.dart';
+import '../text_utils.dart' show searchMatchRanges;
 
 /// Mafatih al-Jinan: chapters, supplications, and the reader.
 class DuasHomeScreen extends StatelessWidget {
@@ -193,10 +196,11 @@ class DuaCategoryScreen extends StatelessWidget {
 }
 
 class DuaReaderScreen extends StatefulWidget {
-  const DuaReaderScreen({super.key, required this.library, required this.item});
+  const DuaReaderScreen({super.key, required this.library, required this.item, this.searchQuery = ''});
 
   final LibraryRepository library;
   final DuaItem item;
+  final String searchQuery;
 
   @override
   State<DuaReaderScreen> createState() => _DuaReaderScreenState();
@@ -206,6 +210,7 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
   final BookDefinition _book = BookDefinition.bookFor(CorpusSource.dua)!;
 
   List<Passage> _lines = const [];
+  int _matchIndex = -1;
   ReaderPreferences _preferences = const ReaderPreferences();
   bool _loading = true;
   String? _error;
@@ -228,6 +233,8 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
       setState(() {
         _preferences = preferences;
         _lines = lines;
+        _matchIndex = lines.indexWhere((line) => searchMatchRanges('${line.arabic} ${line.urdu}', widget.searchQuery).isNotEmpty);
+        if (widget.searchQuery.isNotEmpty) _preferences = preferences.copyWith(script: 'both');
         _bookmarked = bookmarked;
         _note = note;
         _loading = false;
@@ -312,7 +319,9 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
               : _lines.isEmpty
                   ? const CollectionMessage('اس دعا کا متن موجود نہیں۔')
                   : SelectionArea(
-                      child: ListView.builder(
+                      child: ScrollablePositionedList.builder(
+                        initialScrollIndex: _matchIndex < 0 ? 0 : _matchIndex + 1,
+                        initialAlignment: 0.04,
                         padding: const EdgeInsets.fromLTRB(18, 12, 18, 48),
                         itemCount: _lines.length + 1,
                         itemBuilder: (context, index) {
@@ -332,8 +341,10 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          JustifiedText(
+          HighlightedText(
             widget.item.name,
+            query: widget.searchQuery,
+            scrollToMatch: _matchIndex < 0,
             style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: kForest),
           ),
           const SizedBox(height: 6),
@@ -396,8 +407,10 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
             const Icon(Icons.info_outline, size: 17, color: kForest),
             const SizedBox(width: 8),
             Expanded(
-              child: JustifiedText(
+              child: HighlightedText(
                 line.urdu,
+                query: widget.searchQuery,
+                scrollToMatch: _matchIndex >= 0 && _lines[_matchIndex].recordId == line.recordId,
                 style: TextStyle(fontSize: 15.5 * _preferences.fontScale, color: textColor),
               ),
             ),
@@ -414,15 +427,19 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (showArabic)
-            JustifiedText(
+            HighlightedText(
               line.arabic,
+              query: widget.searchQuery,
+              scrollToMatch: _matchIndex >= 0 && _lines[_matchIndex].recordId == line.recordId,
               arabic: true,
               style: TextStyle(fontSize: 22 * _preferences.fontScale, color: textColor),
             ),
           if (showArabic && showUrdu) const SizedBox(height: 6),
           if (showUrdu)
-            JustifiedText(
+            HighlightedText(
               line.urdu,
+              query: widget.searchQuery,
+              scrollToMatch: _matchIndex >= 0 && _lines[_matchIndex].recordId == line.recordId && searchMatchRanges(line.arabic, widget.searchQuery).isEmpty,
               style: TextStyle(
                 fontSize: 16.5 * _preferences.fontScale,
                 height: 1.6,

@@ -20,12 +20,13 @@ Future<void> pushReaderFor(
   int? recordId,
   int? sectionId,
   String? title,
+  String searchQuery = '',
 }) async {
   final navigator = Navigator.of(context);
   var resolved = passage;
   final targetRecord = recordId ?? passage?.recordId;
 
-  if (resolved == null && targetRecord != null && targetRecord > 0) {
+  if (resolved == null && targetRecord != null && targetRecord != 0) {
     try {
       resolved = await library.getPassageById(book, targetRecord);
     } catch (_) {
@@ -33,13 +34,17 @@ Future<void> pushReaderFor(
     }
   }
 
+  if (!context.mounted) return;
   switch (book.source) {
+    case CorpusSource.sahifa:
+    case CorpusSource.fatwa:
     case CorpusSource.hadith:
       await navigator.push(MaterialPageRoute(
         builder: (_) => ReaderScreen(
           library: library,
           book: book,
           recordId: targetRecord,
+          searchQuery: searchQuery,
           sectionId: sectionId ?? resolved?.sectionId,
           sectionTitle: title ?? (resolved?.sectionTitle.isEmpty == false ? resolved!.sectionTitle : null),
         ),
@@ -53,6 +58,7 @@ Future<void> pushReaderFor(
         builder: (_) => SurahReaderScreen(
           library: library,
           initialRecordId: targetRecord,
+          searchQuery: searchQuery,
           surah: QuranSurah(
             number: chapter,
             nameArabic: resolved?.sectionTitle ?? '',
@@ -69,6 +75,7 @@ Future<void> pushReaderFor(
       await navigator.push(MaterialPageRoute(
         builder: (_) => DuaReaderScreen(
           library: library,
+          searchQuery: searchQuery,
           item: DuaItem(
             rowId: itemRowId,
             name: resolved?.sectionTitle ?? title ?? '',
@@ -82,15 +89,22 @@ Future<void> pushReaderFor(
       final type = resolved?.containerType ?? 1;
       final typeNo = resolved?.containerId ?? 0;
       await navigator.push(MaterialPageRoute(
-        builder: (_) => typeNo > 0
+        builder: (_) => (targetRecord ?? 0) < 0 && (targetRecord ?? 0) > -1000000 && type != 5
+            ? BalaghaNotesReaderScreen(library: library, type: type, typeNo: typeNo,
+                initialRecordId: targetRecord, searchQuery: searchQuery)
+            : typeNo > 0
             ? BalaghaReaderScreen(
                 library: library,
+                initialRecordId: targetRecord,
+                searchQuery: searchQuery,
                 type: type,
                 typeNo: typeNo,
                 title: resolved?.sectionTitle ?? title ?? '',
               )
             : BalaghaIntroductionScreen(
                 library: library,
+                initialRecordId: targetRecord,
+                searchQuery: searchQuery,
                 type: type,
                 title: title ?? '${balaghaSectionTitles[type] ?? ''} — مقدمہ',
               ),

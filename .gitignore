@@ -3,6 +3,10 @@ assets/databases/*.db
 assets/databases/*.db-shm
 assets/databases/*.db-wal
 app/assets/databases/*.db
+app/assets/databases/*.sqlite
+app/assets/databases/*.sqlite3
+assets/databases/*.sqlite
+assets/databases/*.sqlite3
 app/assets/databases/*.db-shm
 app/assets/databases/*.db-wal
 

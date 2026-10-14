@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../app_theme.dart';
 import '../library_repository.dart';
 import '../models.dart';
+import '../text_utils.dart' show searchMatchRanges;
+import 'highlighted_text.dart';
 
 /// Reader appearance shared by every collection.
 class ReaderPreferences {
@@ -138,6 +140,8 @@ class PassageCard extends StatefulWidget {
     this.script = 'both',
     this.indexLabel,
     this.stateId,
+    this.searchQuery = '',
+    this.focusMatch = false,
   });
 
   final LibraryRepository library;
@@ -152,6 +156,8 @@ class PassageCard extends StatefulWidget {
   /// as many cards (a supplication, a khutba) point every card at the document,
   /// while `passage.recordId` stays unique per card.
   final int? stateId;
+  final String searchQuery;
+  final bool focusMatch;
 
   @override
   State<PassageCard> createState() => _PassageCardState();
@@ -171,6 +177,8 @@ class _PassageCardState extends State<PassageCard> {
   @override
   void initState() {
     super.initState();
+    _showCommentary = searchMatchRanges(widget.passage.commentary, widget.searchQuery).isNotEmpty;
+    _showFootnote = searchMatchRanges(widget.passage.footnote, widget.searchQuery).isNotEmpty;
     unawaited(_refresh());
   }
 
@@ -302,8 +310,10 @@ class _PassageCardState extends State<PassageCard> {
               // reader screens: a SelectableText per card made long lists
               // (286 verse cards, each with three of them) render as grey,
               // unpainted blocks on slower phones.
-              JustifiedText(
+              HighlightedText(
                 passage.arabic,
+                query: widget.searchQuery,
+                scrollToMatch: widget.focusMatch,
                 arabic: true,
                 style: TextStyle(
                   fontSize: (isTitle ? 25 : isSubHeading ? 21 : 22) * widget.fontScale,
@@ -318,8 +328,10 @@ class _PassageCardState extends State<PassageCard> {
               ],
             ],
             if (showUrdu)
-              JustifiedText(
+              HighlightedText(
                 passage.urdu,
+                query: widget.searchQuery,
+                scrollToMatch: widget.focusMatch && searchMatchRanges(passage.arabic, widget.searchQuery).isEmpty,
                 style: TextStyle(
                   fontSize: (isTitle ? 18 : 19) * widget.fontScale,
                   height: 1.6,
@@ -330,6 +342,8 @@ class _PassageCardState extends State<PassageCard> {
             if (showCommentary) ...[
               const SizedBox(height: 10),
               _ExpandableNote(
+                query: widget.searchQuery,
+                focusMatch: widget.focusMatch && searchMatchRanges('${passage.arabic} ${passage.urdu}', widget.searchQuery).isEmpty,
                 label: 'تفسیری حاشیہ',
                 body: passage.commentary,
                 expanded: _showCommentary,
@@ -341,6 +355,8 @@ class _PassageCardState extends State<PassageCard> {
             if (showFootnote) ...[
               const SizedBox(height: 10),
               _ExpandableNote(
+                query: widget.searchQuery,
+                focusMatch: widget.focusMatch && searchMatchRanges('${passage.arabic} ${passage.urdu} ${passage.commentary}', widget.searchQuery).isEmpty,
                 label: 'حاشیہ',
                 body: passage.footnote,
                 expanded: _showFootnote,
@@ -375,6 +391,8 @@ class _ExpandableNote extends StatelessWidget {
     required this.onToggle,
     required this.textColor,
     required this.fontScale,
+    this.query = '',
+    this.focusMatch = false,
   });
 
   final String label;
@@ -383,6 +401,8 @@ class _ExpandableNote extends StatelessWidget {
   final VoidCallback onToggle;
   final Color textColor;
   final double fontScale;
+  final String query;
+  final bool focusMatch;
 
   @override
   Widget build(BuildContext context) {
@@ -415,6 +435,8 @@ class _ExpandableNote extends StatelessWidget {
           _AnnotatedBox(
             label: '',
             body: body,
+            query: query,
+            focusMatch: focusMatch,
             color: kForest,
             textColor: textColor,
             fontScale: fontScale,
@@ -432,6 +454,8 @@ class _AnnotatedBox extends StatelessWidget {
     required this.color,
     required this.textColor,
     required this.fontScale,
+    this.query = '',
+    this.focusMatch = false,
   });
 
   final String label;
@@ -439,6 +463,8 @@ class _AnnotatedBox extends StatelessWidget {
   final Color color;
   final Color textColor;
   final double fontScale;
+  final String query;
+  final bool focusMatch;
 
   @override
   Widget build(BuildContext context) {
@@ -461,8 +487,10 @@ class _AnnotatedBox extends StatelessWidget {
             ),
             const SizedBox(height: 4),
           ],
-          JustifiedText(
+          HighlightedText(
             body,
+            query: query,
+            scrollToMatch: focusMatch,
             style: TextStyle(color: textColor, fontSize: 16 * fontScale, height: 1.55),
           ),
         ],

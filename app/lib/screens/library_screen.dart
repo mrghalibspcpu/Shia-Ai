@@ -157,6 +157,8 @@ class _CollectionsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final collections = <({BookDefinition book, IconData icon, Color color})>[
+      for (final book in BookDefinition.all.where((b) => b.source == CorpusSource.sahifa || b.source == CorpusSource.fatwa))
+        (book: book, icon: Icons.auto_stories, color: kForest),
       (book: BookDefinition.bookFor(CorpusSource.quran)!, icon: Icons.menu_book, color: kForest),
       (book: BookDefinition.bookFor(CorpusSource.dua)!, icon: Icons.mosque, color: kGold),
       (
@@ -190,7 +192,7 @@ class _CollectionsRow extends StatelessWidget {
                       CorpusSource.quran => QuranHomeScreen(library: library),
                       CorpusSource.dua => DuasHomeScreen(library: library),
                       CorpusSource.balagha => BalaghaHomeScreen(library: library),
-                      CorpusSource.hadith =>
+                      CorpusSource.sahifa || CorpusSource.fatwa || CorpusSource.hadith =>
                         ChapterListScreen(library: library, book: entry.book),
                     },
                   ));
@@ -489,6 +491,7 @@ class ReaderScreen extends StatefulWidget {
     this.recordId,
     this.sectionId,
     this.sectionTitle,
+    this.searchQuery = '',
   });
 
   final LibraryRepository library;
@@ -496,6 +499,7 @@ class ReaderScreen extends StatefulWidget {
   final int? recordId;
   final int? sectionId;
   final String? sectionTitle;
+  final String searchQuery;
 
   @override
   State<ReaderScreen> createState() => _ReaderScreenState();
@@ -611,7 +615,9 @@ class _ReaderScreenState extends State<ReaderScreen> {
                         passage: _passages[index],
                         palette: palette,
                         fontScale: _preferences.fontScale,
-                        script: _preferences.script,
+                        script: widget.searchQuery.isEmpty ? _preferences.script : 'both',
+                        searchQuery: widget.searchQuery,
+                        focusMatch: _passages[index].recordId == widget.recordId,
                         // Numbered within this section (۱، ۲، ۳…) — not the
                         // database row id, which reached 562276 and was
                         // mistaken for a hadith count that does not exist.

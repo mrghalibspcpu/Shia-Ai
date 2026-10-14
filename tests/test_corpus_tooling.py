@@ -19,10 +19,10 @@ import prepare_databases  # noqa: E402
 
 
 class DatabaseSpecTests(unittest.TestCase):
-    def test_catalogue_covers_seventeen_databases(self):
-        self.assertEqual(len(DATABASES), 17)
+    def test_catalogue_covers_twenty_databases(self):
+        self.assertEqual(len(DATABASES), 20)
         self.assertEqual(len([spec for spec in DATABASES if spec.source == "hadith"]), 14)
-        self.assertEqual(len(EXTRA_DATABASES), 3)
+        self.assertEqual(len(EXTRA_DATABASES), 6)
 
     def test_keys_and_file_names_are_unique(self):
         keys = [spec.key for spec in DATABASES]
@@ -78,8 +78,8 @@ class ManifestTests(unittest.TestCase):
 
     def test_manifest_is_version_two_and_complete(self):
         self.assertEqual(self.manifest["format_version"], 2)
-        self.assertEqual(self.manifest["database_count"], 17)
-        self.assertEqual(len(self.manifest["databases"]), 17)
+        self.assertEqual(self.manifest["database_count"], 20)
+        self.assertEqual(len(self.manifest["databases"]), 20)
 
     def test_every_entry_carries_a_digest_and_titles(self):
         for entry in self.manifest["databases"]:
@@ -108,7 +108,7 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(DOWNLOAD_EXTENSION, ".gz")
         self.assertEqual(manifest["download"]["extension"], DOWNLOAD_EXTENSION)
         for entry in manifest["databases"]:
-            self.assertTrue(entry["name"].endswith(".db"), entry["name"])
+            self.assertTrue(entry["name"].endswith((".db", ".sqlite", ".sqlite3")), entry["name"])
             # publish_databases.py writes f"{spec.name}.gz" into dist/.
             self.assertEqual(entry["name"] + DOWNLOAD_EXTENSION, f"{entry['name']}.gz")
 
@@ -151,7 +151,8 @@ class ValidationTests(unittest.TestCase):
                 )
                 try:
                     self.assertEqual(
-                        connection.execute("PRAGMA page_size").fetchone()[0], TARGET_PAGE_SIZE
+                        connection.execute("PRAGMA page_size").fetchone()[0],
+                        4096 if spec.source in {"sahifa", "fatwa"} else TARGET_PAGE_SIZE
                     )
                     self.assertEqual(
                         str(connection.execute("PRAGMA encoding").fetchone()[0]).lower(), "utf-8"
@@ -163,7 +164,9 @@ class ValidationTests(unittest.TestCase):
                             "SELECT name FROM sqlite_master WHERE type = 'index'"
                         )
                     }
-                    for statement in spec.indexes:
+                    # Uploaded databases stay byte-for-byte intact; their
+                    # reader indexes are added to the app-storage copy at install.
+                    for statement in (() if spec.source in {"sahifa", "fatwa"} else spec.indexes):
                         name = statement.split("shia_", 1)[1].split(" ")[0]
                         self.assertIn(f"shia_{name}", indexes)
                 finally:

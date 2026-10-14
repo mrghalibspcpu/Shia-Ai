@@ -88,6 +88,20 @@ HADITH_BOOKS: tuple[tuple[str, str, str], ...] = (
 )
 
 EXTRA_DATABASES: tuple[DatabaseSpec, ...] = (
+    DatabaseSpec(name="Sahifa_Sajjadiyya_full_runtime.sqlite3", source="sahifa", key="sahifa",
+        title_urdu="صحیفہ سجادیہ", title_latin="Sahifa Sajjadiyya", origin="assets",
+        tables={"saheefa_data": {"ID", "oe", "t_id", "t_no", "p_no", "p_format", "p_text"},
+                "saheefa_index": {"ID", "lnk_id", "lnk_text", "lnk_cat"}},
+        indexes=("CREATE INDEX IF NOT EXISTS shia_sahifa_container ON saheefa_data(t_id, t_no, p_no, ID)",),
+        record_label="دعا"),
+    *(DatabaseSpec(name=f"{key}_urdu_fatawa.sqlite", source="fatwa", key=key,
+        title_urdu=title, title_latin=latin, origin="assets",
+        tables={"question_answers": {"entry_id", "category_id", "question_ur", "answer_ur", "source_url", "source_ref"},
+                "categories": {"category_id", "category_title_ur"}},
+        indexes=("CREATE INDEX IF NOT EXISTS shia_fatwa_category ON question_answers(category_id)",),
+        record_label="مسئلہ") for key, title, latin in (
+            ("khamenei", "فتاویٰ — آیت اللہ خامنہ ای", "Khamenei Urdu Fatawa"),
+            ("sistani", "فتاویٰ — آیت اللہ سیستانی", "Sistani Urdu Fatawa"))),
     DatabaseSpec(
         name="quran.db",
         source="quran",

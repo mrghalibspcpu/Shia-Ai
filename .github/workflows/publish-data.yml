@@ -81,7 +81,7 @@ jobs:
           else
             gh release create "$TAG" \
               --title "$TITLE" \
-              --notes "SQLite collections for the Shia Library app (17 databases, gzip-compressed). The app downloads these on first launch, verifies SHA-256 against its bundled manifest, then reads them fully offline."
+              --notes "SQLite collections for the Shia Library app (20 databases, gzip-compressed). The app downloads these on first launch, verifies SHA-256 against its bundled manifest, then reads them fully offline."
           fi
           gh release upload "$TAG" dist/*.gz dist/database-manifest.json --clobber
           gh release edit "$TAG" --draft=false
@@ -93,7 +93,7 @@ jobs:
           gh release view "$TAG" --json assets \
             --jq '.assets[] | "\(.name)\t\(.size)"' | sort | tee published-assets.txt
           expected=$(ls dist/*.gz | wc -l)
-          published=$(grep -c '\.db\.gz[[:space:]]' published-assets.txt || true)
-          echo "expected $expected .db.gz assets, published $published"
+          published=$(grep -Ec '\.(db|sqlite|sqlite3)\.gz[[:space:]]' published-assets.txt || true)
+          echo "expected $expected SQLite gzip assets, published $published"
           test "$published" -eq "$expected"
           grep -q '^database-manifest\.json' published-assets.txt

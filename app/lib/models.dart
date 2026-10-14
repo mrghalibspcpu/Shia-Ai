@@ -1,4 +1,4 @@
-enum CorpusSource { hadith, quran, dua, balagha }
+enum CorpusSource { hadith, quran, dua, balagha, sahifa, fatwa }
 
 extension CorpusSourceX on CorpusSource {
   /// Urdu label used by the search filter and library sections.
@@ -7,6 +7,8 @@ extension CorpusSourceX on CorpusSource {
         CorpusSource.quran => 'قرآنِ کریم',
         CorpusSource.dua => 'دعائیں و اعمال',
         CorpusSource.balagha => 'نہج البلاغہ',
+        CorpusSource.sahifa => 'صحیفہ سجادیہ',
+        CorpusSource.fatwa => 'فتاویٰ',
       };
 
   /// Wire value stored in the search index and the manifest.
@@ -15,6 +17,8 @@ extension CorpusSourceX on CorpusSource {
         CorpusSource.quran => 'quran',
         CorpusSource.dua => 'dua',
         CorpusSource.balagha => 'balagha',
+        CorpusSource.sahifa => 'sahifa',
+        CorpusSource.fatwa => 'fatwa',
       };
 }
 
@@ -22,6 +26,8 @@ CorpusSource corpusSourceFromWire(String? value) => switch (value) {
       'quran' => CorpusSource.quran,
       'dua' => CorpusSource.dua,
       'balagha' => CorpusSource.balagha,
+      'sahifa' => CorpusSource.sahifa,
+      'fatwa' => CorpusSource.fatwa,
       _ => CorpusSource.hadith,
     };
 
@@ -45,6 +51,15 @@ class BookDefinition {
   final String recordLabel;
 
   static const List<BookDefinition> all = [
+    BookDefinition(key: 'sahifa', fileName: 'Sahifa_Sajjadiyya_full_runtime.sqlite3',
+      titleUrdu: 'صحیفہ سجادیہ', titleLatin: 'Sahifa Sajjadiyya',
+      description: 'دعائیں، مناجات، ترجمہ اور حواشی', source: CorpusSource.sahifa, recordLabel: 'دعا'),
+    BookDefinition(key: 'khamenei', fileName: 'khamenei_urdu_fatawa.sqlite',
+      titleUrdu: 'فتاویٰ — آیت اللہ خامنہ ای', titleLatin: 'Khamenei Urdu Fatawa',
+      description: 'اردو سوال و جواب، اصل ماخذ کے ساتھ', source: CorpusSource.fatwa, recordLabel: 'مسئلہ'),
+    BookDefinition(key: 'sistani', fileName: 'sistani_urdu_fatawa.sqlite',
+      titleUrdu: 'فتاویٰ — آیت اللہ سیستانی', titleLatin: 'Sistani Urdu Fatawa',
+      description: 'اردو سوال و جواب، اصل ماخذ کے ساتھ', source: CorpusSource.fatwa, recordLabel: 'مسئلہ'),
     BookDefinition(key: 'tahzeeb', fileName: 'Tahzeeb.db', titleUrdu: 'تہذیب الاحکام', titleLatin: 'Tahdhib al-Ahkam'),
     BookDefinition(key: 'alkafi', fileName: 'alkafi.db', titleUrdu: 'الکافی', titleLatin: 'Al-Kafi'),
     BookDefinition(key: 'alkhisal', fileName: 'alkhisal.db', titleUrdu: 'الخصال', titleLatin: 'Al-Khisal'),

@@ -6,8 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../app_theme.dart';
 import '../library_repository.dart';
 import '../models.dart';
+import '../text_utils.dart' show searchMatchRanges, searchSnippet;
 import '../reader_navigation.dart';
 import '../widgets/reader_kit.dart';
+import '../widgets/highlighted_text.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key, required this.library, this.onOpenData});
@@ -30,6 +32,9 @@ class _SearchScreenState extends State<SearchScreen> {
   String? _bookKey;
   CorpusSource? _source;
   int _requestId = 0;
+  int _total = 0;
+  String _resultQuery = '';
+  bool _loadingMore = false;
 
   @override
   void initState() {
@@ -61,6 +66,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _scheduleSearch(String value) {
     _debounce?.cancel();
+    ++_requestId; // Invalidate in-flight work immediately, including clear.
     if (value.trim().isEmpty) {
       setState(() {
         _results = [];
@@ -78,6 +84,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Future<void> _runSearch(String value) async {
     _debounce?.cancel();
+    _loadingMore = false;
     final query = value.trim();
     final request = ++_requestId;
     if (query.isEmpty) {
@@ -93,8 +100,8 @@ class _SearchScreenState extends State<SearchScreen> {
       _error = null;
     });
     try {
-      final results = await widget.library.searchMany(
-        expandSearchQueries(query),
+      final page = await widget.library.searchPage(
+        query,
         limit: 40,
         bookKey: _bookKey,
         language: _language,
@@ -102,16 +109,35 @@ class _SearchScreenState extends State<SearchScreen> {
       );
       if (!mounted || request != _requestId) return;
       setState(() {
-        _results = results;
+        _results = page.hits;
+        _total = page.total;
+        _resultQuery = query;
+        _loadingMore = false;
         _loading = false;
       });
-      if (query.length >= 3 && results.isNotEmpty) unawaited(_remember(query));
+      if (query.length >= 3 && page.hits.isNotEmpty) unawaited(_remember(query));
     } catch (error) {
       if (!mounted || request != _requestId) return;
       setState(() {
         _error = error.toString();
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || _loading) return;
+    final request = _requestId;
+    setState(() => _loadingMore = true);
+    try {
+      final page = await widget.library.searchPage(_resultQuery, offset: _results.length,
+        bookKey: _bookKey, language: _language, source: _source);
+      if (!mounted || request != _requestId) return;
+      setState(() { _results.addAll(page.hits); _total = page.total; _loadingMore = false; });
+    } catch (error) {
+      if (!mounted || request != _requestId) return;
+      setState(() => _loadingMore = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error')));
     }
   }
 
@@ -266,7 +292,7 @@ class _SearchScreenState extends State<SearchScreen> {
               child: Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  _results.isEmpty ? 'کوئی نتیجہ نہیں' : '${_results.length} نتائج',
+                  _results.isEmpty ? 'کوئی نتیجہ نہیں' : '$_total نتائج — ${_results.length} دکھائے گئے',
                   style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
                 ),
               ),
@@ -288,7 +314,7 @@ class _SearchScreenState extends State<SearchScreen> {
           Icon(Icons.manage_search, size: 58, color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)),
           const SizedBox(height: 12),
           const JustifiedText(
-            'قرآن، دعائیں، نہج البلاغہ اور تمام کتبِ احادیث میں عربی و اردو عبارت تلاش کریں۔',
+            'قرآن، صحیفہ سجادیہ، فتاویٰ، دعائیں، نہج البلاغہ اور تمام کتبِ احادیث میں عربی و اردو عبارت تلاش کریں۔',
             style: TextStyle(fontSize: 18),
           ),
           const SizedBox(height: 6),
@@ -338,18 +364,26 @@ class _SearchScreenState extends State<SearchScreen> {
       children: [
         ListView.separated(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-          itemCount: _results.length,
+          itemCount: _results.length + (_results.length < _total ? 1 : 0),
           separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (context, index) => _SearchResultCard(
+          itemBuilder: (context, index) {
+            if (index == _results.length) return Center(child: TextButton.icon(
+              onPressed: _loadingMore || _loading ? null : _loadMore,
+              icon: const Icon(Icons.expand_more),
+              label: Text(_loadingMore ? 'مزید نتائج آ رہے ہیں…' : 'مزید نتائج دکھائیں'),
+            ));
+            return _SearchResultCard(
             hit: _results[index],
-            query: _controller.text,
+            query: _resultQuery,
             onTap: () => pushReaderFor(
               context,
               library: widget.library,
               book: _results[index].book,
               passage: _results[index].passage,
+              searchQuery: _resultQuery,
             ),
-          ),
+          );
+          },
         ),
         if (_loading)
           const Positioned(left: 16, right: 16, top: 0, child: LinearProgressIndicator(minHeight: 2)),
@@ -368,9 +402,9 @@ class _SearchResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final passage = hit.passage;
-    final body = passage.urdu.isNotEmpty
-        ? passage.urdu
-        : (passage.commentary.isNotEmpty ? passage.commentary : passage.arabic);
+    final candidates = [passage.urdu, passage.commentary, passage.footnote, passage.arabic];
+    final body = candidates.firstWhere((text) => searchMatchRanges(text, query).isNotEmpty,
+      orElse: () => candidates.firstWhere((text) => text.isNotEmpty, orElse: () => ''));
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
@@ -423,7 +457,7 @@ class _SearchResultCard extends StatelessWidget {
               if (passage.arabic.trim().isNotEmpty) ...[
                 const SizedBox(height: 10),
                 HighlightedText(
-                  passage.arabic,
+                  searchSnippet(passage.arabic, query),
                   query: query,
                   arabic: true,
                   maxLines: 3,
@@ -433,7 +467,7 @@ class _SearchResultCard extends StatelessWidget {
               if (body.trim().isNotEmpty) ...[
                 const SizedBox(height: 8),
                 HighlightedText(
-                  body,
+                  searchSnippet(body, query),
                   query: query,
                   maxLines: 3,
                   style: const TextStyle(fontFamily: kUrduFont, fontSize: 17, height: 1.5),
@@ -456,64 +490,6 @@ class _SearchResultCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class HighlightedText extends StatelessWidget {
-  const HighlightedText(
-    this.text, {
-    required this.query,
-    this.style,
-    this.maxLines,
-    this.arabic = false,
-  });
-
-  final String text;
-  final String query;
-  final TextStyle? style;
-  final int? maxLines;
-  final bool arabic;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = query
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((token) => token.length > 1)
-        .toSet()
-        .toList();
-    final base = (style ?? const TextStyle()).copyWith(letterSpacing: arabic ? 0 : style?.letterSpacing);
-    if (tokens.isEmpty) {
-      return Text(
-        text,
-        maxLines: maxLines,
-        overflow: maxLines == null ? TextOverflow.visible : TextOverflow.ellipsis,
-        textAlign: TextAlign.justify,
-        textDirection: TextDirection.rtl,
-        style: base,
-      );
-    }
-    final pattern = RegExp(tokens.map(RegExp.escape).join('|'));
-    final spans = <TextSpan>[];
-    var start = 0;
-    for (final match in pattern.allMatches(text)) {
-      if (match.start > start) {
-        spans.add(TextSpan(text: text.substring(start, match.start)));
-      }
-      spans.add(TextSpan(
-        text: match.group(0),
-        style: TextStyle(backgroundColor: kGold.withValues(alpha: 0.28), fontWeight: FontWeight.w700),
-      ));
-      start = match.end;
-    }
-    if (start < text.length) spans.add(TextSpan(text: text.substring(start)));
-    return Text.rich(
-      TextSpan(style: base, children: spans),
-      maxLines: maxLines,
-      overflow: maxLines == null ? TextOverflow.visible : TextOverflow.ellipsis,
-      textAlign: TextAlign.justify,
-      textDirection: TextDirection.rtl,
     );
   }
 }
