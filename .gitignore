@@ -18,6 +18,10 @@ __pycache__/
 *.jks
 *.keystore
 *.p12
+# ...except the CI signing key, which must be stable across builds so APK
+# updates install over each other without losing the downloaded corpus.
+# See app/android/ci-signing/README.md.
+!app/android/ci-signing/*.p12
 app/.dart_tool/
 app/build/
 app/.flutter-plugins

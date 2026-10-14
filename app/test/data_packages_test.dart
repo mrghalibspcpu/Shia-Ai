@@ -8,7 +8,7 @@ const String _manifest = '''
   "download": {
     "extension": ".gz",
     "base_urls": [
-      "https://github.com/mrghalibspcpu/Shia-Ai/releases/latest/download/",
+      "https://github.com/mrghalibspcpu/Shia-Ai/releases/download/databases-v1/",
       "https://raw.githubusercontent.com/mrghalibspcpu/Shia-Ai/main/assets"
     ]
   },

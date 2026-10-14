@@ -28,9 +28,16 @@ android {
 
     def keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
     if (keystorePath != null && !keystorePath.isBlank()) {
+        // Pick the keystore format from the extension: the repository CI key
+        // is PKCS#12, an owner-supplied key is usually a .jks.
+        def lowerPath = keystorePath.toLowerCase()
+        def keystoreType = (lowerPath.endsWith(".p12") || lowerPath.endsWith(".pkcs12"))
+                ? "PKCS12"
+                : "JKS"
         signingConfigs {
             release {
                 storeFile file(keystorePath)
+                storeType keystoreType
                 storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
                 keyAlias System.getenv("ANDROID_KEY_ALIAS")
                 keyPassword System.getenv("ANDROID_KEY_PASSWORD")

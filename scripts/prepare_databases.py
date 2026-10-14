@@ -41,8 +41,13 @@ from database_specs import (  # noqa: E402
     DatabaseSpec,
 )
 
+# Pinned to the data release tag on purpose. `releases/latest/download/` would
+# follow whichever release was published most recently, so the day an app/APK
+# release lands, every database download in every installed copy breaks with a
+# 404. Keeping the tag fixed means the data release can be republished forever
+# (assets are replaced with --clobber) without apps noticing.
 DOWNLOAD_BASE_URLS = (
-    "https://github.com/mrghalibspcpu/Shia-Ai/releases/latest/download/",
+    "https://github.com/mrghalibspcpu/Shia-Ai/releases/download/databases-v1/",
     "https://raw.githubusercontent.com/mrghalibspcpu/Shia-Ai/main/assets/",
 )
 DOWNLOAD_EXTENSION = ".gz"

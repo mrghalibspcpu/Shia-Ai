@@ -4,7 +4,12 @@
 The APK does not need to carry ~230 MiB of SQLite files. This script writes one
 gzip-compressed file per database plus the manifest into ``dist/``; upload them
 to a GitHub Release and the client fetches them from
-``https://github.com/<owner>/<repo>/releases/latest/download/<file>``:
+``https://github.com/<owner>/<repo>/releases/download/databases-v1/<file>``:
+
+The tag is pinned in the manifest and the client on purpose: pointing at
+``releases/latest`` would break every installed app the day an APK release
+is published. Re-run this script and re-upload with ``--clobber`` to update
+the corpus in place.
 
     python3 scripts/publish_databases.py
     gh release create databases-v1 dist/*.gz dist/database-manifest.json \\

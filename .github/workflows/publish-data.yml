@@ -2,7 +2,8 @@ name: Publish data release
 
 # Builds the compressed SQLite collections (dist/*.gz) and uploads them to a
 # GitHub Release. The app downloads `<name>.db.gz` from
-# `releases/latest/download/`, verifies SHA-256 against its bundled manifest,
+# `releases/download/databases-v1/` (pinned tag: `latest` would break the
+# day an APK release is published), verifies SHA-256 against its manifest,
 # and unpacks it on the device — so the APK itself stays small.
 #
 # Asset uploads must happen here: they go to a storage host that restricted

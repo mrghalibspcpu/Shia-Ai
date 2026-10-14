@@ -12,7 +12,8 @@ on:
         default: false
 
 permissions:
-  contents: read
+  # `write` so the build can publish its APK to the `app-v*` pre-release.
+  contents: write
 
 concurrency:
   group: android-apk-${{ github.ref }}
@@ -129,6 +130,13 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          # Passphrase of the checked-in CI key (app/android/ci-signing/),
+          # used only when the repository secrets above are not configured.
+          # It is deliberately public: the key exists so builds keep one
+          # stable signature, not to protect the app. Replace both by setting
+          # the ANDROID_* secrets — see ci-signing/README.md.
+          CI_KEYSTORE_PASSWORD: 'nlrOVNNZSUV7L6oZQV39bGO7'
+          CI_KEY_ALIAS: 'shia-library'
         run: |
           set -euo pipefail
           if [[ -n "$KEYSTORE_BASE64" && -n "$KEYSTORE_PASSWORD" && -n "$KEY_ALIAS" && -n "$KEY_PASSWORD" ]]; then
@@ -145,6 +153,26 @@ jobs:
             } >> "$GITHUB_ENV"
             echo "production=true" >> "$GITHUB_OUTPUT"
             echo "artifact_name=shia-library-production-signed-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          elif [[ -f "$GITHUB_WORKSPACE/app/android/ci-signing/shia-library-ci.p12" ]]; then
+            # The Android debug key is generated fresh on every runner, so
+            # debug-signed APKs cannot be installed over each other — every
+            # update forced an uninstall and lost the downloaded corpus. This
+            # checked-in CI key gives every build the same signature, so
+            # `adb install -r` / tapping the APK just updates the app.
+            # Replace it by setting the four ANDROID_* repository secrets;
+            # those always take precedence (see ci-signing/README.md).
+            KEYSTORE_PATH="$GITHUB_WORKSPACE/app/android/ci-signing/shia-library-ci.p12"
+            {
+              echo "production=false"
+              echo "artifact_name=shia-library-ci-signed-${GITHUB_SHA}"
+              echo "ANDROID_KEYSTORE_PATH=$KEYSTORE_PATH"
+              echo "ANDROID_KEYSTORE_PASSWORD=$CI_KEYSTORE_PASSWORD"
+              echo "ANDROID_KEY_ALIAS=$CI_KEY_ALIAS"
+              echo "ANDROID_KEY_PASSWORD=$CI_KEYSTORE_PASSWORD"
+            } >> "$GITHUB_ENV"
+            echo "production=false" >> "$GITHUB_OUTPUT"
+            echo "artifact_name=shia-library-ci-signed-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+            echo "Using the repository CI signing key (stable across runs); artifact: shia-library-ci-signed-${GITHUB_SHA}"
           else
             echo "production=false" >> "$GITHUB_OUTPUT"
             echo "artifact_name=shia-library-preview-debug-signed-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
@@ -183,6 +211,31 @@ jobs:
           path: app/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30
+
+      # A stable, tappable download link the owner can open on the phone.
+      # Published as a *pre-release* on purpose: `releases/latest` must keep
+      # pointing at the data release, because every installed app downloads
+      # its databases from the pinned `databases-v1` tag.
+      - name: Publish the APK download
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version:[[:space:]]*//p' app/pubspec.yaml | tr -d '\r')
+          tag="app-v${version%%+*}"
+          mkdir -p build/apk-release
+          cp app/build/app/outputs/flutter-apk/app-release.apk build/apk-release/shia-library.apk
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" build/apk-release/shia-library.apk --clobber
+          else
+            gh release create "$tag" build/apk-release/shia-library.apk \
+              --prerelease \
+              --title "Shia Library $version — APK" \
+              --notes "Installable release build. On the phone, open this page and tap shia-library.apk." \
+              --target "$GITHUB_SHA"
+          fi
+          echo "Download: https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/shia-library.apk"
 
       - name: Remove temporary signing key
         if: always()
