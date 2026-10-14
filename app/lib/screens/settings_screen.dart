@@ -213,7 +213,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       dimension: 16,
                                       child: CircularProgressIndicator(strokeWidth: 2),
                                     )
-                                  : const Icon(Icons.rebuild),
+                                  : const Icon(Icons.refresh),
                               label: const Text('تلاش فہرست دوبارہ'),
                             ),
                           ],

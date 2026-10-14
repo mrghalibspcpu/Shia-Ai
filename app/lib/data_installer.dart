@@ -278,7 +278,7 @@ class DataInstaller {
     final status = streamed.statusCode;
     if (status == 416) {
       // The partial file already covers the whole document.
-      streamed.drain<void>();
+      await streamed.stream.drain<void>();
       return partial;
     }
     if (status != 200 && status != 206) {
@@ -341,7 +341,7 @@ class DataInstaller {
       await _deleteQuietly(staging);
       throw DataInstallException('فائل کشادہ نہیں ہو سکی: $error');
     }
-    await hashInput.close();
+    hashInput.close(); // ByteConversionSink.close() returns void
     await output.close();
 
     final digest = digestSink.value?.toString().toLowerCase() ?? '';

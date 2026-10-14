@@ -33,7 +33,7 @@ class DataScreen extends StatefulWidget {
 class _DataScreenState extends State<DataScreen> {
   DataCatalog _catalog = DataCatalog.empty;
   final Map<String, DataProgress> _progress = {};
-  final Set<String> _installed = {};
+  Set<String> _installed = const {};
   bool _loading = true;
   bool _working = false;
   String? _error;

@@ -266,8 +266,11 @@ bool hasArabicScript(String text) {
 const List<String> _arabicDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
 
 /// Renders a number with Arabic-Indic digits, as used across the Urdu corpus.
-String arabicNumerals(int value) =>
-    value.toString().split('').map((digit) => digit == '-' ? digit : _arabicDigits[int.parse(digit)!]).join();
+String arabicNumerals(int value) => value.toString().split('').map((digit) {
+      final parsed = int.tryParse(digit);
+      if (parsed == null || parsed < 0 || parsed >= _arabicDigits.length) return digit;
+      return _arabicDigits[parsed];
+    }).join();
 
 String formatCitation({
   required String bookTitle,
