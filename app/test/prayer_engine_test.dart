@@ -444,10 +444,15 @@ void main() {
     });
 
     test('coordinates and bearings keep their hemispheres and points', () {
-      expect(formatCoordinatesUrdu(33.6844, 73.0479), '33.684° شمال  73.048° مشرق');
-      expect(formatCoordinatesUrdu(-33.8688, -70.6), '33.869° جنوب  70.600° مغرب');
-      expect(formatDegreesUrdu(255.9), '256°');
-      expect(formatBearingUrdu(255.9, 'مغرب'), '256° مغرب');
+      // Each number+degree is isolated left-to-right so the sign stays on
+      // the number's right inside an Urdu line; the marks are invisible.
+      String visible(String text) => text.replaceAll(RegExp('[\u2066\u2069]'), '');
+      expect(formatCoordinatesUrdu(33.6844, 73.0479), '${ltr('33.684°')} شمال  ${ltr('73.048°')} مشرق');
+      expect(visible(formatCoordinatesUrdu(-33.8688, -70.6)), '33.869° جنوب  70.600° مغرب');
+      expect(formatDegreesUrdu(255.9), ltr('256°'));
+      expect(visible(formatDegreesUrdu(255.9)), '256°');
+      expect(visible(formatBearingUrdu(255.9, 'مغرب')), '256° مغرب');
+      expect(ltr('16°'), '\u206616°\u2069');
       expect(compassPointUrdu(255.9), 'مغرب');
       expect(compassPointUrdu(0), 'شمال');
       expect(compassPointUrdu(359), 'شمال');

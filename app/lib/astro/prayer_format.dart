@@ -23,6 +23,12 @@ String displayDigits(String value) {
 /// Kept for the call sites written before 1.9; the digits are English now.
 String urduDigits(String value) => displayDigits(value);
 
+/// Wraps [text] in a left-to-right isolate (U+2066 … U+2069). Inside an Urdu
+/// (right-to-left) line the degree sign would otherwise jump to the wrong
+/// side of its number ("°16" instead of "16°"); the isolate marks are
+/// invisible.
+String ltr(String text) => '\u2066$text\u2069';
+
 /// `1234567` → `1,234,567`.
 String formatCount(int value) {
   final negative = value < 0;
@@ -80,12 +86,13 @@ String formatCountdownClock(Duration remaining) {
   return hours > 0 ? '$hours:$minutes:$secs' : '${(seconds % 3600) ~/ 60}:$secs';
 }
 
-/// Coordinates for the header line: `33.684° شمال  73.048° مشرق`.
+/// Coordinates for the header line: `33.684° شمال  73.048° مشرق` (each
+/// number isolated left-to-right).
 String formatCoordinatesUrdu(double latitude, double longitude) {
-  final latitudeText = latitude.abs().toStringAsFixed(3);
-  final longitudeText = longitude.abs().toStringAsFixed(3);
-  return '$latitudeText° ${latitude >= 0 ? 'شمال' : 'جنوب'}  '
-      '$longitudeText° ${longitude >= 0 ? 'مشرق' : 'مغرب'}';
+  final latitudeText = ltr('${latitude.abs().toStringAsFixed(3)}°');
+  final longitudeText = ltr('${longitude.abs().toStringAsFixed(3)}°');
+  return '$latitudeText ${latitude >= 0 ? 'شمال' : 'جنوب'}  '
+      '$longitudeText ${longitude >= 0 ? 'مشرق' : 'مغرب'}';
 }
 
 /// Urdu month names of the Gregorian calendar.
@@ -118,7 +125,7 @@ String formatDayMonthYearUrdu(DateTime date) =>
 String formatDateUrdu(DateTime date) => '${weekdayUrdu(date)}، ${formatDayMonthYearUrdu(date)}';
 
 /// `256°` — a bearing without its compass point.
-String formatDegreesUrdu(double degrees) => '${degrees.round() % 360}°';
+String formatDegreesUrdu(double degrees) => ltr('${degrees.round() % 360}°');
 
 /// `256° مغرب` — a bearing with it.
 String formatBearingUrdu(double degrees, String pointUrdu) =>

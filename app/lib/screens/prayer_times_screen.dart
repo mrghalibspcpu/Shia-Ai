@@ -872,7 +872,7 @@ class _DetailTiles extends StatelessWidget {
         Icons.calculate_outlined,
         'طریقۂ حساب',
         schedule.methodLabel.split('—').first.trim(),
-        'مغرب ${schedule.maghribAngle.toStringAsFixed(1)}° پر',
+        'مغرب ${ltr('${schedule.maghribAngle.toStringAsFixed(1)}°')} پر',
       ),
       (
         Icons.explore_outlined,
@@ -1032,7 +1032,7 @@ class _AlertControls extends StatelessWidget {
                         style: TextStyle(fontSize: 15, color: palette.ink),
                       ),
                       subtitle: Text(
-                        'مغرب: سورج ${(params.maghribAngle ?? 4).toStringAsFixed(1)}° '
+                        'مغرب: سورج ${ltr('${(params.maghribAngle ?? 4).toStringAsFixed(1)}°')} '
                         'نیچے — زوالِ سرخی',
                         style: TextStyle(fontSize: 13, color: palette.muted),
                       ),
@@ -1146,7 +1146,7 @@ class _AlertControls extends StatelessWidget {
             children: <Widget>[
               Expanded(
                 child: GlassChip(
-                  label: 'طریقہ: ${controller.presetKey == 'leva' ? 'تہران (17.7°)' : 'جعفری (16°)'}',
+                  label: 'طریقہ: ${controller.presetKey == 'leva' ? 'تہران (${ltr('17.7°')})' : 'جعفری (${ltr('16°')})'}',
                   icon: Icons.calculate_outlined,
                   onTap: () => unawaited(_pickPreset(context)),
                 ),
@@ -1255,7 +1255,7 @@ class _FiqhNote extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'اوقاتِ نماز سورج کے حقیقی زاویوں سے حساب ہوتے ہیں: '
-            '${schedule.methodLabel}، مغرب سورج ${schedule.maghribAngle.toStringAsFixed(1)}° '
+            '${schedule.methodLabel}، مغرب سورج ${ltr('${schedule.maghribAngle.toStringAsFixed(1)}°')} '
             'نیچے آنے پر (زوالِ سرخی)، اور شرعی نصف شب غروبِ آفتاب تا فجر کے وسط پر۔ '
             'مغرب سے نصف شب کا حساب الگ دیا گیا ہے (احتیاط)۔ '
             'ہجری تاریخ اُمّ القریٰ کیلنڈر سے ہے اور مغرب کے بعد اگلی تاریخ (شب) دکھائی جاتی ہے؛ '

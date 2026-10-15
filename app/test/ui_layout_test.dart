@@ -10,6 +10,7 @@ import 'package:shia_ai/app_theme.dart';
 import 'package:shia_ai/screens/prayer_times_screen.dart';
 import 'package:shia_ai/screens/tasbeeh_screen.dart';
 import 'package:shia_ai/services/alerts.dart';
+import 'package:shia_ai/services/city_index.dart';
 import 'package:shia_ai/services/prayer_controller.dart';
 import 'package:shia_ai/services/prayer_locations.dart';
 import 'package:shia_ai/services/prayer_scope.dart';
@@ -207,6 +208,22 @@ void main() {
     await tester.pumpWidget(host(prayer, tasbeeh, const TasbeehScreen()));
     await settle(tester);
     await shoot(tester, 'tasbeeh-zahra');
+    await finish(tester, prayer, tasbeeh);
+  });
+
+  testWidgets('the location picker finds towns from the offline list', (tester) async {
+    phone(tester);
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(11, 0));
+    // The list is parsed in a background isolate: let that finish for real.
+    final index = await tester.runAsync(CityIndexLoader.load);
+    expect(index, isNotNull);
+    await tester.pumpWidget(host(prayer, tasbeeh, const Scaffold(body: LocationPickerSheet())));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'chak');
+    await settle(tester);
+    expect(find.text('چکوال'), findsOneWidget);
+    expect(find.text('Chak Jhumra'), findsWidgets);
+    await shoot(tester, 'location-picker');
     await finish(tester, prayer, tasbeeh);
   });
 }

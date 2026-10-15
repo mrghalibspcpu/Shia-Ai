@@ -578,7 +578,12 @@ class _CompassRosePainter extends CustomPainter {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
-        style: TextStyle(fontSize: fontSize, fontWeight: fontWeight, color: color),
+        style: TextStyle(
+          fontFamily: kUrduFont,
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          color: color,
+        ),
       ),
       textDirection: TextDirection.rtl,
       textAlign: TextAlign.center,

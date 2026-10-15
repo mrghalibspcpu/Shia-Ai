@@ -171,6 +171,11 @@ class _TasbeehScreenState extends State<TasbeehScreen> with TickerProviderStateM
   }
 }
 
+/// True when [text] is written in Arabic (it carries harakat or Arabic-only
+/// letters), so it is printed in the Arabic face rather than Nastaliq.
+bool looksArabic(String text) =>
+    RegExp('[\u064B-\u0652\u0670\u0629\u0643\u064A]').hasMatch(text);
+
 /// "Reset the count?" — shared by the full screen and the home card.
 Future<void> confirmTasbeehReset(BuildContext context, TasbeehController controller) async {
   final palette = GlassPalette.of(context);
@@ -738,6 +743,7 @@ class _ZikrCard extends StatelessWidget {
     final preset = controller.preset;
     final wird = controller.activeWird;
     final own = preset.custom;
+    final arabic = !own || looksArabic(controller.step.arabic);
     return GlassPanel(
       radius: 22,
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
@@ -781,8 +787,8 @@ class _ZikrCard extends StatelessWidget {
                     controller.step.arabic,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontFamily: own ? null : kArabicFont,
-                      fontSize: own ? 27 : 30,
+                      fontFamily: arabic ? kArabicFont : null,
+                      fontSize: arabic ? 30 : 27,
                       height: 1.6,
                       color: palette.isDark ? palette.accent : kForest,
                     ),
@@ -1067,7 +1073,7 @@ class _QuickActions extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
         GlassChip(
-          label: 'ایک واپس (−1)',
+          label: 'ایک دانہ واپس',
           icon: Icons.undo,
           onTap: controller.count > 0 ? controller.undo : null,
         ),

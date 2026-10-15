@@ -307,6 +307,15 @@ void main() {
       expect(controller.lifetimeTotal, 0);
     });
 
+    test('two wirds saved in the same instant get their own ids', () {
+      final controller = counter();
+      final first = controller.saveWird(text: 'یا علی مدد', target: 110);
+      final second = controller.saveWird(text: 'یا حسین', target: 72);
+      expect(first.id, isNot(second.id));
+      expect(controller.wirds.map((wird) => wird.text), <String>['یا علی مدد', 'یا حسین']);
+      expect(controller.activeWird?.id, second.id);
+    });
+
     test('short titles keep chips small', () {
       expect(TasbeehPreset.shortTitle('یا علی'), 'یا علی');
       expect(TasbeehPreset.shortTitle('اللہم صل علی محمد و آل محمد'), endsWith('…'));

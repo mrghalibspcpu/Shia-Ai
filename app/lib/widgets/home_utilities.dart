@@ -531,7 +531,7 @@ class HomeTasbeehCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = GlassPalette.of(context);
     final controller = TasbeehScope.of(context);
-    final own = controller.preset.custom;
+    final arabic = !controller.preset.custom || looksArabic(controller.step.arabic);
     return GlassPanel(
       radius: 22,
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
@@ -584,8 +584,8 @@ class HomeTasbeehCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontFamily: own ? null : kArabicFont,
-              fontSize: own ? 15 : 16,
+              fontFamily: arabic ? kArabicFont : null,
+              fontSize: arabic ? 16 : 15,
               height: 1.45,
               color: palette.isDark ? palette.accent : kForest,
             ),
@@ -602,7 +602,7 @@ class HomeTasbeehCard extends StatelessWidget {
               ),
               Expanded(
                 child: Text(
-                  'آج ${formatCount(controller.dailyTotal)}',
+                  'آج: ${formatCount(controller.dailyTotal)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
@@ -682,6 +682,7 @@ class _MiniBead extends StatelessWidget {
                         fit: BoxFit.scaleDown,
                         child: Text(
                           target == 0 ? '∞' : '/ ${formatCount(target)}',
+                          textDirection: TextDirection.ltr,
                           style: TextStyle(
                             fontFamily: kDigitFont,
                             fontSize: diameter * 0.12,
@@ -955,7 +956,12 @@ class _MiniDialPainter extends CustomPainter {
     final north = TextPainter(
       text: TextSpan(
         text: 'شمال',
-        style: TextStyle(fontSize: size.width * 0.1, fontWeight: FontWeight.w800, color: palette.gold),
+        style: TextStyle(
+          fontFamily: kUrduFont,
+          fontSize: size.width * 0.1,
+          fontWeight: FontWeight.w800,
+          color: palette.gold,
+        ),
       ),
       textDirection: TextDirection.rtl,
     )..layout();

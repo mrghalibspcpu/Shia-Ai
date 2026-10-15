@@ -633,7 +633,7 @@ class TasbeehController extends ChangeNotifier {
   /// Adds a wird (or updates the one with [id]) and runs it.
   CustomWird saveWird({String? id, required String text, String note = '', int target = 33}) {
     final wird = CustomWird(
-      id: (id == null || id.isEmpty) ? 'w${_clock().microsecondsSinceEpoch}' : id,
+      id: (id == null || id.isEmpty) ? _freshWirdId() : id,
       text: text.trim(),
       note: note.trim(),
       target: clampTarget(target),
@@ -653,6 +653,17 @@ class TasbeehController extends ChangeNotifier {
     unawaited(_persist());
     notifyListeners();
     return wird;
+  }
+
+  /// A new wird id, unique even when two wirds are saved in the same tick.
+  String _freshWirdId() {
+    final stamp = _clock().microsecondsSinceEpoch;
+    var candidate = 'w$stamp';
+    var suffix = 1;
+    while (wirdById(candidate) != null) {
+      candidate = 'w${stamp}_${suffix++}';
+    }
+    return candidate;
   }
 
   /// Removes a saved wird; when it was running, Tasbeeh-e-Zahra takes over.

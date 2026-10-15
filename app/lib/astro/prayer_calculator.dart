@@ -287,15 +287,15 @@ class PrayerCalculator {
         String,
         CalculationParameters
       )>[
-        ('jafari', 'جعفری (لیوا قم) — فجر 16°', jafariQum()),
-        ('leva', 'تہران (لیوا قم) — فجر 17.7°', levaQum()),
+        ('jafari', 'جعفری (لیوا قم) — فجر \u206616°\u2069', jafariQum()),
+        ('leva', 'تہران (لیوا قم) — فجر \u206617.7°\u2069', levaQum()),
       ];
 
   static CalculationParameters parametersFor(String? key) =>
       key == 'leva' ? levaQum() : jafariQum();
 
   static String labelFor(String? key) =>
-      key == 'leva' ? 'تہران (لیوا قم) — فجر 17.7°' : 'جعفری (لیوا قم) — فجر 16°';
+      key == 'leva' ? 'تہران (لیوا قم) — فجر \u206617.7°\u2069' : 'جعفری (لیوا قم) — فجر \u206616°\u2069';
 
   static double maghribAngleOf(CalculationParameters params) =>
       params.maghribAngle ?? 4.0;
