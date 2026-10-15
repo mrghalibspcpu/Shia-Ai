@@ -185,10 +185,11 @@ class OnlinePlaces {
     if (json['error'] != null) return null;
     final rawAddress = json['address'];
     final address = rawAddress is Map ? rawAddress.cast<String, dynamic>() : <String, dynamic>{};
+    // The area people name ("G-11", "Gulshan-e-Iqbal") before the block.
     final locality = _pick(address, const <String>[
-      'neighbourhood',
       'suburb',
       'quarter',
+      'neighbourhood',
       'residential',
       'village',
       'hamlet',

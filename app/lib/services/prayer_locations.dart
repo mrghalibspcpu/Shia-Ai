@@ -484,11 +484,8 @@ class PrayerLocations {
   static PrayerLocation localiseIp(PrayerLocation location) {
     final curated = curatedNear(location.latitude, location.longitude, maxKm: 30);
     if (curated == null) return location;
-    final city = location.label.split(',').first.trim().toLowerCase();
-    final latin = curated.nameLatin.toLowerCase();
-    if (city.isEmpty || !(latin.contains(city) || city.contains(latin.split(' ').first))) {
-      return location;
-    }
+    final city = location.label.split(',').first.trim();
+    if (city.isEmpty || !namesAgree(curated.nameLatin, city)) return location;
     return PrayerLocation(
       latitude: location.latitude,
       longitude: location.longitude,
@@ -573,16 +570,23 @@ class PrayerLocations {
     return best;
   }
 
-  /// The curated twin of a GeoNames place ("Karachi" → "کراچی"): same spot,
-  /// and one name contains the other.
+  /// Whether a curated Latin name and a GeoNames name are the same town
+  /// ("Hyderabad, Sindh" / "Hyderabad", "Mirpur (AJK)" / "New Mirpur City").
+  static bool namesAgree(String curatedLatin, String geoName) {
+    final pattern = RegExp('[^a-z]+');
+    final latinWords =
+        curatedLatin.toLowerCase().split(pattern).where((word) => word.length >= 3).toList();
+    final nameWords = geoName.toLowerCase().split(pattern).where((word) => word.length >= 3).toList();
+    if (latinWords.isEmpty || nameWords.isEmpty) return false;
+    return nameWords.any(latinWords.contains) || geoName.toLowerCase().contains(latinWords.first);
+  }
+
+  /// The curated twin of a GeoNames place ("Karachi" → "کراچی"): the same
+  /// spot under an agreeing name.
   static PlaceSuggestion? curatedTwin(GeoCity city) {
     final curated = curatedNear(city.latitude, city.longitude, maxKm: 15);
-    if (curated == null) return null;
-    final latin = curated.nameLatin.toLowerCase();
-    final name = city.name.toLowerCase();
-    final firstWord = latin.split(RegExp(r'[ ,(]')).first;
-    if (latin.contains(name) || name.contains(firstWord)) return curated;
-    return null;
+    if (curated == null || !namesAgree(curated.nameLatin, city.name)) return null;
+    return curated;
   }
 
   /// Names a fix from the bundled list: the town it belongs to (in Urdu when
@@ -603,7 +607,12 @@ class PrayerLocations {
     final twin = curatedTwin(city);
     final name = twin?.nameUrdu ?? city.name;
     final label = match.distanceKm > 12 ? '$name کے قریب' : name;
-    return PlaceName(label: label, detail: regionLabel(city));
+    final region = regionLabel(city);
+    // "اسلام آباد" over "اسلام آباد، پاکستان" says the city twice.
+    final detail = region.startsWith('$name،')
+        ? countryLabel(city.countryCode, city.countryName)
+        : region;
+    return PlaceName(label: label, detail: detail);
   }
 
   /// A curated city as a picker row.
@@ -635,9 +644,7 @@ class PrayerLocations {
     for (final city in index.search(query, limit: limit)) {
       final row = resultForCity(city);
       final duplicate = curated.any(
-        (known) =>
-            known.sameSpotAs(row) &&
-            known.subtitle.toLowerCase().contains(city.name.toLowerCase().split(' ').first),
+        (known) => known.sameSpotAs(row) && namesAgree(known.subtitle, city.name),
       );
       if (!duplicate) results.add(row);
       if (results.length >= limit) break;

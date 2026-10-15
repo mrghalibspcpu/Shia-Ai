@@ -305,6 +305,64 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           echo "Hosted APK is byte-identical to the signed build."
 
+      # The same APK inside a zip, published next to it: some phones and
+      # messengers refuse to download or forward a bare .apk file.
+      - name: Publish the zipped APK
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version:[[:space:]]*//p' app/pubspec.yaml | tr -d '\r')
+          tag="app-v${version%%+*}"
+          base="ShiaVerse-${version%%+*}"
+          mkdir -p build/apk-zip
+          cp app/build/app/outputs/flutter-apk/app-release.apk "build/apk-zip/$base.apk"
+          {
+            echo "ShiaVerse ${version%%+*}"
+            echo
+            echo "Install: open $base.apk on the phone and allow 'Install unknown apps' when Android asks."
+            echo "Updating over an earlier ShiaVerse keeps the downloaded books (same signing key)."
+          } > build/apk-zip/README.txt
+          (cd build/apk-zip && zip -9 -q "$base.zip" "$base.apk" README.txt)
+          gh release upload "$tag" "build/apk-zip/$base.zip" --clobber
+          zipsha=$(sha256sum "build/apk-zip/$base.zip" | cut -d' ' -f1)
+          {
+            echo "### Zipped APK"
+            echo
+            echo "- asset: \`$base.zip\` ($(stat -c%s "build/apk-zip/$base.zip") bytes)"
+            echo "- sha-256: \`$zipsha\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Download: https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$base.zip"
+
+      # The zip again as unreferenced git blobs (20 MB parts), for build tooling
+      # that can reach the GitHub API but not the release download host. The
+      # part ids are printed as a notice. Best effort: never fails the build.
+      - name: Stage the zipped APK as git blobs
+        if: github.event_name == 'push'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version:[[:space:]]*//p' app/pubspec.yaml | tr -d '\r')
+          base="ShiaVerse-${version%%+*}"
+          zip="build/apk-zip/$base.zip"
+          mkdir -p build/blobs
+          split -b 20m -d -a 2 "$zip" build/blobs/part-
+          parts=""
+          for part in build/blobs/part-??; do
+            python3 - "$part" > "$part.json" <<'PY'
+          import base64, json, sys
+          data = open(sys.argv[1], 'rb').read()
+          print(json.dumps({'content': base64.b64encode(data).decode(), 'encoding': 'base64'}))
+          PY
+            sha=$(gh api -X POST "repos/$GITHUB_REPOSITORY/git/blobs" --input "$part.json" --jq .sha)
+            parts="$parts,$sha"
+          done
+          zipsha=$(sha256sum "$zip" | cut -d' ' -f1)
+          echo "::notice title=APK zip blobs::$base.zip sha256=$zipsha parts=${parts#,}"
+
       - name: Remove temporary signing key
         if: always()
         run: rm -f app/android/app/owner-release-key.jks

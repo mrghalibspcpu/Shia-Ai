@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shia_ai/astro/hijri_calendar.dart';
 import 'package:shia_ai/astro/prayer_calculator.dart';
 import 'package:shia_ai/services/alerts.dart';
+import 'package:shia_ai/services/place_names.dart';
 import 'package:shia_ai/services/prayer_controller.dart';
 import 'package:shia_ai/services/prayer_locations.dart';
 
@@ -208,5 +212,213 @@ void main() {
     expect(controller.justPrayed, PrayerMarker.maghrib);
     expect(controller.window.marker, PrayerMarker.maghrib);
     expect(controller.nextEntry.marker, PrayerMarker.isha);
+  });
+
+  group('1.9: exact place names, quiet re-detection, Hijri date', () {
+    const gpsFix = PrayerLocation(
+      latitude: 33.6686,
+      longitude: 72.9973,
+      label: 'اسلام آباد',
+      source: LocationSource.gps,
+    );
+
+    test('a GPS fix is renamed with the exact place once the namer answers', () async {
+      final controller = PrayerController(
+        clock: () => DateTime.utc(2026, 10, 15, 6),
+        feedback: const SilentFeedback(),
+        locate: () async => gpsFix,
+        namePlace: (latitude, longitude) async =>
+            const PlaceName(label: 'G-11، اسلام آباد', detail: 'اسلام آباد، پاکستان'),
+      );
+      await controller.start();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(controller.location.label, 'G-11، اسلام آباد');
+      expect(controller.location.detail, 'اسلام آباد، پاکستان');
+      expect(controller.location.refined, isTrue);
+      expect(controller.location.latitude, closeTo(33.6686, 1e-9));
+      final stored = await PrayerLocations.loadStored();
+      expect(stored!.label, 'G-11، اسلام آباد');
+      expect(stored.refined, isTrue);
+    });
+
+    test('a city picked while the namer is busy is never overwritten', () async {
+      final answer = Completer<PlaceName?>();
+      final controller = PrayerController(
+        clock: () => DateTime.utc(2026, 10, 15, 6),
+        feedback: const SilentFeedback(),
+        locate: () async => gpsFix,
+        namePlace: (latitude, longitude) => answer.future,
+      );
+      await controller.start();
+      await controller.useCity(const PlaceSuggestion('کربلا', 'Karbala', 32.6160, 44.0249));
+      answer.complete(const PlaceName(label: 'G-11'));
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(controller.location.label, 'کربلا');
+      expect(controller.location.source, LocationSource.manual);
+    });
+
+    test('a stored IP guess is replaced by a quiet GPS fix on the next launch', () async {
+      await PrayerLocations.store(
+        const PrayerLocation(
+          latitude: 33.7,
+          longitude: 73.0,
+          label: 'Islamabad, Pakistan',
+          source: LocationSource.ip,
+        ),
+      );
+      var prompts = 0;
+      final controller = PrayerController(
+        clock: () => DateTime.utc(2026, 10, 15, 6),
+        feedback: const SilentFeedback(),
+        locate: () async {
+          prompts++;
+          return null;
+        },
+        locateQuietly: () async => const DeviceFix(
+          PrayerLocation(
+            latitude: 32.933,
+            longitude: 72.854,
+            label: 'چکوال',
+            source: LocationSource.gps,
+          ),
+        ),
+      );
+      await controller.start();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(controller.location.label, 'چکوال');
+      expect(controller.location.source, LocationSource.gps);
+      expect(prompts, 0, reason: 'the background check never shows a permission prompt');
+      expect((await PrayerLocations.loadStored())!.label, 'چکوال');
+    });
+
+    test('a fresh fix is left alone; a stale one is re-checked and moves only for a real move', () async {
+      var quietCalls = 0;
+      await PrayerLocations.store(
+        PrayerLocation(
+          latitude: 33.6844,
+          longitude: 73.0479,
+          label: 'اسلام آباد',
+          source: LocationSource.gps,
+          savedAt: DateTime.now(),
+          refined: true,
+        ),
+      );
+      final fresh = PrayerController(
+        clock: () => DateTime.utc(2026, 10, 15, 6),
+        feedback: const SilentFeedback(),
+        locate: () async => null,
+        locateQuietly: () async {
+          quietCalls++;
+          return const DeviceFix.failed(LocationProblem.noFix);
+        },
+      );
+      await fresh.start();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(quietCalls, 0);
+
+      await PrayerLocations.store(
+        PrayerLocation(
+          latitude: 33.6844,
+          longitude: 73.0479,
+          label: 'اسلام آباد',
+          source: LocationSource.gps,
+          savedAt: DateTime.now().subtract(const Duration(days: 1)),
+          refined: true,
+        ),
+      );
+      final stale = PrayerController(
+        clock: () => DateTime.utc(2026, 10, 15, 6),
+        feedback: const SilentFeedback(),
+        locate: () async => null,
+        locateQuietly: () async {
+          quietCalls++;
+          // 300 m away: the same place, not a journey.
+          return const DeviceFix(
+            PrayerLocation(latitude: 33.6871, longitude: 73.0479, label: 'x', source: LocationSource.gps),
+          );
+        },
+      );
+      await stale.start();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(quietCalls, 1);
+      expect(stale.location.label, 'اسلام آباد');
+    });
+
+    test('a manually chosen city is never re-detected', () async {
+      await PrayerLocations.store(
+        PrayerLocation(
+          latitude: 32.6160,
+          longitude: 44.0249,
+          label: 'کربلا',
+          source: LocationSource.manual,
+          savedAt: DateTime.now().subtract(const Duration(days: 30)),
+        ),
+      );
+      var quietCalls = 0;
+      final controller = PrayerController(
+        clock: () => DateTime.utc(2026, 10, 15, 6),
+        feedback: const SilentFeedback(),
+        locate: () async => null,
+        locateQuietly: () async {
+          quietCalls++;
+          return const DeviceFix(gpsFix);
+        },
+      );
+      await controller.start();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(quietCalls, 0);
+      expect(controller.location.label, 'کربلا');
+    });
+
+    test('any picker row can become the location', () async {
+      final controller = await controllerFor(() => DateTime.utc(2026, 10, 15, 6));
+      await controller.usePlace(
+        const PlaceResult(
+          title: 'Kharmang',
+          subtitle: 'Gilgit-Baltistan، پاکستان',
+          latitude: 34.94,
+          longitude: 76.22,
+          origin: PlaceOrigin.online,
+        ),
+      );
+      expect(controller.location.label, 'Kharmang');
+      expect(controller.location.detail, 'Gilgit-Baltistan، پاکستان');
+      expect(controller.location.source, LocationSource.manual);
+      expect((await PrayerLocations.loadStored())!.label, 'Kharmang');
+    });
+
+    test('the Hijri date turns at Maghrib and follows the reader\'s shift', () async {
+      var device = DateTime.utc(2026, 10, 15, 6);
+      final controller = await controllerFor(() => device);
+      // Islamabad starts one day behind Umm al-Qura: 4 → 3 Jumada al-Awwal.
+      expect(controller.hijriAdjustment, isNull);
+      expect(controller.effectiveHijriAdjustment, -1);
+      expect(controller.hijriToday.date, const HijriDate(1448, 5, 3));
+      expect(controller.hijriToday.eve, isFalse);
+
+      final offset = controller.schedule.zoneOffset;
+      final maghrib = controller.schedule.entryFor(PrayerMarker.maghrib).time;
+      device = maghrib.subtract(offset).add(const Duration(minutes: 1));
+      controller.tickNow();
+      expect(controller.hijriToday.eve, isTrue);
+      expect(controller.hijriToday.date, const HijriDate(1448, 5, 4));
+      expect(controller.hijriToday.labelUrdu, startsWith('شبِ'));
+
+      controller.setHijriAdjustment(0);
+      expect(controller.hijriToday.date, const HijriDate(1448, 5, 5));
+      controller.setHijriAdjustment(7);
+      expect(controller.hijriAdjustment, 2);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      final reloaded = PrayerController(
+        clock: () => device,
+        feedback: const SilentFeedback(),
+        locate: () async => null,
+      );
+      await reloaded.start();
+      expect(reloaded.hijriAdjustment, 2);
+      reloaded.setHijriAdjustment(null);
+      expect(reloaded.effectiveHijriAdjustment, -1);
+    });
   });
 }
