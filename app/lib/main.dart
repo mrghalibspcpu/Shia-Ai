@@ -196,14 +196,22 @@ class _LibraryBootstrapState extends State<LibraryBootstrap> {
     _starting = true;
     setState(() => _error = null);
     try {
-      await widget.library.initialize(onProgress: (progress, message) {
-        if (!mounted) return;
-        setState(() {
-          _progress = progress;
-          _status = message;
-        });
-      });
+      // Only the quick part happens here: unpack what is already on the phone
+      // and open the books. The slow full-text index runs in the background so
+      // the library opens straight away — even on a fresh install that has not
+      // downloaded anything yet.
+      await widget.library.initialize(
+        onProgress: (progress, message) {
+          if (!mounted) return;
+          setState(() {
+            _progress = progress;
+            _status = message;
+          });
+        },
+        buildSearchIndex: false,
+      );
       if (mounted) widget.onReady();
+      unawaited(widget.library.ensureSearchIndex());
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
@@ -214,22 +222,15 @@ class _LibraryBootstrapState extends State<LibraryBootstrap> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.library.isInitialized && widget.library.hasAnyBook) {
+    if (widget.library.isInitialized) {
+      // The home screen always wins, with or without data on disk: a missing
+      // book is a download button on the library, never a blocked app.
       return HomeShell(
         key: widget.homeShellKey,
         library: widget.library,
         installer: widget.installer,
         themeMode: widget.themeMode,
         onThemeModeChanged: widget.onThemeModeChanged,
-      );
-    }
-    if (widget.library.isInitialized) {
-      // Nothing on disk yet: the app is usable as soon as one book is fetched.
-      return DataScreen(
-        library: widget.library,
-        installer: widget.installer,
-        setupMode: true,
-        key: const ValueKey('first-run-data'),
       );
     }
     return Scaffold(

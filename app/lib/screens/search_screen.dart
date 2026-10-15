@@ -286,6 +286,39 @@ class _SearchScreenState extends State<SearchScreen> {
               ],
             ),
           ),
+          ValueListenableBuilder<IndexBuildState>(
+            valueListenable: widget.library.indexProgress,
+            builder: (context, state, _) {
+              if (!state.active) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      state.message,
+                      textDirection: TextDirection.rtl,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    LinearProgressIndicator(value: state.progress <= 0 ? null : state.progress),
+                    const SizedBox(height: 4),
+                    Text(
+                      'تلاش ابھی جزوی ہے — فہرست مکمل ہونے پر نتائج بڑھ جائیں گے۔',
+                      textDirection: TextDirection.rtl,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
           if (_controller.text.trim().isNotEmpty && !_loading)
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
@@ -318,10 +351,15 @@ class _SearchScreenState extends State<SearchScreen> {
             style: TextStyle(fontSize: 18),
           ),
           const SizedBox(height: 6),
-          Text(
-            '${widget.library.installedBooks.length} کتب کی مقامی فہرست تیار ہے',
-            textDirection: TextDirection.rtl,
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ValueListenableBuilder<IndexBuildState>(
+            valueListenable: widget.library.indexProgress,
+            builder: (context, state, _) => Text(
+              state.active
+                  ? '${widget.library.installedBooks.length} کتب دستیاب ہیں — تلاش کی فہرست تیار ہو رہی ہے'
+                  : '${widget.library.installedBooks.length} کتب کی مقامی فہرست تیار ہے',
+              textDirection: TextDirection.rtl,
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
           ),
           if (missing > 0 && widget.onOpenData != null) ...[
             const SizedBox(height: 14),

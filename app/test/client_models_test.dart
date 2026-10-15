@@ -142,4 +142,95 @@ void main() {
       expect(entry.title, contains('آیت 1'));
     });
   });
+
+  group('last seen', () {
+    test('keeps the reference and the time through a JSON round trip', () {
+      final entry = LastReadEntry(
+        bookKey: 'quran',
+        recordId: 42,
+        sectionId: 7,
+        title: 'البقرہ',
+        reference: 'آیت 12 • پارہ 1',
+        savedAt: DateTime.fromMillisecondsSinceEpoch(1700000000000),
+      );
+      final restored = LastReadEntry.fromJson(entry.toJson());
+      expect(restored.bookKey, 'quran');
+      expect(restored.recordId, 42);
+      expect(restored.sectionId, 7);
+      expect(restored.referenceOrTitle, contains('آیت 12'));
+      expect(restored.savedAt, entry.savedAt);
+      expect(restored.isValid, isTrue);
+      expect(restored.target.recordId, 42);
+    });
+
+    test('reads the pre-1.5 book:recordId:sectionId value', () {
+      final entry = LastReadEntry.fromLegacy('mafatih:812:0');
+      expect(entry.bookKey, 'mafatih');
+      expect(entry.recordId, 812);
+      expect(entry.isValid, isTrue);
+      expect(LastReadEntry.fromLegacy('nope:0').isValid, isFalse);
+    });
+
+    test('labels today, yesterday, and older days', () {
+      final now = DateTime.now();
+      expect(LastReadEntry(bookKey: 'quran', recordId: 1, savedAt: now).timeLabel, startsWith('آج'));
+      final yesterday = now.subtract(const Duration(days: 1));
+      expect(
+        LastReadEntry(bookKey: 'quran', recordId: 1, savedAt: yesterday).timeLabel,
+        startsWith('کل'),
+      );
+      final older = DateTime(2024, 3, 4, 9, 5);
+      expect(LastReadEntry(bookKey: 'quran', recordId: 1, savedAt: older).timeLabel, '4/3/2024');
+    });
+
+    test('falls back to the book name when a passage has no locator', () {
+      final book = BookDefinition.bookFor(CorpusSource.quran)!;
+      const bare = Passage(recordId: 5, arabic: 'x', urdu: 'y');
+      expect(readingReference(book, bare), book.titleUrdu);
+      const located = Passage(
+        recordId: 5,
+        arabic: 'x',
+        urdu: 'y',
+        locator: 'آیت 5',
+        sectionTitle: 'البقرہ',
+      );
+      expect(readingReference(book, located), contains('آیت 5'));
+    });
+  });
+
+  group('fatawa library entry', () {
+    test('offers both marjas behind one tile', () {
+      expect(fatawaBooks.map((book) => book.key).toList(), ['khamenei', 'sistani']);
+      for (final book in fatawaBooks) {
+        expect(book.source, CorpusSource.fatwa);
+        expect(book.marjaName, isNotEmpty);
+        expect(book.imageAsset, isNotNull);
+      }
+      expect(kFatawaCollectionTitle, contains('دینی مسائل'));
+    });
+
+    test('the home row keeps one card per collection, never two fatawa', () {
+      final keys = featuredCollections.map((book) => book.key).toList();
+      expect(keys, ['sahifa', 'quran', 'mafatih', 'nahjul_balagha']);
+      for (final book in fatawaBooks) {
+        expect(keys, isNot(contains(book.key)));
+      }
+    });
+  });
+
+  group('source links', () {
+    test('a fatawa passage knows the page it came from', () {
+      final passage = Passage.fromMap({
+        'record_id': 3,
+        'urdu': 'ج: پاک ہیں۔',
+        'source_url': 'https://www.sistani.org/urdu/qa/17169/',
+        'source_ref': '17169',
+      });
+      expect(passage.hasSource, isTrue);
+      expect(passage.sourceUrl, endsWith('/17169/'));
+      expect(passage.sourceRef, '17169');
+      expect(passage.copyWith(footnote: 'x').sourceUrl, passage.sourceUrl);
+      expect(Passage.fromMap({'record_id': 4, 'urdu': 'x'}).hasSource, isFalse);
+    });
+  });
 }

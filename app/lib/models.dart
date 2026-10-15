@@ -22,6 +22,27 @@ extension CorpusSourceX on CorpusSource {
       };
 }
 
+/// The two Urdu fatawa books are offered as ONE library entry — the reader
+/// picks a marja on the next screen instead of choosing between two nearly
+/// identical tiles on the home row.
+const String kFatawaCollectionKey = 'dini_masail';
+const String kFatawaCollectionTitle = 'دینی مسائل (احکام و فتاویٰ)';
+const String kFatawaCollectionSubtitle = 'فتاویٰ، احکامِ شرعیہ اور سوال و جواب';
+const String kFatawaCollectionHint = 'اپنا مرجعِ تقلید منتخب کریں';
+
+/// Every fatwa book, in marja order (Khamenei, then Sistani).
+List<BookDefinition> get fatawaBooks =>
+    BookDefinition.all.where((book) => book.source == CorpusSource.fatwa).toList();
+
+/// Non-hadith collections shown as the home row of cards.
+List<BookDefinition> get featuredCollections => [
+      for (final book in BookDefinition.all)
+        if (book.source == CorpusSource.sahifa) book,
+      BookDefinition.bookFor(CorpusSource.quran)!,
+      BookDefinition.bookFor(CorpusSource.dua)!,
+      BookDefinition.bookFor(CorpusSource.balagha)!,
+    ];
+
 CorpusSource corpusSourceFromWire(String? value) => switch (value) {
       'quran' => CorpusSource.quran,
       'dua' => CorpusSource.dua,
@@ -40,6 +61,8 @@ class BookDefinition {
     this.description = '',
     this.source = CorpusSource.hadith,
     this.recordLabel = 'حدیث نمبر',
+    this.imageAsset,
+    this.marjaName = '',
   });
 
   final String key;
@@ -50,16 +73,27 @@ class BookDefinition {
   final CorpusSource source;
   final String recordLabel;
 
+  /// Portrait shown on the marja picker (`دینی مسائل`). Null for every other
+  /// collection — the home row uses an icon for those.
+  final String? imageAsset;
+
+  /// Full name of the authority, for books that are one marja's fatawa.
+  final String marjaName;
+
   static const List<BookDefinition> all = [
     BookDefinition(key: 'sahifa', fileName: 'Sahifa_Sajjadiyya_full_runtime.sqlite3',
       titleUrdu: 'صحیفہ سجادیہ', titleLatin: 'Sahifa Sajjadiyya',
       description: 'دعائیں، مناجات، ترجمہ اور حواشی', source: CorpusSource.sahifa, recordLabel: 'دعا'),
     BookDefinition(key: 'khamenei', fileName: 'khamenei_urdu_fatawa.sqlite',
       titleUrdu: 'فتاویٰ — آیت اللہ خامنہ ای', titleLatin: 'Khamenei Urdu Fatawa',
-      description: 'اردو سوال و جواب، اصل ماخذ کے ساتھ', source: CorpusSource.fatwa, recordLabel: 'مسئلہ'),
+      description: 'اردو سوال و جواب، اصل ماخذ کے ساتھ', source: CorpusSource.fatwa, recordLabel: 'مسئلہ',
+      imageAsset: 'assets/images/marja_khamenei.png',
+      marjaName: 'آیت اللہ سید علی خامنہ ای'),
     BookDefinition(key: 'sistani', fileName: 'sistani_urdu_fatawa.sqlite',
       titleUrdu: 'فتاویٰ — آیت اللہ سیستانی', titleLatin: 'Sistani Urdu Fatawa',
-      description: 'اردو سوال و جواب، اصل ماخذ کے ساتھ', source: CorpusSource.fatwa, recordLabel: 'مسئلہ'),
+      description: 'اردو سوال و جواب، اصل ماخذ کے ساتھ', source: CorpusSource.fatwa, recordLabel: 'مسئلہ',
+      imageAsset: 'assets/images/marja_sistani.png',
+      marjaName: 'آیت اللہ سید علی حسینی سیستانی'),
     BookDefinition(key: 'tahzeeb', fileName: 'Tahzeeb.db', titleUrdu: 'تہذیب الاحکام', titleLatin: 'Tahdhib al-Ahkam'),
     BookDefinition(key: 'alkafi', fileName: 'alkafi.db', titleUrdu: 'الکافی', titleLatin: 'Al-Kafi'),
     BookDefinition(key: 'alkhisal', fileName: 'alkhisal.db', titleUrdu: 'الخصال', titleLatin: 'Al-Khisal'),
@@ -147,6 +181,105 @@ class ReaderTarget {
   }
 }
 
+/// One saved reading position.
+///
+/// Two kinds are kept on the device: the global آخری مطالعہ — wherever the
+/// reader was last across every book — and one entry per book, so the Quran
+/// keeps its own place while Mafatih, Sahifa, Nahj al-Balagha and each hadith
+/// book keep theirs. Both are written by
+/// `LibraryRepository.saveLastRead()` and read back with `getLastRead()` /
+/// `getLastReadFor(book)`.
+class LastReadEntry {
+  const LastReadEntry({
+    required this.bookKey,
+    required this.recordId,
+    this.sectionId,
+    this.title = '',
+    this.reference = '',
+    this.savedAt,
+  });
+
+  final String bookKey;
+  final int recordId;
+  final int? sectionId;
+
+  /// Chapter / surah / supplication heading shown on the resume card.
+  final String title;
+
+  /// Where inside that chapter the reader stopped, e.g. `آیت ۱۲ • پارہ ۱`.
+  final String reference;
+  final DateTime? savedAt;
+
+  BookDefinition? get book => BookDefinition.byKey(bookKey);
+
+  /// Heading and locator joined, whichever of the two the reader knows.
+  String get referenceOrTitle => [
+        if (reference.trim().isNotEmpty) reference.trim(),
+        if (title.trim().isNotEmpty) title.trim(),
+      ].join(' — ');
+
+  String get timeLabel {
+    final at = savedAt;
+    if (at == null) return '';
+    final stamp = '${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}';
+    final now = DateTime.now();
+    final sameDay = at.year == now.year && at.month == now.month && at.day == now.day;
+    if (sameDay) return 'آج $stamp';
+    final yesterday = now.subtract(const Duration(days: 1));
+    if (at.year == yesterday.year && at.month == yesterday.month && at.day == yesterday.day) {
+      return 'کل $stamp';
+    }
+    return '${at.day}/${at.month}/${at.year}';
+  }
+
+  factory LastReadEntry.fromJson(Map<String, dynamic> json) => LastReadEntry(
+        bookKey: (json['book'] ?? '').toString(),
+        recordId: _asInt(json['record_id']) ?? 0,
+        sectionId: _asInt(json['section_id']),
+        title: (json['title'] ?? '').toString(),
+        reference: (json['reference'] ?? '').toString(),
+        savedAt: _asInt(json['saved_at']) == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(_asInt(json['saved_at'])!),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'book': bookKey,
+        'record_id': recordId,
+        if (sectionId != null) 'section_id': sectionId,
+        'title': title,
+        'reference': reference,
+        if (savedAt != null) 'saved_at': savedAt!.millisecondsSinceEpoch,
+      };
+
+  /// The pre-1.5 storage format: `book:recordId:sectionId`.
+  factory LastReadEntry.fromLegacy(String value) {
+    final parts = value.split(':');
+    if (parts.length < 2) {
+      throw const FormatException('legacy last_read value needs at least two fields');
+    }
+    return LastReadEntry(
+      bookKey: parts.first,
+      recordId: int.tryParse(parts[1]) ?? 0,
+      sectionId: parts.length > 2 ? int.tryParse(parts[2]) : null,
+    );
+  }
+
+  bool get isValid => recordId != 0 && BookDefinition.byKey(bookKey) != null;
+
+  LastReadEntry copyWith({String? title, String? reference, DateTime? savedAt}) => LastReadEntry(
+        bookKey: bookKey,
+        recordId: recordId,
+        sectionId: sectionId,
+        title: title ?? this.title,
+        reference: reference ?? this.reference,
+        savedAt: savedAt ?? this.savedAt,
+      );
+
+  ReaderTarget get target =>
+      ReaderTarget(book: bookKey, recordId: recordId, sectionId: sectionId);
+}
+
 class Passage {
   const Passage({
     required this.recordId,
@@ -162,6 +295,8 @@ class Passage {
     this.commentary = '',
     this.footnote = '',
     this.format,
+    this.sourceUrl = '',
+    this.sourceRef = '',
   });
 
   final int recordId;
@@ -183,6 +318,13 @@ class Passage {
   final String commentary;
   final String footnote;
 
+  /// Official page this answer was taken from (the fatawa collections). The app
+  /// shows it as a button so a reader can open the source and verify a ruling.
+  final String sourceUrl;
+
+  /// The publisher's own reference number for that page (`س 1894`).
+  final String sourceRef;
+
   /// Presentation role kept from the source database (Nahj al-Balagha
   /// `ParaFormat`: 1 title, 2 text, 3 sub-heading, 4 separator; Mafatih line
   /// type: 1 dua text, 2 Urdu instruction). Null for the hadith books/Quran.
@@ -202,9 +344,14 @@ class Passage {
         commentary: _compact((row['commentary'] ?? '').toString()),
         footnote: _compact((row['footnote'] ?? '').toString()),
         format: _asInt(row['format'] ?? row['ParaFormat']),
+        sourceUrl: _compact((row['source_url'] ?? '').toString()),
+        sourceRef: _compact((row['source_ref'] ?? '').toString()),
       );
 
   bool get isEmpty => arabic.trim().isEmpty && urdu.trim().isEmpty;
+
+  /// True when this record can be verified against its published source.
+  bool get hasSource => sourceUrl.startsWith('http://') || sourceUrl.startsWith('https://');
 
   String get copyableText {
     final parts = <String>[
@@ -228,7 +375,23 @@ class Passage {
         commentary: commentary ?? this.commentary,
         footnote: footnote ?? this.footnote,
         format: format,
+        sourceUrl: sourceUrl,
+        sourceRef: sourceRef,
       );
+}
+
+/// The "where you were" line shown on the resume cards: the locator (آیت ۱۲،
+/// مسئلہ ۱۸۹۴) first, then the chapter, then the book.
+String readingReference(BookDefinition book, Passage passage) {
+  final parts = <String>[
+    if (passage.locator.trim().isNotEmpty) passage.locator.trim(),
+    if (passage.sectionTitle.trim().isNotEmpty &&
+        passage.sectionTitle.trim() != passage.locator.trim())
+      passage.sectionTitle.trim(),
+  ];
+  if (parts.isNotEmpty) return parts.join(' • ');
+  if (passage.chapterTitle.trim().isNotEmpty) return passage.chapterTitle.trim();
+  return book.titleUrdu;
 }
 
 class SearchHit {

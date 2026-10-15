@@ -1,7 +1,7 @@
 name: shia_ai
 publish_to: "none"
 description: Offline Shia library — Quran, Mafatih al-Jinan, Nahj al-Balagha, and 14 hadith books.
-version: 1.4.0+5
+version: 1.5.0+6
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -17,6 +17,7 @@ dependencies:
   scrollable_positioned_list: ^0.3.8
   shared_preferences: ^2.5.3
   sqflite: ^2.4.2
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:
@@ -32,6 +33,8 @@ flutter:
     - assets/database-manifest.json
     - assets/images/logo.png
     - assets/images/tasneemlogo.png
+    - assets/images/marja_khamenei.png
+    - assets/images/marja_sistani.png
   fonts:
     - family: JameelNooriNastaleeq
       fonts:

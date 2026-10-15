@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -20,6 +21,32 @@ export 'text_utils.dart'
 const int _searchIndexVersion = 5;
 const int _indexPageSize = 400;
 
+const String _kLastReadKey = 'last_read_v2';
+const String _kLastReadPrefix = 'last_read_book_';
+
+/// Progress of the (background) search-index build.
+class IndexBuildState {
+  const IndexBuildState({
+    required this.active,
+    required this.progress,
+    required this.message,
+  });
+
+  const IndexBuildState.idle()
+      : active = false,
+        progress = 0,
+        message = '';
+
+  const IndexBuildState.done()
+      : active = false,
+        progress = 1,
+        message = '';
+
+  final bool active;
+  final double progress;
+  final String message;
+}
+
 /// Reads every collection the app can ship: the 14 hadith books, the Quran,
 /// Mafatih al-Jinan, and Nahj al-Balagha.
 ///
@@ -36,6 +63,11 @@ class LibraryRepository {
   bool _ftsAvailable = false;
   String? _ftsEngine;
   bool _initialized = false;
+  bool _searchReady = false;
+  bool _indexing = false;
+
+  /// Set when a book is installed while a build is already running.
+  bool _indexAgain = false;
   String _databaseDirectory = '';
 
   bool get isInitialized => _initialized;
@@ -50,8 +82,19 @@ class LibraryRepository {
 
   Directory get dataDirectoryHandle => Directory(_databaseDirectory);
 
+  /// True once every installed book is in the search index.
+  bool get isSearchReady => _searchReady;
+
+  /// Live progress of the background index build; the UI listens to this so
+  /// first launch shows the library immediately instead of a counter.
+  final ValueNotifier<IndexBuildState> indexProgress =
+      ValueNotifier(const IndexBuildState.idle());
+
   Future<void> initialize({
     required void Function(double progress, String message) onProgress,
+    /// When false the (slow) full-text index is skipped and `ensureSearchIndex`
+    /// builds it in the background. Books stay readable either way.
+    bool buildSearchIndex = true,
   }) async {
     if (_initialized) return;
     final appDatabasePath = await getDatabasesPath();
@@ -83,8 +126,59 @@ class LibraryRepository {
     );
     await _ensureSearchDocsSchema(_searchDatabase!);
     await _createFtsTable(_searchDatabase!, ifNotExists: true);
-    await _refreshSearchIndex(onProgress);
+    if (buildSearchIndex) {
+      await _refreshSearchIndex(onProgress);
+      _searchReady = true;
+      indexProgress.value = const IndexBuildState.done();
+    } else {
+      _searchReady = false;
+    }
     _initialized = true;
+  }
+
+  /// Builds (or finishes) the search index without blocking the UI.
+  ///
+  /// The home screen no longer waits for the ~96k-record walk; it starts
+  /// downloading-reading straight away and this fills the index quietly. If the
+  /// process dies half way the next launch resumes it — books never become
+  /// unreadable because search is still catching up.
+  Future<void> ensureSearchIndex() async {
+    if (_searchDatabase == null) return;
+    // A book downloaded while this is running asks for another pass; the loop
+    // below picks it up instead of racing two builds over the same table.
+    if (_indexing) {
+      _indexAgain = true;
+      return;
+    }
+    if (_searchReady && !_indexAgain) return;
+    _indexing = true;
+    indexProgress.value = const IndexBuildState(
+      active: true,
+      progress: 0,
+      message: 'تلاش کے لیے متن کی فہرست تیار ہو رہی ہے',
+    );
+    try {
+      do {
+        _indexAgain = false;
+        await _refreshSearchIndex((progress, message) {
+          indexProgress.value = IndexBuildState(
+            active: true,
+            progress: progress,
+            message: message,
+          );
+        });
+        _searchReady = true;
+      } while (_indexAgain);
+      indexProgress.value = const IndexBuildState.done();
+    } catch (error) {
+      indexProgress.value = IndexBuildState(
+        active: false,
+        progress: 0,
+        message: 'تلاش کی فہرست مکمل نہ ہو سکی: $error',
+      );
+    } finally {
+      _indexing = false;
+    }
   }
 
   /// Copies a bundled asset into app storage when the file is not there yet.
@@ -136,7 +230,15 @@ class LibraryRepository {
         }
       }
     }
+    if (_indexing) {
+      // A background build is already walking the books; ask for one more pass
+      // when it finishes rather than opening a second writer on the index.
+      _indexAgain = true;
+      return;
+    }
     await _refreshSearchIndex(onProgress ?? (_, __) {});
+    _searchReady = true;
+    indexProgress.value = const IndexBuildState.done();
   }
 
   /// Drops and rebuilds the local search index (used by the settings screen).
@@ -150,9 +252,15 @@ class LibraryRepository {
     await _searchDatabase?.close();
     _searchDatabase = null;
     _initialized = false;
+    _searchReady = false;
+    _indexing = false;
     final file = File(p.join(_databaseDirectory, 'shia-search.sqlite'));
     if (await file.exists()) await file.delete();
+    // An explicit rebuild from Settings waits for the whole index — the UI
+    // shows the progress, so there is nothing to hand to the background.
     await initialize(onProgress: onProgress);
+    _searchReady = true;
+    indexProgress.value = const IndexBuildState.done();
   }
 
   Future<void> _ensureSearchDocsSchema(Database db) async {
@@ -287,6 +395,13 @@ class LibraryRepository {
   /// Row count that the indexer will actually walk (blank placeholders skipped).
   Future<int> _countIndexableRows(BookDefinition book, {Database? database}) async {
     final source = database ?? await _openBook(book);
+    // Sahifa and the fatawa are read through `_extraQuery`, which filters
+    // (Sahifa hides everything after the 83 duas). Count what the indexer will
+    // actually walk — `_indexBook` asserts the two numbers agree.
+    if (book.source == CorpusSource.sahifa || book.source == CorpusSource.fatwa) {
+      final rows = await source.rawQuery('SELECT COUNT(*) AS count FROM (${_extraQuery(book)})');
+      return (rows.first['count'] as int?) ?? 0;
+    }
     final statement = book.source == CorpusSource.hadith
         ? 'SELECT COUNT(*) AS count FROM Parags '
               'WHERE LENGTH(COALESCE(txt, \'\')) > 0 OR LENGTH(COALESCE(mean, \'\')) > 0'
@@ -635,6 +750,17 @@ class LibraryRepository {
     return database;
   }
 
+  /// The Sahifa reader shows the book's 83 supplications only: `t_id` 1 carries
+  /// the 54 duas of Sahifa Sajjadiyya, 2 the seven "مزید دعائیں", 3 the seven
+  /// دعائیں of the week, and 4 the fifteen Munajat Khamsa Ashar — 54 + 7 + 7 +
+  /// 15 = 83. Everything else in `saheefa_data` (t_id 5–8 and 115–116) is site
+  /// furniture: the Imam's biography, "ہمارے بارے میں", lecture videos, and
+  /// quiz pages. Those were never part of the book and used to appear as
+  /// numbered entries 84 and up.
+  /// Written literally (not interpolated) so `scripts/verify_client_sql.py` can
+  /// lift the statement verbatim out of this file and run it.
+  static const String _sahifaSupplicationTypes = '(1, 2, 3, 4)';
+
   String _extraQuery(BookDefinition book) => book.source == CorpusSource.sahifa
       ? """
         SELECT d.ID AS record_id, d.t_id * 10000 + d.t_no AS section_id,
@@ -645,16 +771,32 @@ class LibraryRepository {
             'حصہ ' || d.t_id || ' / ' || d.t_no) AS section_title,
           d.t_id AS container_type, d.t_no AS container_id, d.p_format AS format
         FROM saheefa_data d
+        WHERE d.t_id IN (1, 2, 3, 4)
       """
       : """
         SELECT q.rowid AS record_id, q.category_id AS section_id, '' AS arabic,
           q.question_ur || char(10) || char(10) || q.answer_ur AS urdu,
           c.category_title_ur AS section_title, q.collection_title_ur AS chapter_title,
-          COALESCE(q.source_ref, '') || ' — ' || q.source_url AS locator
+          q.source_url AS source_url, q.source_ref AS source_ref,
+          CASE WHEN COALESCE(q.source_ref, '') <> '' THEN 'مسئلہ ' || q.source_ref
+               ELSE c.category_title_ur END AS locator
         FROM question_answers q JOIN categories c ON c.category_id = q.category_id
       """;
 
   // ---------------------------------------------------------------- hadith
+
+  /// How many records a book offers (0 when it is not installed yet).
+  ///
+  /// Counts exactly what the reader can open: the Sahifa figure is the 83
+  /// supplications, not every row in the database.
+  Future<int> countRecords(BookDefinition book) async {
+    if (!_installed.contains(book.key)) return 0;
+    try {
+      return await _countIndexableRows(book);
+    } catch (_) {
+      return 0;
+    }
+  }
 
   Future<List<Map<String, Object?>>> getChapters(BookDefinition book) async {
     final db = await _openBook(book);
@@ -1641,28 +1783,89 @@ class LibraryRepository {
     return output;
   }
 
+  /// Remembers where the reader stopped.
+  ///
+  /// Two entries are written every time: the global one (آخری مطالعہ — the last
+  /// book that was open, with its chapter and locator) and one keyed by the
+  /// book, so the Quran, Mafatih, Sahifa, Nahj al-Balagha and every hadith book
+  /// each keep their own place.
   Future<void> saveLastRead({
     required String bookKey,
     required int recordId,
     int? sectionId,
+    String title = '',
+    String reference = '',
   }) async {
+    if (recordId == 0 || BookDefinition.byKey(bookKey) == null) return;
+    final entry = LastReadEntry(
+      bookKey: bookKey,
+      recordId: recordId,
+      sectionId: sectionId,
+      title: title,
+      reference: reference,
+      savedAt: DateTime.now(),
+    );
+    final encoded = jsonEncode(entry.toJson());
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('last_read', '$bookKey:$recordId:${sectionId ?? ''}');
+    await prefs.setString(_kLastReadKey, encoded);
+    await prefs.setString('$_kLastReadPrefix$bookKey', encoded);
   }
 
-  Future<ReaderTarget?> getLastRead() async {
+  /// The last position across every book (آخری مطالعہ).
+  Future<LastReadEntry?> getLastRead() async {
     final prefs = await SharedPreferences.getInstance();
-    final value = prefs.getString('last_read');
-    if (value == null || value.isEmpty) return null;
-    final parts = value.split(':');
-    if (parts.length < 2) return null;
-    final recordId = int.tryParse(parts[1]) ?? 0;
-    if (BookDefinition.byKey(parts.first) == null || recordId == 0) return null;
-    return ReaderTarget(
-      book: parts.first,
-      recordId: recordId,
-      sectionId: parts.length > 2 ? int.tryParse(parts[2]) : null,
-    );
+    final raw = prefs.getString(_kLastReadKey);
+    if (raw != null && raw.isNotEmpty) {
+      final entry = _decodeLastRead(raw);
+      if (entry != null) return entry;
+    }
+    // Pre-1.5 installs stored `book:recordId:sectionId`.
+    final legacy = prefs.getString('last_read');
+    if (legacy == null || legacy.isEmpty) return null;
+    try {
+      final entry = LastReadEntry.fromLegacy(legacy);
+      return entry.isValid ? entry : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// The saved position inside one book, if it has been opened before.
+  Future<LastReadEntry?> getLastReadFor(String bookKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('$_kLastReadPrefix$bookKey');
+    return raw == null ? null : _decodeLastRead(raw);
+  }
+
+  /// Every book's own last position, most recently read first.
+  Future<List<LastReadEntry>> getLastReads() async {
+    final prefs = await SharedPreferences.getInstance();
+    final entries = <LastReadEntry>[];
+    for (final key in prefs.getKeys()) {
+      if (!key.startsWith(_kLastReadPrefix)) continue;
+      final entry = _decodeLastRead(prefs.getString(key) ?? '');
+      if (entry != null) entries.add(entry);
+    }
+    entries.sort((a, b) {
+      final left = a.savedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final right = b.savedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return right.compareTo(left);
+    });
+    return entries;
+  }
+
+  static LastReadEntry? _decodeLastRead(String raw) {
+    if (raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return null;
+      final entry = LastReadEntry.fromJson(
+        decoded.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      return entry.isValid ? entry : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> close() async {
@@ -1674,6 +1877,9 @@ class LibraryRepository {
     _searchDatabase = null;
     _installed.clear();
     _initialized = false;
+    _searchReady = false;
+    _indexing = false;
+    _indexAgain = false;
   }
 }
 

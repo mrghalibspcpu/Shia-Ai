@@ -8,17 +8,29 @@ import '../app_theme.dart';
 import '../library_repository.dart';
 import '../models.dart';
 import '../widgets/reader_kit.dart';
+import '../widgets/resume_card.dart';
 import '../widgets/highlighted_text.dart';
 import '../text_utils.dart' show searchMatchRanges;
 
 /// Mafatih al-Jinan: chapters, supplications, and the reader.
-class DuasHomeScreen extends StatelessWidget {
+class DuasHomeScreen extends StatefulWidget {
   const DuasHomeScreen({super.key, required this.library});
 
   final LibraryRepository library;
 
   @override
+  State<DuasHomeScreen> createState() => _DuasHomeScreenState();
+}
+
+class _DuasHomeScreenState extends State<DuasHomeScreen> {
+  /// Re-reads this collection's saved position after the reader closes.
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final library = widget.library;
     return Scaffold(
       appBar: AppBar(title: const JustifiedText('دعائیں و اعمال')),
       body: FutureBuilder<List<DuaCategory>>(
@@ -35,6 +47,11 @@ class DuasHomeScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
+              ResumeCard(
+                library: library,
+                book: BookDefinition.bookFor(CorpusSource.dua)!,
+                onOpened: _refresh,
+              ),
               _FeaturedDuas(library: library),
               const SizedBox(height: 16),
               for (final category in categories) ...[
@@ -243,6 +260,8 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
         unawaited(widget.library.saveLastRead(
           bookKey: _book.key,
           recordId: widget.item.rowId,
+          title: widget.item.name,
+          reference: '${duaCategoryTitles[widget.item.categoryId] ?? 'مفاتیح الجنان'} • دعا',
         ));
       }
     } catch (error) {

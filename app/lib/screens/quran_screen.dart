@@ -8,6 +8,7 @@ import '../library_repository.dart';
 import '../models.dart';
 import '../text_utils.dart' show arabicNumerals, parseReaderNumber;
 import '../widgets/reader_kit.dart';
+import '../widgets/resume_card.dart';
 
 /// Surah / juz / page browser for the Quran collection.
 class QuranHomeScreen extends StatefulWidget {
@@ -66,6 +67,17 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: ResumeCard(
+                library: widget.library,
+                book: BookDefinition.bookFor(CorpusSource.quran)!,
+                margin: EdgeInsets.zero,
+                onOpened: () {
+                  if (mounted) setState(() {});
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
               child: TextField(
                 controller: _jumpController,
                 keyboardType: TextInputType.number,
@@ -320,7 +332,7 @@ class _QuranVerseListState extends State<_QuranVerseList> {
         final opened = target != null && verses.any((verse) => verse.recordId == target)
             ? target
             : verses.first.recordId;
-        unawaited(widget.library.saveLastRead(bookKey: _book.key, recordId: opened));
+        unawaited(_saveLast(verses, opened));
       }
     } catch (error) {
       if (mounted) {
@@ -343,7 +355,21 @@ class _QuranVerseListState extends State<_QuranVerseList> {
     final record = _verses[index].recordId;
     if (record == _lastSavedRecord) return;
     _lastSavedRecord = record;
-    unawaited(widget.library.saveLastRead(bookKey: _book.key, recordId: record));
+    unawaited(_saveLast(_verses, record));
+  }
+
+  /// Stores the surah and the verse number so the resume card can name them.
+  Future<void> _saveLast(List<Passage> verses, int recordId) async {
+    final index = verses.indexWhere((verse) => verse.recordId == recordId);
+    if (index < 0) return;
+    final verse = verses[index];
+    await widget.library.saveLastRead(
+      bookKey: _book.key,
+      recordId: recordId,
+      sectionId: verse.sectionId,
+      title: verse.chapterTitle.isEmpty ? widget.title : verse.chapterTitle,
+      reference: readingReference(_book, verse),
+    );
   }
 
   @override

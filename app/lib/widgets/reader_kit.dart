@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../app_theme.dart';
 import '../library_repository.dart';
@@ -233,6 +234,20 @@ class _PassageCardState extends State<PassageCard> {
     if (mounted) setState(() => _note = note.trim().isEmpty ? null : note.trim());
   }
 
+  /// Opens the official page this ruling was taken from.
+  ///
+  /// The fatawa databases store one `source_url` per answer, so a reader can
+  /// check the wording against the marja's own site instead of trusting a copy.
+  Future<void> _openSource() async {
+    final uri = Uri.tryParse(widget.passage.sourceUrl);
+    if (uri == null) return;
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (opened || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('یہ لنک نہیں کھل سکا — انٹرنیٹ چیک کریں۔')),
+    );
+  }
+
   Future<void> _copyText() async {
     final value = widget.passage.copyableText;
     if (value.trim().isEmpty) return;
@@ -375,8 +390,85 @@ class _PassageCardState extends State<PassageCard> {
                 fontScale: widget.fontScale,
               ),
             ],
+            if (passage.hasSource) ...[
+              const SizedBox(height: 14),
+              _SourceLink(
+                url: passage.sourceUrl,
+                reference: passage.sourceRef,
+                textColor: textColor,
+                fontScale: widget.fontScale,
+                onOpen: _openSource,
+              ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The "verify it at the source" button under a fatawa answer.
+///
+/// Every row of `question_answers` carries the marja's own page, so the ruling
+/// can be checked against the published original instead of a local copy. The
+/// address is printed as well — a button alone hides where it leads.
+class _SourceLink extends StatelessWidget {
+  const _SourceLink({
+    required this.url,
+    required this.reference,
+    required this.textColor,
+    required this.fontScale,
+    required this.onOpen,
+  });
+
+  final String url;
+  final String reference;
+  final Color textColor;
+  final double fontScale;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = reference.trim().isEmpty
+        ? 'اصل ماخذ پر جائیں'
+        : 'اصل ماخذ پر جائیں — مسئلہ ${reference.trim()}';
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      decoration: BoxDecoration(
+        color: kForest.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kForest.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'تصدیق کے لیے اصل سرکاری صفحہ',
+            textDirection: TextDirection.rtl,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: kForest,
+              fontSize: 12 * fontScale,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            url,
+            textDirection: TextDirection.ltr,
+            textAlign: TextAlign.left,
+            style: TextStyle(
+              fontSize: 11 * fontScale,
+              color: textColor.withValues(alpha: 0.55),
+            ),
+          ),
+          const SizedBox(height: 6),
+          OutlinedButton.icon(
+            onPressed: onOpen,
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: JustifiedText(label, style: TextStyle(fontSize: 14 * fontScale)),
+          ),
+        ],
       ),
     );
   }

@@ -245,6 +245,69 @@ def balagha(connection: sqlite3.Connection) -> None:
     )
 
 
+def sahifa(connection: sqlite3.Connection) -> None:
+    """The reader shows the book's 83 supplications and nothing else."""
+    query = extract_query("SELECT d.ID AS record_id, d.t_id * 10000")
+    rows = connection.execute(
+        f"SELECT section_id, section_title, container_type, container_id FROM ({query})"
+    ).fetchall()
+    check("sahifa: supplication rows load", len(rows) > 0, f"{len(rows)} rows")
+    supplications = {row[0] for row in rows}
+    # 54 duas of Sahifa Sajjadiyya + 7 "مزید دعائیں" + 7 weekday duas +
+    # 15 Munajat Khamsa Ashar = 83. The rest of saheefa_data is site furniture
+    # (biography, lecture videos, quizzes) that must never be listed as a dua.
+    check(
+        "sahifa: exactly the 83 supplications of the book",
+        len(supplications) == 83,
+        f"{len(supplications)} distinct supplications",
+    )
+    types = sorted({row[2] for row in rows})
+    check(
+        "sahifa: nothing from the site's extra sections",
+        set(types) <= {1, 2, 3, 4},
+        f"t_id values present: {types}",
+    )
+    unnamed = [row for row in rows if not row[1] or row[1].startswith("حصہ ")]
+    check(
+        "sahifa: every supplication has its title from the index",
+        not unnamed,
+        f"{len(unnamed)} rows fell back to a placeholder title",
+    )
+
+
+def fatwa(name: str):
+    """Every ruling keeps the official page it was taken from."""
+
+    def check_book(connection: sqlite3.Connection) -> None:
+        query = extract_query("SELECT q.rowid AS record_id, q.category_id AS section_id")
+        rows = connection.execute(
+            f"SELECT source_url, source_ref, urdu FROM ({query})"
+        ).fetchall()
+        check(f"fatwa ({name}): answers load", len(rows) > 0, f"{len(rows)} answers")
+        if not rows:
+            return
+        broken = [row for row in rows if not str(row[0] or "").startswith("https://")]
+        check(
+            f"fatwa ({name}): every answer links to its source page",
+            not broken,
+            f"{len(broken)} answers without an https source_url",
+        )
+        without_ref = [row for row in rows if not str(row[1] or "").strip()]
+        check(
+            f"fatwa ({name}): answers carry the publisher's reference",
+            not without_ref,
+            f"{len(without_ref)} answers without a source_ref",
+        )
+        empty = [row for row in rows if not str(row[2] or "").strip()]
+        check(
+            f"fatwa ({name}): every answer has question and answer text",
+            not empty,
+            f"{len(empty)} blank answers",
+        )
+
+    return check_book
+
+
 def build_index(paths: dict[str, Path]) -> sqlite3.Connection:
     """Recreate the on-device search index (search_docs + FTS5) in memory."""
     index = sqlite3.connect(":memory:")
@@ -334,6 +397,9 @@ def run_checks(paths: dict[str, Path]) -> None:
         ("quran", quran),
         ("mafatih", dua),
         ("nahjul_balagha", balagha),
+        ("sahifa", sahifa),
+        ("khamenei", fatwa("khamenei")),
+        ("sistani", fatwa("sistani")),
     ):
         connection = sqlite3.connect(f"file:{paths[key]}?mode=ro", uri=True)
         try:

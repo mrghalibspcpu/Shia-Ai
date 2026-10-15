@@ -35,6 +35,21 @@ matching text with normalized highlighting. See
 [`docs/reader-search-update.md`](docs/reader-search-update.md) for preservation,
 coverage, migration and verification details.
 
+## Fatawa, last-seen, and instant start (1.5)
+
+- Every fatawa answer ends with the official page it was taken from and an
+  **اصل ماخذ پر جائیں** button, so a ruling can be verified at the source.
+- The two Urdu fatawa books are one library entry, **دینی مسائل (احکام و فتاویٰ)**;
+  tapping it opens a marja picker with both authorities.
+- Sahifa Sajjadiyya shows the book's 83 supplications and nothing else — the
+  site's biography, lecture and quiz pages are no longer listed as duas.
+- Two kinds of last-seen: the global **آخری مطالعہ** (book, reference, time) and
+  one saved position per book, shown on the home screen and inside each book.
+- The home screen opens immediately, with or without downloaded data, and a
+  download prompt at the top; the search index builds in the background.
+
+See [`docs/library-1-5-update.md`](docs/library-1-5-update.md).
+
 ## The corpus
 
 | Collection | File | Contents |
@@ -42,7 +57,7 @@ coverage, migration and verification details.
 | Quran | `quran.db` | 6,236 verses, 114 surahs, Urdu translation (`tr`), tafseer notes (`talighe`), juz/page locators |
 | Mafatih al-Jinan | `mafatihdb-v4.db` | 677 catalogue entries and 5,378 text lines across 6 chapters |
 | Nahj al-Balagha | `nahjul_balagha.db` | 3,742 paragraphs, 810 entries, 2,352 footnotes, 504 introduction paragraphs |
-| Sahifa Sajjadiyya | `Sahifa_Sajjadiyya_full_runtime.sqlite3` | All 4,993 supplied text, translation and annotation rows |
+| Sahifa Sajjadiyya | `Sahifa_Sajjadiyya_full_runtime.sqlite3` | The book's 83 supplications (4,318 of the 4,993 supplied rows; the rest is site furniture) |
 | Khamenei Urdu fatawa | `khamenei_urdu_fatawa.sqlite` | All 428 supplied question/answer records with source references |
 | Sistani Urdu fatawa | `sistani_urdu_fatawa.sqlite` | All 1,619 supplied question/answer records with source references |
 | 14 hadith books | `shia-databases.zip` | 96,513 records, 17,855 sections, 845 chapters |

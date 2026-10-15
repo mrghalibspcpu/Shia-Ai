@@ -33,6 +33,12 @@ class FullSearchCoverageTests(unittest.TestCase):
                                               'sahifa': ['saheefa_data'], 'fatwa': ['question_answers']}[spec.source]))
                     if spec.source == 'hadith':
                         expected = db.execute("SELECT COUNT(*) FROM Parags WHERE LENGTH(COALESCE(txt,''))>0 OR LENGTH(COALESCE(mean,''))>0").fetchone()[0]
+                    elif spec.source == 'sahifa':
+                        # Only the book's 83 supplications are indexed; the
+                        # remaining t_id values are site furniture.
+                        expected = db.execute(
+                            "SELECT COUNT(*) FROM saheefa_data WHERE t_id IN (1, 2, 3, 4)"
+                        ).fetchone()[0]
                     seen = set()
                     for offset in range(0, expected, 400):
                         rows = db.execute(query, (400, offset)).fetchall()
@@ -48,8 +54,17 @@ class FullSearchCoverageTests(unittest.TestCase):
                     elif spec.source == 'fatwa':
                         self.assertEqual(len(seen), 428 if spec.key == 'khamenei' else 1619)
                     elif spec.source == 'sahifa':
-                        self.assertEqual(len(seen), 4993)
-                        self.assertEqual({r[0] for r in db.execute('SELECT DISTINCT oe FROM saheefa_data')}, {'a', 'u', 'v', 'f'})
+                        self.assertEqual(len(seen), 4318)
+                        self.assertEqual(
+                            db.execute("SELECT COUNT(DISTINCT t_id * 10000 + t_no) FROM saheefa_data "
+                                       "WHERE t_id IN (1, 2, 3, 4)").fetchone()[0],
+                            83,
+                        )
+                        self.assertEqual(
+                            {r[0] for r in db.execute(
+                                'SELECT DISTINCT oe FROM saheefa_data WHERE t_id IN (1, 2, 3, 4)')},
+                            {'a', 'u', 'v', 'f'},
+                        )
 
     def test_all_6236_verses_and_last_juz_are_available_to_paginated_search(self):
         with sqlite3.connect(ROOT / 'assets/quran.db') as db:

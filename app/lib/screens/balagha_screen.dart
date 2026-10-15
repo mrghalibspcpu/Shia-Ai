@@ -7,16 +7,28 @@ import '../app_theme.dart';
 import '../library_repository.dart';
 import '../models.dart';
 import '../widgets/reader_kit.dart';
+import '../widgets/resume_card.dart';
 
 /// Nahj al-Balagha: khutbas, letters, wisdoms, prophetic traditions, and the
 /// introductions that accompany them.
-class BalaghaHomeScreen extends StatelessWidget {
+class BalaghaHomeScreen extends StatefulWidget {
   const BalaghaHomeScreen({super.key, required this.library});
 
   final LibraryRepository library;
 
   @override
+  State<BalaghaHomeScreen> createState() => _BalaghaHomeScreenState();
+}
+
+class _BalaghaHomeScreenState extends State<BalaghaHomeScreen> {
+  /// Re-reads this collection's saved position after the reader closes.
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final library = widget.library;
     return Scaffold(
       appBar: AppBar(title: const JustifiedText('نہج البلاغہ')),
       body: FutureBuilder<List<BalaghaSection>>(
@@ -33,6 +45,11 @@ class BalaghaHomeScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
             children: [
+              ResumeCard(
+                library: library,
+                book: BookDefinition.bookFor(CorpusSource.balagha)!,
+                onOpened: _refresh,
+              ),
               for (final section in sections) ...[
                 Card(
                   child: ListTile(
@@ -257,9 +274,13 @@ class _BalaghaPassageListState extends State<_BalaghaPassageList> {
         _loading = false;
       });
       if (passages.isNotEmpty && widget.recordIdForLastRead > 0) {
+        final current = passages[_initialIndex];
         unawaited(widget.library.saveLastRead(
           bookKey: _book.key,
-          recordId: passages[_initialIndex].recordId,
+          recordId: current.recordId,
+          sectionId: current.sectionId,
+          title: widget.title,
+          reference: readingReference(_book, current),
         ));
       }
     } catch (error) {
