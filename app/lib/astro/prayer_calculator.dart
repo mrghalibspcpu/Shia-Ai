@@ -377,9 +377,16 @@ class PrayerCalculator {
   /// keeps a phone whose timezone is set to UTC (or is wrong) from printing
   /// Islamabad's Fajr at 11:30 at night, while leaving India's half-hour offset
   /// and any real DST alone.
-  static Duration solarZoneOffset(DateTime now, double longitude) {
+  static Duration solarZoneOffset(
+    DateTime now,
+    double longitude, {
+    Duration? deviceOffset,
+  }) {
     final solarHours = longitude / 15.0;
-    final known = now.timeZoneOffset;
+    // `DateTime.timeZoneOffset` is always zero for a UTC `DateTime`, so the
+    // device's own offset can be passed in explicitly (tests, and callers that
+    // already hold a zoned time).
+    final known = deviceOffset ?? now.timeZoneOffset;
     final knownHours = known.inMinutes / 60.0;
     final deviceLooksUnset = known == Duration.zero && solarHours.abs() > 1.0;
     if (!deviceLooksUnset && (knownHours - solarHours).abs() <= 3.5) return known;

@@ -116,7 +116,7 @@ jobs:
           from pathlib import Path
 
           lines = [line for line in Path('/tmp/flutter-test.log').read_text(errors='replace').splitlines() if line.strip()]
-          detail = chr(10).join(lines[-60:])[-6000:]
+          detail = chr(10).join(lines[-400:])[-18000:]
           detail = detail.replace('%', '%25').replace(chr(13), '%0D').replace(chr(10), '%0A')
           print(f'::error title=Flutter tests failed::{detail}')
           PY

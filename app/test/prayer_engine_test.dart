@@ -260,10 +260,42 @@ void main() {
       expect(PrayerCalculator.solarZoneOffset(utc, -74.0060), const Duration(hours: -5));
     });
 
-    test('a device whose zone matches its location keeps it (DST included)', () {
-      // A phone in Pakistan (UTC+5) held at Karachi's longitude.
-      final karachiNoon = DateTime.utc(2026, 10, 15, 7);
-      expect(PrayerCalculator.solarZoneOffset(karachiNoon, 67.0011), const Duration(hours: 5));
+    test('a device whose zone matches its location keeps it', () {
+      // The device offset is passed in because a `DateTime.utc` always reports
+      // a zero offset, whatever the machine's own timezone is.
+      final instant = DateTime.utc(2026, 10, 15, 7);
+      expect(
+        PrayerCalculator.solarZoneOffset(instant, 67.0011, deviceOffset: const Duration(hours: 5)),
+        const Duration(hours: 5),
+      );
+      // A half-hour zone (India) is left alone too.
+      expect(
+        PrayerCalculator.solarZoneOffset(instant, 77.2090, deviceOffset: const Duration(hours: 5, minutes: 30)),
+        const Duration(hours: 5, minutes: 30),
+      );
+      // …and DST that is still plausible for the place survives.
+      expect(
+        PrayerCalculator.solarZoneOffset(instant, 51.5074, deviceOffset: const Duration(hours: 1)),
+        const Duration(hours: 1),
+      );
+    });
+
+    test('a wrong or unset device zone is replaced by the solar zone', () {
+      final instant = DateTime.utc(2026, 10, 15, 7);
+      // A phone set to UTC while the reader is in Pakistan: 4.87 h → +5.
+      expect(
+        PrayerCalculator.solarZoneOffset(instant, 73.0479, deviceOffset: Duration.zero),
+        const Duration(hours: 5),
+      );
+      // A phone still on New York time while the reader is in Karachi.
+      expect(
+        PrayerCalculator.solarZoneOffset(
+          instant,
+          67.0011,
+          deviceOffset: const Duration(hours: -5),
+        ),
+        const Duration(hours: 4),
+      );
     });
   });
 
