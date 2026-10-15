@@ -349,26 +349,13 @@ class PrayerCalculator {
   static DateTime midpoint(DateTime from, DateTime to) =>
       from.add(Duration(microseconds: to.difference(from).inMicroseconds ~/ 2));
 
-  /// The two Shia candidates for Nisf al-Layl. Islamic midnight is the midpoint
-  /// of the night; the two readings differ in where the night starts and ends:
-  ///
-  /// * `maghrib → fajr` — the common Shia practice (the whole dark period);
-  /// * `sunset → sunrise` — the strict solar reading sometimes quoted as "true
-  ///   midnight", which ignores twilight.
-  ///
-  /// Over most of the year they land within a few minutes of each other; where
-  /// they diverge the app publishes [maghribToFajr] and keeps the other
-  /// reachable as the tooltip on the Nisf al-Layl note.
-  static (DateTime maghribToFajr, DateTime sunsetToSunrise) midnightCandidates({
-    required DateTime maghrib,
-    required DateTime fajrTomorrow,
-    required DateTime sunset,
-    required DateTime sunriseTomorrow,
-  }) =>
-      (
-        midpoint(maghrib, fajrTomorrow),
-        midpoint(sunset, sunriseTomorrow),
-      );
+  /// The precautionary reading of the same moment: the midpoint of Maghrib to
+  /// the next Fajr, which several tables use because it treats the night as
+  /// beginning once the eastern redness has gone. It lands a few minutes after
+  /// [midpoint]`(sunset, fajrTomorrow)`, and the timings screen prints both so
+  /// the reader can follow either.
+  static DateTime maghribMidnight(DateTime maghrib, DateTime fajrTomorrow) =>
+      midpoint(maghrib, fajrTomorrow);
 
   /// The zone offset a place's clock should be printed in.
   ///
@@ -430,15 +417,20 @@ class PrayerCalculator {
     );
 
     final isha = local(today.isha);
+    final sunset = local(today.sunset);
     final fajrTomorrow = local(tomorrow.fajr);
-    final midnight = midpoint(isha, fajrTomorrow);
+    // Nisf al-Layl (شرعی نصف شب): the midpoint of sunset to the next Fajr, the
+    // reading the marja' publish (the night is counted from غروبِ آفتاب). The
+    // maghrib-based midpoint, which several tables prefer as a precaution, lands
+    // a few minutes later — the screen prints it next to this one.
+    final midnight = midpoint(sunset, fajrTomorrow);
 
     final entries = <PrayerEntry>[
       PrayerEntry(marker: PrayerMarker.fajr, time: local(today.fajr)),
       PrayerEntry(marker: PrayerMarker.sunrise, time: local(today.sunrise)),
       PrayerEntry(marker: PrayerMarker.dhuhr, time: local(today.dhuhr)),
       PrayerEntry(marker: PrayerMarker.asr, time: local(today.asr)),
-      PrayerEntry(marker: PrayerMarker.sunset, time: local(today.sunset)),
+      PrayerEntry(marker: PrayerMarker.sunset, time: sunset),
       PrayerEntry(marker: PrayerMarker.maghrib, time: local(today.maghrib)),
       PrayerEntry(marker: PrayerMarker.isha, time: isha),
       PrayerEntry(marker: PrayerMarker.midnight, time: midnight),

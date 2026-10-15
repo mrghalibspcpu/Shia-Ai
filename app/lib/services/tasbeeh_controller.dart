@@ -313,7 +313,10 @@ class TasbeehController extends ChangeNotifier {
 
     _state = rolled.copyWith(
       count: completes ? 0 : nextCount,
-      stepIndex: completes && !lastStep ? currentStep + 1 : currentStep,
+      // A finished step either advances, or — when the whole sequence is done —
+      // arms the first step again, which is how the reader starts the next
+      // round of Tasbeeh-e-Zahra (s.a.) without touching the screen.
+      stepIndex: completes ? (lastStep ? 0 : currentStep + 1) : currentStep,
       rounds: finishedSequence ? rolled.rounds + 1 : rolled.rounds,
       dailyTotal: rolled.dailyTotal + 1,
       lifetimeTotal: rolled.lifetimeTotal + 1,

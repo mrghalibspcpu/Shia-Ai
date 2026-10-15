@@ -78,7 +78,8 @@ own screen.
 - **Shia (Jafari) prayer timings.** `adhan_dart` with the Jafari/Leva-Qum preset
   (Fajr 16°, Isha 14°, Maghrib at 4° — the disappearance of the eastern red
   twilight), or the Tehran reading (Fajr 17.7°, Maghrib 4.5°). Nisf al-Layl is
-  the midpoint of Maghrib to the next Fajr. Every time on the card is the wall
+  the midpoint of sunset to the next Fajr, with the precautionary
+  maghrib-based reading printed beside it. Every time on the card is the wall
   clock of *the place*, not of the phone, so a phone set to the wrong timezone
   cannot print Isha in the afternoon. A hero header paints the mosque wallpaper
   with the place, the date and the day's times on glass over it.

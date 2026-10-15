@@ -726,12 +726,23 @@ class _DetailTiles extends StatelessWidget {
     final midnight = schedule.entryFor(PrayerMarker.midnight).time;
     final location = controller.location;
 
+    final maghribMidnight = PrayerCalculator.maghribMidnight(
+      schedule.entryFor(PrayerMarker.maghrib).time,
+      schedule.fajrTomorrow,
+    );
+
     final tiles = <(IconData, String, String, String?)>[
       (
         Icons.brightness_3,
         'نصف شب (شرعی)',
         formatClockUrdu(midnight),
-        'مغرب تا فجر کا وسط',
+        'غروبِ آفتاب تا فجر کا وسط',
+      ),
+      (
+        Icons.brightness_3_outlined,
+        'نصف شب (مغرب سے)',
+        formatClockUrdu(maghribMidnight),
+        'مغرب تا فجر — احتیاطاً',
       ),
       (
         Icons.nightlight_round,
@@ -1067,7 +1078,8 @@ class _FiqhNote extends StatelessWidget {
           Text(
             'اوقاتِ نماز سورج کے حقیقی زاویوں سے حساب ہوتے ہیں: '
             '${schedule.methodLabel}، مغرب سورج ${urduDigits(schedule.maghribAngle.toStringAsFixed(1))}° '
-            'نیچے آنے پر (زوالِ سرخی)، اور نصف شب مغرب تا فجر کے وسط پر۔ '
+            'نیچے آنے پر (زوالِ سرخی)، اور شرعی نصف شب غروبِ آفتاب تا فجر کے وسط پر۔ '
+            'مغرب سے نصف شب کا حساب الگ دیا گیا ہے (احتیاط)۔ '
             'شہروں کے اوقات میں چند منٹ کا فرق ممکن ہے — اپنے شہر کے سرکاری اوقات سے تصدیق کر لیں۔',
             style: TextStyle(fontSize: 11, height: 1.6, color: palette.muted),
           ),

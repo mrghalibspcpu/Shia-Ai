@@ -265,13 +265,40 @@ void main() {
 
     test('a stored snapshot with missing keys still loads', () async {
       SharedPreferences.setMockInitialValues(<String, Object>{
-        TasbeehController.storageKey: jsonEncode(<String, dynamic>{'count': '7', 'daily': 9}),
+        TasbeehController.storageKey: jsonEncode(<String, dynamic>{
+          'count': '7', // a string, because an older build wrote it that way
+          'lifetime': 400,
+          'sound': false,
+        }),
       });
       final controller = TasbeehController(feedback: const SilentFeedback());
       await controller.load();
       expect(controller.count, 7);
-      expect(controller.dailyTotal, 9);
-      expect(controller.soundEnabled, isTrue);
+      expect(controller.lifetimeTotal, 400);
+      expect(controller.soundEnabled, isFalse);
+      // No day stamp at all means "written before today": today starts at zero
+      // rather than inheriting a total that may belong to another day.
+      expect(controller.dailyTotal, 0);
+      expect(controller.preset.key, 'zahra');
+      expect(controller.customTarget, 33);
+    });
+
+    test('a snapshot written today keeps today’s total', () async {
+      final first = counter();
+      first.setTarget(100);
+      for (int index = 0; index < 24; index++) {
+        first.tap();
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      final second = TasbeehController(
+        clock: () => DateTime(2026, 10, 15, 21),
+        feedback: const SilentFeedback(),
+      );
+      await second.load();
+      expect(second.dailyTotal, 24);
+      expect(second.count, 24);
+      expect(second.customTarget, 100);
     });
   });
 }

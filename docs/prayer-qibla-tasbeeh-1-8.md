@@ -37,10 +37,12 @@ channels — so all of it is covered by `flutter test`.
   fiqh takes the earlier shadow). The second preset is the Leva/Tehran
   reading of the specification — **Fajr 17.7°, Isha 14°, Maghrib at 4.5°** —
   and both are switchable on the timings screen.
-* **Nisf al-Layl** — the midpoint between **Maghrib and the next Fajr** (the
-  Shia night begins at Maghrib). The strict solar midpoint (sunset → sunrise)
-  is published alongside it in `midnightCandidates()` for cross-checking; over
-  most of the year they differ by minutes.
+* **Nisf al-Layl** — the midpoint between **sunset and the next Fajr**, the
+  reading the marja' publish (the night is counted from غروبِ آفتاب). The
+  precautionary maghrib-based midpoint, which several tables prefer, lands
+  several minutes later and is printed beside it on the times screen, so the
+  reader can follow either without the card ever showing two numbers for one
+  moment.
 * **Sunrise and sunset** — the astronomical markers the specification asks for,
   shown as chips under the five prayers.
 * **Zones** — every time on the card is the wall clock of *the location*, not
@@ -65,7 +67,7 @@ channels — so all of it is covered by `flutter test`.
   next one outlined in gold, plus chips for sunrise/sunset/Nisf al-Layl. Each
   cell scales its own digits (`FittedBox`), so no width, font or translation can
   make the row clip.
-* **Detail tiles** — Nisf al-Layl, the last third of the night, the calculation
+* **Detail tiles** — Nisf al-Layl and its maghrib-based reading, the last third of the night, the calculation
   method with its angle, the Qibla bearing, the distance, and where the
   coordinates came from (`جی پی ایس / انٹرنیٹ (IP) / منتخب کردہ شہر / ڈیفالٹ`).
 * **Alerts** — notification, chime and vibration switches. A prayer's arrival
@@ -153,8 +155,8 @@ only way to change them.
     north, the unwrapped angle for the rotation tween, the alignment thresholds
     and the direction of the turn hint.
   * `tasbeeh_controller_test.dart` — the full Zahra sequence advancing by
-    itself, target changes, unlimited mode, reset, the daily rollover, and the
-    stored state surviving a restart.
+    itself and arming the next round, target changes, unlimited mode, reset,
+    the daily rollover, and the stored state surviving a restart.
   * `prayer_location_test.dart` + `prayer_controller_test.dart` — both IP
     payload shapes, typed coordinates, the city search, the storage round trip,
     the alert firing exactly once, and the manual/stored/fallback location

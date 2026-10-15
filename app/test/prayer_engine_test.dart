@@ -33,7 +33,8 @@ void main() {
         PrayerEntry(marker: PrayerMarker.sunset, time: at(18, 0)),
         PrayerEntry(marker: PrayerMarker.maghrib, time: at(18, 12)),
         PrayerEntry(marker: PrayerMarker.isha, time: at(19, 20)),
-        PrayerEntry(marker: PrayerMarker.midnight, time: at(23, 15)),
+        // Sunset 18:00 → Fajr 05:00: Nisf al-Layl is their midpoint.
+        PrayerEntry(marker: PrayerMarker.midnight, time: at(23, 30)),
       ],
       fajrTomorrow: at(5, 0, day: 16),
     );
@@ -86,8 +87,8 @@ void main() {
       expectCloseTo(schedule.entryFor(PrayerMarker.sunset).time, DateTime.utc(2026, 10, 15, 12, 34));
       expectCloseTo(schedule.entryFor(PrayerMarker.maghrib).time, DateTime.utc(2026, 10, 15, 12, 50));
       expectCloseTo(schedule.entryFor(PrayerMarker.isha).time, DateTime.utc(2026, 10, 15, 13, 38));
-      // Nisf al-Layl: the midpoint between Isha and the next Fajr.
-      expectCloseTo(schedule.entryFor(PrayerMarker.midnight).time, DateTime.utc(2026, 10, 15, 18, 25));
+      // Nisf al-Layl: the midpoint of sunset (12:34) to the next Fajr (≈00:00).
+      expectCloseTo(schedule.entryFor(PrayerMarker.midnight).time, DateTime.utc(2026, 10, 15, 18, 17));
     });
 
     test('Karachi, 2026-10-15, Jafari', () {
@@ -102,7 +103,8 @@ void main() {
       expectCloseTo(schedule.entryFor(PrayerMarker.dhuhr).time, DateTime.utc(2026, 10, 15, 7, 18));
       expectCloseTo(schedule.entryFor(PrayerMarker.maghrib).time, DateTime.utc(2026, 10, 15, 13, 19));
       expectCloseTo(schedule.entryFor(PrayerMarker.isha).time, DateTime.utc(2026, 10, 15, 14, 4));
-      expectCloseTo(schedule.entryFor(PrayerMarker.midnight).time, DateTime.utc(2026, 10, 15, 18, 51));
+      // Sunset 13:05, next Fajr ≈ 00:23.
+      expectCloseTo(schedule.entryFor(PrayerMarker.midnight).time, DateTime.utc(2026, 10, 15, 18, 44));
     });
 
     test('London, 2026-06-15, Jafari (a summer high-latitude day)', () {
@@ -183,23 +185,33 @@ void main() {
       expect(gap.inMinutes, inInclusiveRange(5, 30));
     });
 
-    test('Nisf al-Layl is exactly the midpoint of Maghrib to Fajr', () {
-      final maghrib = DateTime.utc(2026, 10, 15, 18, 12);
-      final fajr = DateTime.utc(2026, 10, 16, 5, 2);
-      final midnight = PrayerCalculator.midpoint(maghrib, fajr);
-      expect(midnight.difference(maghrib), fajr.difference(midnight));
-      expect(midnight, DateTime.utc(2026, 10, 15, 23, 37));
+    test('the midpoint helper splits a span exactly in two', () {
+      final from = DateTime.utc(2026, 10, 15, 18, 12);
+      final to = DateTime.utc(2026, 10, 16, 5, 2);
+      final middle = PrayerCalculator.midpoint(from, to);
+      expect(middle.difference(from), to.difference(middle));
+      expect(middle, DateTime.utc(2026, 10, 15, 23, 37));
     });
 
-    test('both midnight candidates are published for cross-checking', () {
-      final candidates = PrayerCalculator.midnightCandidates(
-        maghrib: DateTime.utc(2026, 10, 15, 18, 12),
-        fajrTomorrow: DateTime.utc(2026, 10, 16, 5, 2),
-        sunset: DateTime.utc(2026, 10, 15, 18, 0),
-        sunriseTomorrow: DateTime.utc(2026, 10, 16, 6, 20),
+    test('the schedule’s Nisf al-Layl is the midpoint of sunset to Fajr', () {
+      final schedule = PrayerCalculator.schedule(
+        latitude: 33.6844,
+        longitude: 73.0479,
+        locationLabel: 'اسلام آباد',
+        clock: DateTime.utc(2026, 10, 15, 12),
+        zoneOffset: Duration.zero,
       );
-      expect(candidates.$1, DateTime.utc(2026, 10, 15, 23, 37));
-      expect(candidates.$2, DateTime.utc(2026, 10, 16, 0, 10));
+      final sunset = schedule.entryFor(PrayerMarker.sunset).time;
+      final midnight = schedule.entryFor(PrayerMarker.midnight).time;
+      expect(midnight.difference(sunset), schedule.fajrTomorrow.difference(midnight));
+      // The precautionary, maghrib-based reading is a few minutes later — the
+      // two are printed side by side rather than silently mixed up.
+      final maghribMidnight = PrayerCalculator.maghribMidnight(
+        schedule.entryFor(PrayerMarker.maghrib).time,
+        schedule.fajrTomorrow,
+      );
+      expect(maghribMidnight.isAfter(midnight), isTrue);
+      expect(maghribMidnight.difference(midnight).inMinutes, inInclusiveRange(3, 20));
     });
   });
 
