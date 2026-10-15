@@ -135,7 +135,7 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Shia Library',
+      title: 'ShiaVerse',
       navigatorKey: _navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: buildLightTheme(),
@@ -250,10 +250,14 @@ class _LibraryBootstrapState extends State<LibraryBootstrap> {
                       width: 116,
                       height: 116,
                       fit: BoxFit.cover,
+                      // The asset is 1338x1480; decoding it at full size cost
+                      // ~8 MB of bitmap and a visible stall on first paint.
+                      cacheWidth: 240,
+                      cacheHeight: 240,
                     ),
                   ),
                   const SizedBox(height: 22),
-                  const Text('شیعہ لائبریری', style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold)),
+                  const Text('ShiaVerse', style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
                   JustifiedText(_error == null ? _status : 'کتب تیار کرتے ہوئے مسئلہ پیش آیا: $_error'),
                   const SizedBox(height: 18),
@@ -316,6 +320,15 @@ class HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    // Rebuild the tabs when a download finishes so every page sees the new
+    // book immediately instead of after a manual refresh.
+    return ValueListenableBuilder<int>(
+      valueListenable: widget.library.catalogVersion,
+      builder: (context, _, __) => _buildShell(context),
+    );
+  }
+
+  Widget _buildShell(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,

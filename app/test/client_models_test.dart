@@ -22,6 +22,23 @@ void main() {
     test('does not produce terms for punctuation-only input', () {
       expect(normalizeArabicUrdu('  ؟ ؛ ،  '), isEmpty);
     });
+
+    test('compacting a row only rewrites what actually needs it', () {
+      final passage = Passage.fromMap({
+        'record_id': 2,
+        'arabic': 'بِسْمِ  اللّٰهِ\r\nالرَّحْمٰنِ\n\n\n\nالرَّحِيْمِ',
+        'urdu': 'شروع   اللہ کے نام سے\n   جو بڑا مہربان',
+      });
+      expect(passage.arabic, isNot(contains('\r')));
+      expect(passage.arabic, isNot(contains('\n\n\n')));
+      expect(passage.arabic, 'بِسْمِ اللّٰهِ\nالرَّحْمٰنِ\n\nالرَّحِيْمِ');
+      expect(passage.urdu, 'شروع اللہ کے نام سے\nجو بڑا مہربان');
+      // A row that is already clean is returned untouched.
+      expect(
+        Passage.fromMap({'record_id': 3, 'arabic': 'صلى الله عليه وآله'}).arabic,
+        'صلى الله عليه وآله',
+      );
+    });
   });
 
   group('corpus catalogue', () {

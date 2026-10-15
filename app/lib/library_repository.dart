@@ -68,6 +68,18 @@ class LibraryRepository {
 
   /// Set when a book is installed while a build is already running.
   bool _indexAgain = false;
+
+  /// Serializes index work: "download all" reports each package separately and
+  /// every callback used to start its own walk of the same table.
+  Future<void>? _indexRun;
+
+  Future<void> _runExclusive(Future<void> Function() body) {
+    final previous = _indexRun ?? Future<void>.value();
+    final next = previous.catchError((Object _) {}).then((_) => body());
+    _indexRun = next;
+    return next;
+  }
+
   String _databaseDirectory = '';
 
   bool get isInitialized => _initialized;
@@ -89,6 +101,14 @@ class LibraryRepository {
   /// first launch shows the library immediately instead of a counter.
   final ValueNotifier<IndexBuildState> indexProgress =
       ValueNotifier(const IndexBuildState.idle());
+
+  /// Bumped whenever the set of installed books changes.
+  ///
+  /// Downloading a database used to leave the library showing "not installed"
+  /// until the screen was reopened; screens now listen to this and rebuild.
+  final ValueNotifier<int> catalogVersion = ValueNotifier(0);
+
+  void _bumpCatalog() => catalogVersion.value++;
 
   Future<void> initialize({
     required void Function(double progress, String message) onProgress,
@@ -134,6 +154,7 @@ class LibraryRepository {
       _searchReady = false;
     }
     _initialized = true;
+    _bumpCatalog();
   }
 
   /// Builds (or finishes) the search index without blocking the UI.
@@ -230,15 +251,20 @@ class LibraryRepository {
         }
       }
     }
+    // Tell every screen about the new book whether or not we build the index
+    // now: the download must be visible immediately, without a manual refresh.
+    _bumpCatalog();
     if (_indexing) {
       // A background build is already walking the books; ask for one more pass
       // when it finishes rather than opening a second writer on the index.
       _indexAgain = true;
       return;
     }
-    await _refreshSearchIndex(onProgress ?? (_, __) {});
-    _searchReady = true;
-    indexProgress.value = const IndexBuildState.done();
+    await _runExclusive(() async {
+      await _refreshSearchIndex(onProgress ?? (_, __) {});
+      _searchReady = true;
+      indexProgress.value = const IndexBuildState.done();
+    });
   }
 
   /// Drops and rebuilds the local search index (used by the settings screen).
@@ -495,6 +521,10 @@ class LibraryRepository {
         written++;
       }
       await batch.commit(noResult: true);
+      // Hand the frame back to Flutter between batches. The index is built
+      // while the reader is already scrolling, and a tight loop over ~96k rows
+      // starved the UI thread — every scroll stuttered until it finished.
+      await Future<void>.delayed(const Duration(milliseconds: 1));
       if (total != null && total > 0) {
         final done = completed + offset + rows.length;
         final progress = 0.2 + (0.8 * done / total);
@@ -1720,21 +1750,56 @@ class LibraryRepository {
 
   // ------------------------------------------------------ saved user state
 
-  Future<bool> isBookmarked(String bookKey, int recordId) async {
+  /// Bookmarks and notes are consulted for every card the readers build.
+  ///
+  /// Two SharedPreferences reads per card is two platform-channel round trips
+  /// per card — hundreds of them while a 286-verse surah or a long chapter
+  /// scrolls in, which is exactly where the stutter came from. Both are read
+  /// once and kept in sync on write.
+  Set<String>? _bookmarkCache;
+  Map<String, String>? _noteCache;
+
+  Future<Set<String>> _bookmarkSet() async {
+    final cached = _bookmarkCache;
+    if (cached != null) return cached;
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getStringList('bookmarks')?.contains('$bookKey:$recordId') ?? false;
+    return _bookmarkCache = (prefs.getStringList('bookmarks') ?? const <String>[]).toSet();
   }
 
-  Future<void> toggleBookmark(String bookKey, int recordId) async {
+  Future<Map<String, String>> _noteMap() async {
+    final cached = _noteCache;
+    if (cached != null) return cached;
     final prefs = await SharedPreferences.getInstance();
-    final bookmarks = prefs.getStringList('bookmarks') ?? <String>[];
+    final notes = <String, String>{};
+    for (final key in prefs.getKeys()) {
+      if (!key.startsWith('note:')) continue;
+      final value = prefs.getString(key);
+      if (value != null && value.trim().isNotEmpty) notes[key] = value;
+    }
+    return _noteCache = notes;
+  }
+
+  Future<bool> isBookmarked(String bookKey, int recordId) async =>
+      (await _bookmarkSet()).contains('$bookKey:$recordId');
+
+  /// Same answers, without the `await`, for readers that build cards by the
+  /// hundred: when the cache is warm these return immediately and the card can
+  /// paint once instead of rebuilding after every lookup.
+  bool isBookmarkedNow(String bookKey, int recordId) =>
+      _bookmarkCache?.contains('$bookKey:$recordId') ?? false;
+
+  String? noteNow(String bookKey, int recordId) => _noteCache?['note:$bookKey:$recordId'];
+
+  Future<void> toggleBookmark(String bookKey, int recordId) async {
+    final bookmarks = await _bookmarkSet();
     final key = '$bookKey:$recordId';
     if (bookmarks.contains(key)) {
       bookmarks.remove(key);
     } else {
       bookmarks.add(key);
     }
-    await prefs.setStringList('bookmarks', bookmarks);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('bookmarks', bookmarks.toList());
   }
 
   Future<List<ReaderTarget>> getBookmarks() async {
@@ -1746,18 +1811,22 @@ class LibraryRepository {
     }).where((target) => target.recordId != 0).toList();
   }
 
-  Future<String?> getNote(String bookKey, int recordId) async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('note:$bookKey:$recordId');
-  }
+  Future<String?> getNote(String bookKey, int recordId) async =>
+      (await _noteMap())['note:$bookKey:$recordId'];
 
   Future<void> saveNote(String bookKey, int recordId, String text) async {
     final prefs = await SharedPreferences.getInstance();
     final key = 'note:$bookKey:$recordId';
-    if (text.trim().isEmpty) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) {
       await prefs.remove(key);
+      _noteCache?.remove(key);
     } else {
-      await prefs.setString(key, text.trim());
+      await prefs.setString(key, trimmed);
+      // Only touch a cache that is already loaded; building a partial one here
+      // would make every other note invisible.
+      final cache = _noteCache;
+      if (cache != null) cache[key] = trimmed;
     }
   }
 
@@ -1879,14 +1948,27 @@ class LibraryRepository {
   }
 }
 
+/// Pre-compiled patterns for [_compact], which runs on every field of every
+/// row a section loads — worth keeping out of the hot path.
+final RegExp _bidiMarks = RegExp(r'[\u200e\u200f\u200b\ufeff]');
+final RegExp _runsOfSpace = RegExp(r'[^\S\n]+');
+final RegExp _spaceAroundNewline = RegExp(r' *\n *');
+final RegExp _manyNewlines = RegExp(r'\n{3,}');
+
 String _compact(String value) {
   if (value.isEmpty) return value;
-  var text = value.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
-  text = text.replaceAll('\u0640', '');
-  text = text.replaceAll(RegExp(r'[\u200e\u200f\u200b\ufeff]'), '');
-  text = text.replaceAll(RegExp(r'[^\S\n]+'), ' ');
-  text = text.replaceAll(RegExp(r' *\n *'), '\n');
-  text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+  // Most rows are already clean. A `contains` check is a fast native scan,
+  // while a RegExp over every field of every row of a long chapter was enough
+  // work to stall the frame that loaded it.
+  var text = value;
+  if (text.contains('\r')) text = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+  if (text.contains('\u0640')) text = text.replaceAll('\u0640', '');
+  if (_bidiMarks.hasMatch(text)) text = text.replaceAll(_bidiMarks, '');
+  if (text.contains('  ') || text.contains('\t')) text = text.replaceAll(_runsOfSpace, ' ');
+  if (text.contains('\n')) {
+    text = text.replaceAll(_spaceAroundNewline, '\n');
+    if (text.contains('\n\n\n')) text = text.replaceAll(_manyNewlines, '\n\n');
+  }
   return text.trim();
 }
 

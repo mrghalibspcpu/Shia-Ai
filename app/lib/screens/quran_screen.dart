@@ -418,6 +418,7 @@ class _QuranVerseListState extends State<_QuranVerseList> {
                           itemPositionsListener: _positions,
                           initialScrollIndex: _initialIndex,
                           initialAlignment: 0.04,
+                          addAutomaticKeepAlives: false,
                           minCacheExtent: 400,
                           padding: const EdgeInsets.fromLTRB(16, 10, 16, 60),
                           itemCount: _verses.length + (widget.bismillah ? 1 : 0),

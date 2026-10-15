@@ -47,12 +47,21 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // The library rebuilds as soon as a download lands (catalogVersion), so a
+    // freshly installed book appears without pulling to refresh.
+    return ValueListenableBuilder<int>(
+      valueListenable: widget.library.catalogVersion,
+      builder: (context, _, __) => _buildHome(context),
+    );
+  }
+
+  Widget _buildHome(BuildContext context) {
     final lastBook = _lastRead?.book;
     final showLastRead =
         lastBook != null && _lastRead != null && widget.library.isInstalled(lastBook);
     return Scaffold(
       appBar: AppBar(
-        title: const JustifiedText('شیعہ لائبریری'),
+        title: const Text('ShiaVerse'),
         actions: [
           if (widget.onOpenData != null)
             IconButton(
@@ -472,7 +481,7 @@ class _LibraryBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'شیعہ لائبریری',
+                  'ShiaVerse',
                   style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
@@ -502,7 +511,8 @@ class _LibraryBanner extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             clipBehavior: Clip.antiAlias,
-            child: Image.asset('assets/images/tasneemlogo.png', fit: BoxFit.cover),
+            child: Image.asset('assets/images/tasneemlogo.png', fit: BoxFit.cover,
+              cacheWidth: 240, cacheHeight: 240),
           ),
         ],
       ),
@@ -840,6 +850,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       itemScrollController: _itemScrollController,
                       initialScrollIndex: _initialIndex,
                       itemCount: _passages.length,
+                      // Long chapters kept every card alive, which grew the
+                      // element tree until the GC ran mid-scroll.
+                      addAutomaticKeepAlives: false,
+                      minCacheExtent: 350,
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
                       itemBuilder: (context, index) => PassageCard(
                         key: ValueKey('${widget.book.key}-${_passages[index].recordId}'),

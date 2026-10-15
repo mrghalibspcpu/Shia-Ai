@@ -321,6 +321,8 @@ class _BalaghaPassageListState extends State<_BalaghaPassageList> {
                         initialAlignment: 0.04,
                         key: PageStorageKey(widget.storageKey),
                         itemCount: _passages.length,
+                        addAutomaticKeepAlives: false,
+                        minCacheExtent: 350,
                         padding: const EdgeInsets.fromLTRB(16, 10, 16, 40),
                         itemBuilder: (context, index) {
                           final passage = _passages[index];

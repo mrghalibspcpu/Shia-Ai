@@ -3,7 +3,7 @@
 
     <application
         android:name="${applicationName}"
-        android:label="Shia AI"
+        android:label="ShiaVerse"
         android:icon="@drawable/ic_launcher"
         android:allowBackup="false"
         android:usesCleartextTraffic="false">

@@ -175,11 +175,24 @@ class _PassageCardState extends State<PassageCard> {
 
   int get _stateId => widget.stateId ?? widget.passage.recordId;
 
+  /// Match ranges cost a pass over the whole string, so never run the search
+  /// for the (overwhelmingly common) case of a reader with no query.
+  List<({int start, int end})> _matches(String text) =>
+      widget.searchQuery.isEmpty ? const [] : searchMatchRanges(text, widget.searchQuery);
+
+  /// Paints with the cached bookmark/note state; `_refresh` then corrects it.
+  /// Doing it this way keeps a card at one build instead of three.
+  void _syncFromCache() {
+    _bookmarked = widget.library.isBookmarkedNow(widget.book.key, _stateId);
+    _note = widget.library.noteNow(widget.book.key, _stateId);
+  }
+
   @override
   void initState() {
     super.initState();
-    _showCommentary = searchMatchRanges(widget.passage.commentary, widget.searchQuery).isNotEmpty;
-    _showFootnote = searchMatchRanges(widget.passage.footnote, widget.searchQuery).isNotEmpty;
+    _showCommentary = _matches(widget.passage.commentary).isNotEmpty;
+    _showFootnote = _matches(widget.passage.footnote).isNotEmpty;
+    _syncFromCache();
     unawaited(_refresh());
   }
 
@@ -191,6 +204,7 @@ class _PassageCardState extends State<PassageCard> {
         oldWidget.stateId != widget.stateId) {
       _showCommentary = false;
       _showFootnote = false;
+      _syncFromCache();
       unawaited(_refresh());
     }
   }
@@ -198,12 +212,12 @@ class _PassageCardState extends State<PassageCard> {
   Future<void> _refresh() async {
     final bookmarked = await widget.library.isBookmarked(widget.book.key, _stateId);
     final note = await widget.library.getNote(widget.book.key, _stateId);
-    if (mounted) {
-      setState(() {
-        _bookmarked = bookmarked;
-        _note = note;
-      });
-    }
+    if (!mounted) return;
+    if (bookmarked == _bookmarked && note == _note) return;
+    setState(() {
+      _bookmarked = bookmarked;
+      _note = note;
+    });
   }
 
   Future<void> _editNote() async {
@@ -277,130 +291,134 @@ class _PassageCardState extends State<PassageCard> {
     final isTitle = passage.format == 1;
     final isSubHeading = passage.format == 3;
 
-    return Card(
-      color: widget.palette.background,
-      margin: const EdgeInsets.only(bottom: 14),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: BorderSide(color: textColor.withValues(alpha: 0.08)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    header,
-                    style: TextStyle(color: textColor.withValues(alpha: 0.65), fontSize: 12),
+    // Isolating each card keeps a scroll (or a bookmark tap) from repainting
+    // the whole list — with 286 verse cards that was visible as jank.
+    return RepaintBoundary(
+      child: Card(
+        color: widget.palette.background,
+        margin: const EdgeInsets.only(bottom: 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: textColor.withValues(alpha: 0.08)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      header,
+                      style: TextStyle(color: textColor.withValues(alpha: 0.65), fontSize: 12),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: _bookmarked ? 'محفوظ سے ہٹائیں' : 'محفوظ کریں',
+                    onPressed: () async {
+                      await widget.library.toggleBookmark(widget.book.key, _stateId);
+                      if (mounted) setState(() => _bookmarked = !_bookmarked);
+                    },
+                    icon: Icon(
+                      _bookmarked ? Icons.bookmark : Icons.bookmark_border,
+                      color: _bookmarked ? kGold : textColor,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'کاپی',
+                    onPressed: _copyText,
+                    icon: Icon(Icons.copy, color: textColor),
+                  ),
+                  IconButton(
+                    tooltip: 'نوٹ',
+                    onPressed: _editNote,
+                    icon: Icon(Icons.edit_note, color: textColor),
+                  ),
+                ],
+              ),
+              if (showArabic) ...[
+                // Plain Text on purpose, inside a SelectionArea provided by the
+                // reader screens: a SelectableText per card made long lists
+                // (286 verse cards, each with three of them) render as grey,
+                // unpainted blocks on slower phones.
+                HighlightedText(
+                  passage.arabic,
+                  query: widget.searchQuery,
+                  scrollToMatch: widget.focusMatch,
+                  arabic: true,
+                  style: TextStyle(
+                    fontSize: (isTitle ? 25 : isSubHeading ? 21 : 22) * widget.fontScale,
+                    fontWeight: isTitle || isSubHeading ? FontWeight.bold : null,
+                    color: isTitle || isSubHeading ? kForest : textColor,
                   ),
                 ),
-                IconButton(
-                  tooltip: _bookmarked ? 'محفوظ سے ہٹائیں' : 'محفوظ کریں',
-                  onPressed: () async {
-                    await widget.library.toggleBookmark(widget.book.key, _stateId);
-                    if (mounted) setState(() => _bookmarked = !_bookmarked);
-                  },
-                  icon: Icon(
-                    _bookmarked ? Icons.bookmark : Icons.bookmark_border,
-                    color: _bookmarked ? kGold : textColor,
+                if (showUrdu || showCommentary) ...[
+                  const SizedBox(height: 12),
+                  Divider(color: textColor.withValues(alpha: 0.12)),
+                  const SizedBox(height: 8),
+                ],
+              ],
+              if (showUrdu)
+                HighlightedText(
+                  passage.urdu,
+                  query: widget.searchQuery,
+                  scrollToMatch: widget.focusMatch && _matches(passage.arabic).isEmpty,
+                  style: TextStyle(
+                    fontSize: (isTitle ? 18 : 19) * widget.fontScale,
+                    height: 1.6,
+                    fontWeight: isTitle ? FontWeight.bold : null,
+                    color: textColor,
                   ),
                 ),
-                IconButton(
-                  tooltip: 'کاپی',
-                  onPressed: _copyText,
-                  icon: Icon(Icons.copy, color: textColor),
-                ),
-                IconButton(
-                  tooltip: 'نوٹ',
-                  onPressed: _editNote,
-                  icon: Icon(Icons.edit_note, color: textColor),
+              if (showCommentary) ...[
+                const SizedBox(height: 10),
+                _ExpandableNote(
+                  query: widget.searchQuery,
+                  focusMatch: widget.focusMatch && _matches('${passage.arabic} ${passage.urdu}').isEmpty,
+                  label: 'تفسیری حاشیہ',
+                  body: passage.commentary,
+                  expanded: _showCommentary,
+                  onToggle: () => setState(() => _showCommentary = !_showCommentary),
+                  textColor: textColor,
+                  fontScale: widget.fontScale,
                 ),
               ],
-            ),
-            if (showArabic) ...[
-              // Plain Text on purpose, inside a SelectionArea provided by the
-              // reader screens: a SelectableText per card made long lists
-              // (286 verse cards, each with three of them) render as grey,
-              // unpainted blocks on slower phones.
-              HighlightedText(
-                passage.arabic,
-                query: widget.searchQuery,
-                scrollToMatch: widget.focusMatch,
-                arabic: true,
-                style: TextStyle(
-                  fontSize: (isTitle ? 25 : isSubHeading ? 21 : 22) * widget.fontScale,
-                  fontWeight: isTitle || isSubHeading ? FontWeight.bold : null,
-                  color: isTitle || isSubHeading ? kForest : textColor,
+              if (showFootnote) ...[
+                const SizedBox(height: 10),
+                _ExpandableNote(
+                  query: widget.searchQuery,
+                  focusMatch: widget.focusMatch && _matches('${passage.arabic} ${passage.urdu} ${passage.commentary}').isEmpty,
+                  label: 'حاشیہ',
+                  body: passage.footnote,
+                  expanded: _showFootnote,
+                  onToggle: () => setState(() => _showFootnote = !_showFootnote),
+                  textColor: textColor,
+                  fontScale: widget.fontScale,
                 ),
-              ),
-              if (showUrdu || showCommentary) ...[
+              ],
+              if (_note != null) ...[
                 const SizedBox(height: 12),
-                Divider(color: textColor.withValues(alpha: 0.12)),
-                const SizedBox(height: 8),
+                _AnnotatedBox(
+                  label: 'نوٹ',
+                  body: _note!,
+                  color: kGold,
+                  textColor: textColor,
+                  fontScale: widget.fontScale,
+                ),
+              ],
+              if (passage.hasSource) ...[
+                const SizedBox(height: 14),
+                _SourceLink(
+                  url: passage.sourceUrl,
+                  reference: passage.sourceRef,
+                  textColor: textColor,
+                  fontScale: widget.fontScale,
+                  onOpen: _openSource,
+                ),
               ],
             ],
-            if (showUrdu)
-              HighlightedText(
-                passage.urdu,
-                query: widget.searchQuery,
-                scrollToMatch: widget.focusMatch && searchMatchRanges(passage.arabic, widget.searchQuery).isEmpty,
-                style: TextStyle(
-                  fontSize: (isTitle ? 18 : 19) * widget.fontScale,
-                  height: 1.6,
-                  fontWeight: isTitle ? FontWeight.bold : null,
-                  color: textColor,
-                ),
-              ),
-            if (showCommentary) ...[
-              const SizedBox(height: 10),
-              _ExpandableNote(
-                query: widget.searchQuery,
-                focusMatch: widget.focusMatch && searchMatchRanges('${passage.arabic} ${passage.urdu}', widget.searchQuery).isEmpty,
-                label: 'تفسیری حاشیہ',
-                body: passage.commentary,
-                expanded: _showCommentary,
-                onToggle: () => setState(() => _showCommentary = !_showCommentary),
-                textColor: textColor,
-                fontScale: widget.fontScale,
-              ),
-            ],
-            if (showFootnote) ...[
-              const SizedBox(height: 10),
-              _ExpandableNote(
-                query: widget.searchQuery,
-                focusMatch: widget.focusMatch && searchMatchRanges('${passage.arabic} ${passage.urdu} ${passage.commentary}', widget.searchQuery).isEmpty,
-                label: 'حاشیہ',
-                body: passage.footnote,
-                expanded: _showFootnote,
-                onToggle: () => setState(() => _showFootnote = !_showFootnote),
-                textColor: textColor,
-                fontScale: widget.fontScale,
-              ),
-            ],
-            if (_note != null) ...[
-              const SizedBox(height: 12),
-              _AnnotatedBox(
-                label: 'نوٹ',
-                body: _note!,
-                color: kGold,
-                textColor: textColor,
-                fontScale: widget.fontScale,
-              ),
-            ],
-            if (passage.hasSource) ...[
-              const SizedBox(height: 14),
-              _SourceLink(
-                url: passage.sourceUrl,
-                reference: passage.sourceRef,
-                textColor: textColor,
-                fontScale: widget.fontScale,
-                onOpen: _openSource,
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );

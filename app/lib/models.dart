@@ -522,14 +522,27 @@ int? _asInt(Object? value) {
   return int.tryParse(value.toString());
 }
 
+/// Pre-compiled patterns for [_compact], which runs on every field of every
+/// row a section loads — worth keeping out of the hot path.
+final RegExp _bidiMarks = RegExp(r'[\u200e\u200f\u200b\ufeff]');
+final RegExp _runsOfSpace = RegExp(r'[^\S\n]+');
+final RegExp _spaceAroundNewline = RegExp(r' *\n *');
+final RegExp _manyNewlines = RegExp(r'\n{3,}');
+
 String _compact(String value) {
   if (value.isEmpty) return value;
-  var text = value.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
-  text = text.replaceAll('\u0640', '');
-  text = text.replaceAll(RegExp(r'[\u200e\u200f\u200b\ufeff]'), '');
-  text = text.replaceAll(RegExp(r'[^\S\n]+'), ' ');
-  text = text.replaceAll(RegExp(r' *\n *'), '\n');
-  text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+  // Most rows are already clean. A `contains` check is a fast native scan,
+  // while a RegExp over every field of every row of a long chapter was enough
+  // work to stall the frame that loaded it.
+  var text = value;
+  if (text.contains('\r')) text = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+  if (text.contains('\u0640')) text = text.replaceAll('\u0640', '');
+  if (_bidiMarks.hasMatch(text)) text = text.replaceAll(_bidiMarks, '');
+  if (text.contains('  ') || text.contains('\t')) text = text.replaceAll(_runsOfSpace, ' ');
+  if (text.contains('\n')) {
+    text = text.replaceAll(_spaceAroundNewline, '\n');
+    if (text.contains('\n\n\n')) text = text.replaceAll(_manyNewlines, '\n\n');
+  }
   return text.trim();
 }
 

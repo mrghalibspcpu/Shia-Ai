@@ -1,4 +1,4 @@
-# Shia Library
+# ShiaVerse
 
 An offline Shia study library for Android: the Quran with Urdu translation and
 tafseer notes, Mafatih al-Jinan, Nahj al-Balagha, and the 14-book Urdu/Arabic
@@ -49,6 +49,25 @@ coverage, migration and verification details.
   download prompt at the top; the search index builds in the background.
 
 See [`docs/library-1-5-update.md`](docs/library-1-5-update.md).
+
+## App name and icon
+
+The launcher label and the in-app title are **ShiaVerse**, and the icon comes
+from `docs/app-icon-source.jpg`. The Android package id stays
+`com.shiaai.app` on purpose: changing it would make the phone treat the build
+as a different app, so an update could not install over the old one and every
+downloaded database would be lost.
+
+## Smooth scrolling
+
+- The search index yields to the UI between batches, so the ~96k-row walk no
+  longer starves the frame while a reader is scrolling.
+- Bookmarks and notes are cached in memory; every card used to make two
+  `SharedPreferences` round trips (and rebuild twice) as it scrolled in.
+- Reader lists drop automatic keep-alives and each card sits behind a
+  `RepaintBoundary`, which keeps long chapters from accumulating elements.
+- Images decode at their display size instead of at full resolution.
+
 
 ## The corpus
 

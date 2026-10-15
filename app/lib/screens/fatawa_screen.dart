@@ -182,7 +182,8 @@ class _MarjaPortrait extends StatelessWidget {
         border: Border.all(color: kGold.withValues(alpha: 0.55), width: 1.2),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Image.asset(asset, fit: BoxFit.cover),
+      child: Image.asset(asset, fit: BoxFit.cover,
+        cacheWidth: 252, cacheHeight: 312),
     );
   }
 }

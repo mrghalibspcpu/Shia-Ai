@@ -70,3 +70,34 @@ and then runs `ensureSearchIndex()` in the background. The 96,513-record walk
 never blocks the library again: books are readable immediately, and a thin
 progress strip (home and search) reports the index catching up. A build that is
 interrupted simply resumes next launch.
+
+## Name, icon, and downloads appearing at once
+
+- The launcher label and the in-app title are **ShiaVerse**; the icon is the
+  supplied artwork (`docs/app-icon-source.jpg`, scaled to 512²). The Android
+  package id deliberately stays `com.shiaai.app` — renaming it would make the
+  phone treat the build as a different app, so an update could not install over
+  the old one and every downloaded database would be lost.
+- `LibraryRepository.catalogVersion` is bumped whenever a database lands, and
+  both the home shell and the library screen listen to it. A finished download
+  shows up as installed immediately; no pull-to-refresh needed.
+
+## Smooth scrolling
+
+- **Index yields.** `_indexBook` awaits a 1 ms timer between batches. The index
+  is built while the reader is already scrolling, and the tight loop starved the
+  UI thread — that was the single largest source of stutter right after a
+  download.
+- **Bookmarks and notes are cached.** Every card made two
+  `SharedPreferences` round trips (platform-channel calls) and then rebuilt
+  twice from the async results. Both sets are now read once, cached, and served
+  synchronously through `isBookmarkedNow` / `noteNow`, so a card paints once.
+- **Fewer live elements.** Reader lists set `addAutomaticKeepAlives: false` and
+  each `PassageCard` sits behind a `RepaintBoundary`.
+- **No wasted search work.** `searchMatchRanges` is skipped entirely when there
+  is no query, instead of walking every field of every card.
+- **Cheaper row text.** `_compact` guards each replacement with a `contains`
+  check and reuses pre-compiled patterns, so loading a long chapter no longer
+  runs five regex passes over every field.
+- **Images decode at display size** (`cacheWidth` / `cacheHeight`); the 1338×1480
+  banner asset was being decoded into an ~8 MB bitmap for an 80 dp logo.

@@ -343,6 +343,8 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
                         initialAlignment: 0.04,
                         padding: const EdgeInsets.fromLTRB(18, 12, 18, 48),
                         itemCount: _lines.length + 1,
+                        addAutomaticKeepAlives: false,
+                        minCacheExtent: 350,
                         itemBuilder: (context, index) {
                           if (index == 0) return _header(textColor);
                           return _lineBlock(_lines[index - 1], textColor);
