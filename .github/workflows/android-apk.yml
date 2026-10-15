@@ -201,8 +201,18 @@ jobs:
             exit "$status"
           fi
 
-      - name: Report APK size
-        run: ls -lh app/build/app/outputs/flutter-apk/app-release.apk
+      - name: Report APK size and digest
+        run: |
+          set -euo pipefail
+          apk=app/build/app/outputs/flutter-apk/app-release.apk
+          ls -lh "$apk"
+          sha256sum "$apk"
+          {
+            echo "### Built APK"
+            echo
+            echo "- size: $(stat -c%s "$apk") bytes"
+            echo "- sha-256: \`$(sha256sum "$apk" | cut -d' ' -f1)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
@@ -212,10 +222,17 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      # A stable, tappable download link the owner can open on the phone.
+      # A tappable download link the owner can open on the phone.
       # Published as a *pre-release* on purpose: `releases/latest` must keep
       # pointing at the data release, because every installed app downloads
       # its databases from the pinned `databases-v1` tag.
+      #
+      # The asset is named after the version, never `shia-library.apk`. Two
+      # reasons, both learned the hard way: a phone that already holds a
+      # half-downloaded file keeps offering that broken copy back (the name
+      # never changes, so the download never restarts), and a fixed name means
+      # a second build silently replaces the file under a reader who is
+      # downloading it — which is exactly how "the APK is invalid" happens.
       - name: Publish the APK download
         if: github.event_name == 'push'
         env:
@@ -224,18 +241,76 @@ jobs:
           set -euo pipefail
           version=$(sed -n 's/^version:[[:space:]]*//p' app/pubspec.yaml | tr -d '\r')
           tag="app-v${version%%+*}"
+          asset="ShiaVerse-${version%%+*}.apk"
+          apk=app/build/app/outputs/flutter-apk/app-release.apk
+          size=$(stat -c%s "$apk")
+          sha=$(sha256sum "$apk" | cut -d' ' -f1)
           mkdir -p build/apk-release
-          cp app/build/app/outputs/flutter-apk/app-release.apk build/apk-release/shia-library.apk
+          cp "$apk" "build/apk-release/$asset"
+          {
+            echo "Installable release build — tap **$asset** to install."
+            echo
+            echo '```'
+            echo "file    : $asset"
+            echo "size    : $size bytes"
+            echo "sha-256 : $sha"
+            echo '```'
+            echo
+            echo "If Android says the file is invalid, delete the previous download and let this one finish completely (the file is ~$((size / 1048576)) MB)."
+          } > build/apk-release/notes.md
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" build/apk-release/shia-library.apk --clobber
+            gh release upload "$tag" "build/apk-release/$asset" --clobber
+            gh release edit "$tag" --title "ShiaVerse $version — APK" --notes-file build/apk-release/notes.md
           else
-            gh release create "$tag" build/apk-release/shia-library.apk \
+            gh release create "$tag" "build/apk-release/$asset" \
               --prerelease \
               --title "ShiaVerse $version — APK" \
-              --notes "Installable release build. On the phone, open this page and tap shia-library.apk." \
+              --notes-file build/apk-release/notes.md \
               --target "$GITHUB_SHA"
           fi
-          echo "Download: https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/shia-library.apk"
+          echo "Download: https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$asset"
+
+      # Proof, not hope: the bytes a phone downloads are compared with the bytes
+      # this run built. A truncated or stale asset fails the run here instead of
+      # failing on somebody's phone.
+      - name: Verify the hosted APK is the APK we built
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version:[[:space:]]*//p' app/pubspec.yaml | tr -d '\r')
+          tag="app-v${version%%+*}"
+          asset="ShiaVerse-${version%%+*}.apk"
+          mkdir -p build/verify
+          for attempt in 1 2 3 4 5; do
+            if gh release download "$tag" -p "$asset" -D build/verify --clobber; then break; fi
+            echo "download attempt $attempt failed; retrying"
+            sleep 10
+          done
+          built=$(sha256sum app/build/app/outputs/flutter-apk/app-release.apk | cut -d' ' -f1)
+          hosted=$(sha256sum "build/verify/$asset" | cut -d' ' -f1)
+          echo "built  : $built"
+          echo "hosted : $hosted"
+          if [ "$built" != "$hosted" ]; then
+            echo "::error title=Hosted APK differs from the build::the release asset is not the APK this run produced"
+            exit 1
+          fi
+          signer=""
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)
+          if [ -n "$apksigner" ]; then
+            signer=$("$apksigner" verify --print-certs app/build/app/outputs/flutter-apk/app-release.apk | grep -i 'certificate DN' | head -1 || true)
+            "$apksigner" verify app/build/app/outputs/flutter-apk/app-release.apk
+          fi
+          {
+            echo "### Hosted APK verified"
+            echo
+            echo "- asset: \`$asset\` ($(stat -c%s "build/verify/$asset") bytes)"
+            echo "- sha-256: \`$hosted\`"
+            echo "- identical to the built APK: yes"
+            if [ -n "$signer" ]; then echo "- $signer"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Hosted APK is byte-identical to the signed build."
 
       - name: Remove temporary signing key
         if: always()

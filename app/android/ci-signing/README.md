@@ -12,7 +12,7 @@ mean: uninstall the app, re-install, re-download the whole ~140 MB corpus.
 
 With one fixed key:
 
-* tapping a newer `shia-library.apk` on the phone simply updates the app;
+* tapping a newer `ShiaVerse-<version>.apk` on the phone simply updates the app;
 * the downloaded databases, bookmarks, notes, and reading positions survive;
 * no uninstall, no re-download.
 

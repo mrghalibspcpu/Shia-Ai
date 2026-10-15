@@ -207,6 +207,23 @@ For an owner-signed release, add these repository Actions secrets:
 Optionally set the non-secret repository Actions variable `SHIA_DATA_BASE_URL` to
 a mirror that serves the corpus files. Never commit a keystore or a credential.
 
+### Downloading the APK on a phone
+
+Every build on a pushed branch publishes a pre-release named
+`app-v<version>` whose asset is `ShiaVerse-<version>.apk` — the file name
+carries the version on purpose, so a phone never reuses a half-downloaded copy
+of an older build. Two things happen after the upload:
+
+1. the release notes are written with the file's exact size and SHA-256, so a
+   download can be checked instead of guessed at;
+2. a **Verify the hosted APK is the APK we built** step downloads the published
+   asset again and fails the run if its digest differs from the APK the run
+   produced — a truncated or stale asset stops the build, not the reader.
+
+`cd app && flutter build apk --release` still works locally; that is the same
+APK, just without the CI signature (see
+[`app/android/ci-signing/README.md`](app/android/ci-signing/README.md)).
+
 A newly generated APK is not automatically a Google Play update. Updating the
 Play-installed app requires the original package identity, signing key, and any
 required Play licensing/configuration; this project does not bypass those checks.
