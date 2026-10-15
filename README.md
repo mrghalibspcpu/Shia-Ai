@@ -129,7 +129,11 @@ widgets.
   one-step zikr; write and save your own wirds; undo one bead.
 - **One tile** for «مفاتیح الجنان و صحیفہ سجادیہ», like the fatawa.
 
-See [`docs/prayer-home-tasbeeh-1-9.md`](docs/prayer-home-tasbeeh-1-9.md).
+See [`docs/prayer-home-tasbeeh-1-9.md`](docs/prayer-home-tasbeeh-1-9.md). The
+home card under its four skies, `docs/previews/home-skies-1-9.jpg`, and the
+prayer, tasbeeh and location screens, `docs/previews/screens-1-9.jpg`, are
+rendered by `app/test/ui_layout_test.dart` with the app's own fonts on a
+360 dp phone (the test fails on any overflow).
 
 ## App name and icon
 

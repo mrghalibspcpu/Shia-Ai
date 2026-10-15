@@ -123,10 +123,21 @@ The version is **1.9.0 (11)**, signed with the same CI key, so it installs over
 `ShiaVerse-1.9.0.apk` and, new, `ShiaVerse-1.9.0.zip` on the `app-v1.9.0`
 pre-release.
 
+## Previews
+
+![The home card under its four skies](previews/home-skies-1-9.jpg)
+
+![Prayer times, tasbeeh with saved wirds, and the location search](previews/screens-1-9.jpg)
+
+Both are rendered in CI by `app/test/ui_layout_test.dart` (real fonts, a
+360 dp phone, any overflow fails the test) and staged as PNGs by the
+workflow.
+
 ## Tests
 
-New suites: `hijri_calendar_test.dart` (dates, shifts, every day of the table,
-sky phases), `city_index_test.dart` (parsing, ranking, nearest town, Urdu
+New suites: `ui_layout_test.dart` (every new screen at 360 dp with the real
+fonts, including a 1.35× system font), `hijri_calendar_test.dart` (dates,
+shifts, every day of the table, sky phases), `city_index_test.dart` (parsing, ranking, nearest town, Urdu
 labels, the bundled asset itself), `place_names_test.dart` (the four online
 payloads). Extended: the controller (exact-name upgrade, no overwrite of a
 chosen city, quiet re-detection, Hijri at Maghrib and its stored shift), the
