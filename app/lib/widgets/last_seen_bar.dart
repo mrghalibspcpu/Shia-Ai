@@ -48,62 +48,68 @@ class LastSeenBar extends StatelessWidget {
   Widget build(BuildContext context) {
     if (entries.isEmpty) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      height: barHeight,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: scheme.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.6)),
-        ),
-        child: Row(
-          children: [
-            Tooltip(
-              message: 'تمام آخری مطالعہ کھولیں',
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: () => _showAll(context),
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.only(start: 12, end: 6),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.history_rounded, size: 17, color: scheme.primary),
-                      const SizedBox(width: 5),
-                      Text(
-                        'آخری مطالعہ',
-                        style: TextStyle(
-                          fontFamily: kUrduFont,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: scheme.primary,
+    // A fixed-height strip has to survive the accessibility text scale. Clamp
+    // it to 1.3x here: the chips grow with the reader's setting, but never past
+    // the 54 dp the home screen reserves for them (which would overflow).
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.3,
+      child: SizedBox(
+        height: barHeight,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+          ),
+          child: Row(
+            children: [
+              Tooltip(
+                message: 'تمام آخری مطالعہ کھولیں',
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () => _showAll(context),
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.only(start: 12, end: 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.history_rounded, size: 17, color: scheme.primary),
+                        const SizedBox(width: 5),
+                        Text(
+                          'آخری مطالعہ',
+                          style: TextStyle(
+                            fontFamily: kUrduFont,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: scheme.primary,
+                          ),
                         ),
-                      ),
-                      Icon(Icons.arrow_drop_down_rounded, size: 19, color: scheme.primary),
-                    ],
+                        Icon(Icons.arrow_drop_down_rounded, size: 19, color: scheme.primary),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            Container(width: 1, height: 26, color: scheme.outlineVariant.withValues(alpha: 0.6)),
-            Expanded(
-              // Index 0 is the newest position and a horizontal list in an RTL
-              // context starts at the right edge — which is exactly where a
-              // reader looks first, so the list is deliberately NOT reversed.
-              child: ListView.separated(
-                key: const PageStorageKey('last-seen-strip'),
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsetsDirectional.only(start: 10, end: 8),
-                itemCount: entries.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, index) => _LastSeenChip(
-                  entry: entries[index],
-                  latest: index == 0,
-                  onTap: () => _open(context, entries[index]),
+              Container(width: 1, height: 26, color: scheme.outlineVariant.withValues(alpha: 0.6)),
+              Expanded(
+                // Index 0 is the newest position and a horizontal list in an RTL
+                // context starts at the right edge — which is exactly where a
+                // reader looks first, so the list is deliberately NOT reversed.
+                child: ListView.separated(
+                  key: const PageStorageKey('last-seen-strip'),
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsetsDirectional.only(start: 10, end: 8),
+                  itemCount: entries.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) => _LastSeenChip(
+                    entry: entries[index],
+                    latest: index == 0,
+                    onTap: () => _open(context, entries[index]),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
