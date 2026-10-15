@@ -350,7 +350,12 @@ void main() {
     test('justPrayed fires in the grace period after a prayer, and not outside', () {
       final day = fixedDay();
       expect(day.justPrayed(DateTime.utc(2026, 10, 15, 19, 25)), PrayerMarker.isha);
-      expect(day.justPrayed(DateTime.utc(2026, 10, 15, 12, 5)), PrayerMarker.dhuhr);
+      expect(day.justPrayed(DateTime.utc(2026, 10, 15, 12, 35)), PrayerMarker.dhuhr);
+      expect(
+        day.justPrayed(DateTime.utc(2026, 10, 15, 12, 5)),
+        isNull,
+        reason: 'a prayer that has not arrived yet is not news',
+      );
       expect(day.justPrayed(DateTime.utc(2026, 10, 15, 2)), isNull);
       expect(day.justPrayed(DateTime.utc(2026, 10, 15, 14)), isNull);
       // Fajr's window closing at sunrise counts too: a reader who prayed late.
