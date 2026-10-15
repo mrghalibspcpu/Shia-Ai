@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shia_ai/astro/compass_math.dart';
 import 'package:shia_ai/astro/prayer_calculator.dart';
 import 'package:shia_ai/astro/prayer_format.dart';
-import 'package:shia_ai/text_utils.dart' show arabicNumerals;
 
 /// The Jafari/Leva-Qum presets, the display-zone rule, the day's logic
 /// (windows, countdowns, the post-prayer moment) and the Qibla formula.
@@ -23,7 +22,7 @@ void main() {
       latitude: 33.6844,
       longitude: 73.0479,
       zoneOffset: Duration.zero,
-      methodLabel: 'جعفری (لیوا قم) — فجر ۱۶°',
+      methodLabel: 'جعفری (لیوا قم) — فجر 16°',
       maghribAngle: 4,
       entries: <PrayerEntry>[
         PrayerEntry(marker: PrayerMarker.fajr, time: at(5, 0)),
@@ -389,12 +388,43 @@ void main() {
     });
   });
 
-  group('Urdu formatting', () {
-    test('clock times are Urdu with a spelled-out day part', () {
-      expect(formatClockUrdu(DateTime(2026, 10, 15, 17, 4)), '۵:۰۴ شام');
-      expect(formatClockUrdu(DateTime(2026, 10, 15, 5, 9)), '۵:۰۹ صبح');
-      expect(formatClockUrdu(DateTime(2026, 10, 15, 12, 0)), '۱۲:۰۰ دوپہر');
-      expect(formatClockDigitsUrdu(DateTime(2026, 10, 15, 0, 30)), '۱۲:۳۰');
+  group('Urdu formatting with English digits', () {
+    test('clock times use English digits with a spelled-out day part', () {
+      expect(formatClockUrdu(DateTime(2026, 10, 15, 17, 4)), '5:04 شام');
+      expect(formatClockUrdu(DateTime(2026, 10, 15, 5, 9)), '5:09 صبح');
+      expect(formatClockUrdu(DateTime(2026, 10, 15, 12, 0)), '12:00 دوپہر');
+      expect(formatClockDigitsUrdu(DateTime(2026, 10, 15, 0, 30)), '12:30');
+      expect(formatClockSeconds(DateTime(2026, 10, 15, 0, 30, 7)), ':07');
+    });
+
+    test('no Urdu or Arabic-Indic digit survives in the prayer helpers', () {
+      final samples = <String>[
+        formatClockUrdu(DateTime(2026, 10, 15, 21, 58)),
+        formatCountdownUrdu(const Duration(hours: 9, minutes: 7)),
+        formatCountdownClock(const Duration(hours: 2, minutes: 7, seconds: 45)),
+        formatCoordinatesUrdu(33.6844, 73.0479),
+        formatDateUrdu(DateTime(2026, 10, 15)),
+        formatBearingUrdu(255.9, 'مغرب'),
+        formatKilometresUrdu(3528.4),
+        displayDigits('۱۲:۳۰ — ١٢٣'),
+      ];
+      for (final sample in samples) {
+        expect(RegExp('[\u0660-\u0669\u06F0-\u06F9]').hasMatch(sample), isFalse, reason: sample);
+      }
+      expect(displayDigits('۱۲:۳۰ — ١٢٣'), '12:30 — 123');
+      expect(urduDigits('۵'), '5');
+    });
+
+    test('counts and stopwatch countdowns', () {
+      expect(formatCount(0), '0');
+      expect(formatCount(999), '999');
+      expect(formatCount(1000), '1,000');
+      expect(formatCount(1234567), '1,234,567');
+      expect(formatCount(-14000), '-14,000');
+      expect(formatCountdownClock(const Duration(hours: 2, minutes: 7, seconds: 5)), '2:07:05');
+      expect(formatCountdownClock(const Duration(minutes: 7, seconds: 45)), '7:45');
+      expect(formatCountdownClock(const Duration(seconds: -3)), '0:00');
+      expect(formatKilometresUrdu(3528.4), '3,528 کلومیٹر');
     });
 
     test('day parts follow the sun, not the clock face', () {
@@ -407,17 +437,17 @@ void main() {
     });
 
     test('countdowns adapt their units', () {
-      expect(formatCountdownUrdu(const Duration(hours: 3, minutes: 12)), '۳ گھنٹے ۱۲ منٹ');
-      expect(formatCountdownUrdu(const Duration(minutes: 12, seconds: 40)), '۱۲ منٹ ۴۰ سیکنڈ');
-      expect(formatCountdownUrdu(const Duration(seconds: 40)), '۴۰ سیکنڈ');
-      expect(formatCountdownUrdu(const Duration(seconds: -5)), '۰ سیکنڈ');
+      expect(formatCountdownUrdu(const Duration(hours: 3, minutes: 12)), '3 گھنٹے 12 منٹ');
+      expect(formatCountdownUrdu(const Duration(minutes: 12, seconds: 40)), '12 منٹ 40 سیکنڈ');
+      expect(formatCountdownUrdu(const Duration(seconds: 40)), '40 سیکنڈ');
+      expect(formatCountdownUrdu(const Duration(seconds: -5)), '0 سیکنڈ');
     });
 
     test('coordinates and bearings keep their hemispheres and points', () {
-      expect(formatCoordinatesUrdu(33.6844, 73.0479), '۳۳.۶۸۴° شمال  ۷۳.۰۴۸° مشرق');
-      expect(formatCoordinatesUrdu(-33.8688, -70.6), '۳۳.۸۶۹° جنوب  ۷۰.۶۰۰° مغرب');
-      expect(formatDegreesUrdu(255.9), '${arabicNumerals(256)}°');
-      expect(formatBearingUrdu(255.9, 'مغرب'), '${arabicNumerals(256)}° مغرب');
+      expect(formatCoordinatesUrdu(33.6844, 73.0479), '33.684° شمال  73.048° مشرق');
+      expect(formatCoordinatesUrdu(-33.8688, -70.6), '33.869° جنوب  70.600° مغرب');
+      expect(formatDegreesUrdu(255.9), '256°');
+      expect(formatBearingUrdu(255.9, 'مغرب'), '256° مغرب');
       expect(compassPointUrdu(255.9), 'مغرب');
       expect(compassPointUrdu(0), 'شمال');
       expect(compassPointUrdu(359), 'شمال');
@@ -425,8 +455,10 @@ void main() {
     });
 
     test('dates are written the Urdu way', () {
-      expect(formatDateUrdu(DateTime(2026, 10, 15)), 'جمعرات، ۱۵ اکتوبر ۲۰۲۶');
-      expect(formatDateUrdu(DateTime(2026, 1, 3)), 'ہفتہ، ۳ جنوری ۲۰۲۶');
+      expect(formatDateUrdu(DateTime(2026, 10, 15)), 'جمعرات، 15 اکتوبر 2026');
+      expect(formatDateUrdu(DateTime(2026, 1, 3)), 'ہفتہ، 3 جنوری 2026');
+      expect(weekdayUrdu(DateTime(2026, 10, 16)), 'جمعہ');
+      expect(formatDayMonthYearUrdu(DateTime(2026, 10, 15)), '15 اکتوبر 2026');
     });
   });
 }

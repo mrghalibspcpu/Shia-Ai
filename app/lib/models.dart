@@ -34,12 +34,24 @@ const String kFatawaCollectionHint = 'اپنا مرجعِ تقلید منتخب 
 List<BookDefinition> get fatawaBooks =>
     BookDefinition.all.where((book) => book.source == CorpusSource.fatwa).toList();
 
-/// Non-hadith collections shown as the home row of cards.
-List<BookDefinition> get featuredCollections => [
-      for (final book in BookDefinition.all)
-        if (book.source == CorpusSource.sahifa) book,
-      BookDefinition.bookFor(CorpusSource.quran)!,
+/// Mafatih al-Jinan and Sahifa Sajjadiyya are offered as ONE library entry
+/// too: the reader opens the dua collection and picks the book there, the
+/// same way the fatawa tile offers the two marjas.
+const String kDuaCollectionKey = 'dua_collection';
+const String kDuaCollectionTitle = 'مفاتیح الجنان و صحیفہ سجادیہ';
+const String kDuaCollectionSubtitle = 'دعائیں، زیارات، اعمال اور مناجات';
+const String kDuaCollectionHint = 'کتاب منتخب کریں';
+
+/// The two books behind the combined dua tile: Mafatih first, then Sahifa.
+List<BookDefinition> get duaCollectionBooks => [
       BookDefinition.bookFor(CorpusSource.dua)!,
+      BookDefinition.bookFor(CorpusSource.sahifa)!,
+    ];
+
+/// Collections with a card of their own on the home row. The fatawa and the
+/// dua books each sit behind one combined card instead.
+List<BookDefinition> get featuredCollections => [
+      BookDefinition.bookFor(CorpusSource.quran)!,
       BookDefinition.bookFor(CorpusSource.balagha)!,
     ];
 

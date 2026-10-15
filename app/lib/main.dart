@@ -354,7 +354,8 @@ class HomeShellState extends State<HomeShell> {
       body: IndexedStack(
         index: _selectedIndex,
         children: [
-          _libraryPage,
+          // The home page's animated sky stops while another tab is in front.
+          TickerMode(enabled: _selectedIndex == 0, child: _libraryPage),
           _searchPage,
           _savedPage,
           SettingsScreen(

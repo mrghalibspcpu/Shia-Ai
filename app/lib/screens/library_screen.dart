@@ -13,6 +13,7 @@ import '../widgets/last_seen_bar.dart';
 import '../widgets/reader_kit.dart';
 import '../widgets/resume_card.dart';
 import 'balagha_screen.dart';
+import 'dua_collection_screen.dart';
 import 'duas_screen.dart';
 import 'fatawa_screen.dart';
 import 'quran_screen.dart';
@@ -101,14 +102,17 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 4, 18, 28),
           children: [
-            _DownloadPrompt(library: widget.library, onOpenData: widget.onOpenData),
-            _IndexingBanner(library: widget.library),
+            // The mini prayer card leads the home screen: place, both dates,
+            // the live clock, the running prayer and the five times, over a
+            // sky that follows the time of day. Its rows are one line each,
+            // so nothing below it moves while the clock ticks.
+            const SizedBox(height: 4),
+            const HomePrayerBanner(),
             const SizedBox(height: 12),
-            _LibraryBanner(
-              onOpenSaved: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => SavedItemsScreen(library: widget.library),
-              )),
-            ),
+            _DownloadPrompt(library: widget.library, onOpenData: widget.onOpenData),
+            // The circular mini tasbeeh and the Qibla, at a fixed height.
+            const HomeUtilityRow(),
+            _IndexingBanner(library: widget.library),
             if (_lastSeen.isNotEmpty) ...[
               const SizedBox(height: 12),
               LastSeenBar(
@@ -117,18 +121,11 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
                 onOpened: _loadLastSeen,
               ),
             ],
-            // The prayer banner and the utility row open the two features that
-            // are used every day; their height is fixed, so nothing below them
-            // moves while the countdown ticks or the location resolves.
             const SizedBox(height: 14),
-            const HomePrayerBanner(),
-            const SizedBox(height: 10),
-            const Row(
-              children: <Widget>[
-                Expanded(child: HomeTasbeehCard()),
-                SizedBox(width: 10),
-                Expanded(child: HomeQiblaCard()),
-              ],
+            _LibraryBanner(
+              onOpenSaved: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => SavedItemsScreen(library: widget.library),
+              )),
             ),
             const SizedBox(height: 22),
             const _SectionHeader('قرآن، دعائیں، فتاویٰ اور نہج البلاغہ'),
@@ -185,8 +182,8 @@ class _SectionHeader extends StatelessWidget {
       );
 }
 
-/// One card in the home row: either a single collection or the combined
-/// دینی مسائل tile that opens the marja picker.
+/// One card in the home row: a single collection, the combined دینی مسائل
+/// tile that opens the marja picker, or the combined Mafatih + Sahifa tile.
 class _CollectionEntry {
   const _CollectionEntry({
     required this.title,
@@ -196,6 +193,7 @@ class _CollectionEntry {
     required this.installed,
     this.book,
     this.combined = false,
+    this.duaCombined = false,
   });
 
   final String title;
@@ -207,6 +205,9 @@ class _CollectionEntry {
 
   /// True for the shared fatawa tile (two marjas behind one card).
   final bool combined;
+
+  /// True for the shared دعائیں tile (Mafatih al-Jinan and Sahifa Sajjadiyya).
+  final bool duaCombined;
 }
 
 class _CollectionsRow extends StatelessWidget {
@@ -218,6 +219,7 @@ class _CollectionsRow extends StatelessWidget {
   List<_CollectionEntry> _entries() {
     final fatawa = fatawaBooks;
     final ready = fatawa.where(library.isInstalled).length;
+    final duaReady = duaCollectionBooks.where(library.isInstalled).length;
     return <_CollectionEntry>[
       _CollectionEntry(
         title: kFatawaCollectionTitle,
@@ -228,6 +230,16 @@ class _CollectionsRow extends StatelessWidget {
         color: const Color(0xFF6B4E9B),
         installed: ready > 0,
         combined: true,
+      ),
+      _CollectionEntry(
+        title: kDuaCollectionTitle,
+        subtitle: duaReady == 0
+            ? 'دعائیں — ابھی نصب نہیں، ڈاؤن لوڈ کریں'
+            : kDuaCollectionSubtitle,
+        icon: Icons.mosque,
+        color: kGold,
+        installed: duaReady > 0,
+        duaCombined: true,
       ),
       for (final book in featuredCollections)
         _CollectionEntry(
@@ -254,6 +266,12 @@ class _CollectionsRow extends StatelessWidget {
     if (entry.combined) {
       Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => FatawaCollectionScreen(library: library, onOpenData: onOpenData),
+      ));
+      return;
+    }
+    if (entry.duaCombined) {
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => DuaCollectionScreen(library: library, onOpenData: onOpenData),
       ));
       return;
     }
@@ -350,6 +368,13 @@ class _DownloadPrompt extends StatelessWidget {
     final missing = total - installed;
     final scheme = Theme.of(context).colorScheme;
     if (missing <= 0) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: _downloadCard(context, installed, total, missing, scheme),
+    );
+  }
+
+  Widget _downloadCard(BuildContext context, int installed, int total, int missing, ColorScheme scheme) {
     return Card(
       color: kGold.withValues(alpha: 0.16),
       child: Padding(

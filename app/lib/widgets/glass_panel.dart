@@ -205,14 +205,14 @@ class GlassChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (icon != null) ...<Widget>[
-            Icon(icon, size: dense ? 13 : 15, color: foreground),
+            Icon(icon, size: dense ? 14 : 16, color: foreground),
             const SizedBox(width: 5),
           ],
           Text(
             label,
             style: TextStyle(
-              fontSize: dense ? 11.5 : 12.5,
-              height: 1.1,
+              fontSize: dense ? 12.5 : 13.5,
+              height: 1.15,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
               color: foreground,
             ),
@@ -284,7 +284,7 @@ class GlassActionButton extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 11.5,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: selected ? accent : palette.ink,
                 ),
@@ -322,7 +322,7 @@ class GlassSectionHeader extends StatelessWidget {
           child: Text(
             title,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 17,
               fontWeight: FontWeight.w700,
               color: palette.ink,
             ),

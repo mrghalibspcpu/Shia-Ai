@@ -210,6 +210,154 @@ void main() {
     });
   });
 
+  group('own wirds and targets', () {
+    test('a saved wird runs with its own words and count', () {
+      final controller = counter();
+      final wird = controller.saveWird(text: 'یا علی مدد', note: 'مولا علی', target: 110);
+      expect(controller.preset.key, '${TasbeehPreset.wirdPrefix}${wird.id}');
+      expect(controller.preset.custom, isTrue);
+      expect(controller.activeWird?.id, wird.id);
+      expect(controller.step.arabic, 'یا علی مدد');
+      expect(controller.step.urdu, 'مولا علی');
+      expect(controller.target, 110);
+      for (var index = 0; index < 109; index++) {
+        controller.tap();
+      }
+      expect(controller.count, 109);
+      expect(controller.tap(), isTrue);
+      expect(controller.count, 0);
+      expect(controller.rounds, 1);
+    });
+
+    test('editing a wird keeps one entry and re-arms only when it changed', () {
+      final controller = counter();
+      final wird = controller.saveWird(text: 'یا حسین', target: 72);
+      controller.tap();
+      controller.saveWird(id: wird.id, text: 'یا حسین', target: 72);
+      expect(controller.count, 1, reason: 'saving it unchanged must not lose the count');
+      controller.saveWird(id: wird.id, text: 'یا حسین مظلوم', target: 72);
+      expect(controller.wirds.length, 1);
+      expect(controller.step.arabic, 'یا حسین مظلوم');
+      expect(controller.count, 0);
+    });
+
+    test('setTarget writes to the running wird, within limits', () {
+      final controller = counter();
+      final wird = controller.saveWird(text: 'صلوات', target: 100);
+      controller.setTarget(14000);
+      expect(controller.target, 14000);
+      expect(controller.wirdById(wird.id)!.target, 14000);
+      controller.setTarget(5000000);
+      expect(controller.target, TasbeehController.maxTarget);
+      controller.setTarget(-3);
+      expect(controller.target, 0);
+      expect(controller.remaining, isNull);
+    });
+
+    test('deleting the running wird falls back to Tasbeeh-e-Zahra', () {
+      final controller = counter();
+      final wird = controller.saveWird(text: 'استغفر اللہ', target: 70);
+      controller.deleteWird(wird.id);
+      expect(controller.wirds, isEmpty);
+      expect(controller.preset.key, 'zahra');
+      expect(controller.target, 34);
+    });
+
+    test('"my own dhikr" takes the reader\'s words and count', () {
+      final controller = counter();
+      controller.setCustomZikr(text: 'یا زہرا', note: 'س', target: 313);
+      expect(controller.preset.key, 'custom');
+      expect(controller.step.arabic, 'یا زہرا');
+      expect(controller.step.urdu, 'س');
+      expect(controller.target, 313);
+      expect(controller.customTarget, 313);
+      controller.setCustomZikr(text: '');
+      expect(controller.step.arabic, contains('سُبْحَانَ'), reason: 'empty words bring the default back');
+      expect(controller.target, 313);
+    });
+
+    test('a built-in single zikr remembers its own target; Zahra stays 34/33/33', () {
+      final controller = counter();
+      controller.selectPreset('salawat');
+      expect(controller.target, 100);
+      expect(controller.canSetTarget, isTrue);
+      controller.setTarget(1000);
+      expect(controller.target, 1000);
+      controller.selectPreset('istighfar');
+      expect(controller.target, 100);
+      controller.selectPreset('salawat');
+      expect(controller.target, 1000);
+      controller.selectPreset('zahra');
+      expect(controller.canSetTarget, isFalse);
+      controller.setTarget(5);
+      expect(controller.target, 34);
+    });
+
+    test('undo takes back one bead and its totals', () {
+      final controller = counter();
+      controller.tap();
+      controller.tap();
+      controller.undo();
+      expect(controller.count, 1);
+      expect(controller.dailyTotal, 1);
+      expect(controller.lifetimeTotal, 1);
+      controller.undo();
+      controller.undo();
+      expect(controller.count, 0);
+      expect(controller.lifetimeTotal, 0);
+    });
+
+    test('short titles keep chips small', () {
+      expect(TasbeehPreset.shortTitle('یا علی'), 'یا علی');
+      expect(TasbeehPreset.shortTitle('اللہم صل علی محمد و آل محمد'), endsWith('…'));
+    });
+
+    test('wirds, words and targets survive a restart', () async {
+      final first = counter();
+      first.setCustomZikr(text: 'یا علی', target: 110);
+      first.saveWird(text: 'یا حسین', note: 'نیت', target: 72);
+      first.selectPreset('salawat');
+      first.setTarget(500);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      final second = TasbeehController(
+        clock: () => DateTime(2026, 10, 15, 20),
+        feedback: const SilentFeedback(),
+      );
+      await second.load();
+      expect(second.customText, 'یا علی');
+      expect(second.customTarget, 110);
+      expect(second.wirds.single.text, 'یا حسین');
+      expect(second.wirds.single.note, 'نیت');
+      expect(second.wirds.single.target, 72);
+      expect(second.preset.key, 'salawat');
+      expect(second.target, 500);
+    });
+
+    test('a broken wird list in storage is skipped, not thrown', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        TasbeehController.storageKey: jsonEncode(<String, dynamic>{
+          'preset': 'wird:gone',
+          'wirds': <Object>[
+            'junk',
+            <String, dynamic>{'id': 'a'},
+            <String, dynamic>{'id': 'b', 'text': 'یا علی', 'target': '33'},
+          ],
+          'targets': <String, dynamic>{'salawat': 'x', 'tawheed': 250},
+        }),
+      });
+      final controller = TasbeehController(feedback: const SilentFeedback());
+      await controller.load();
+      expect(controller.wirds.map((wird) => wird.id), <String>['b']);
+      expect(controller.wirds.single.target, 33);
+      expect(controller.preset.key, 'zahra', reason: 'a missing wird falls back');
+      controller.selectPreset('salawat');
+      expect(controller.target, 100, reason: 'an unreadable target is ignored');
+      controller.selectPreset('tawheed');
+      expect(controller.target, 250);
+    });
+  });
+
   group('persistence', () {
     test('the count survives a restart', () async {
       final first = counter();

@@ -1,7 +1,7 @@
 name: shia_ai
 publish_to: "none"
 description: Offline Shia library — Quran, Mafatih al-Jinan, Nahj al-Balagha, and 14 hadith books.
-version: 1.8.0+10
+version: 1.9.0+11
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -48,6 +48,16 @@ flutter:
     # ~30 kB and ~130 kB: no downloads, no third-party audio.
     - assets/images/prayer_hero.jpg
     - assets/audio/
+    # The four skies behind the prayer card (dawn, midday, evening, night),
+    # ~370 kB together; the animation on top of them is drawn in code.
+    - assets/images/sky_dawn.jpg
+    - assets/images/sky_day.jpg
+    - assets/images/sky_evening.jpg
+    - assets/images/sky_night.jpg
+    # 73,000 places (GeoNames, CC BY 4.0) for the offline location search and
+    # for naming a GPS fix without the network. ~1.3 MB, built by
+    # scripts/build_city_index.py.
+    - assets/geo/cities.tsv.gz
   fonts:
     - family: JameelNooriNastaleeq
       fonts:

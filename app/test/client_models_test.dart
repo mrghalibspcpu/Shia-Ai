@@ -228,10 +228,30 @@ void main() {
 
     test('the home row keeps one card per collection, never two fatawa', () {
       final keys = featuredCollections.map((book) => book.key).toList();
-      expect(keys, ['sahifa', 'quran', 'mafatih', 'nahjul_balagha']);
+      expect(keys, ['quran', 'nahjul_balagha']);
       for (final book in fatawaBooks) {
         expect(keys, isNot(contains(book.key)));
       }
+    });
+  });
+
+  group('dua library entry', () {
+    test('Mafatih al-Jinan and Sahifa Sajjadiyya share one tile', () {
+      expect(duaCollectionBooks.map((book) => book.key).toList(), ['mafatih', 'sahifa']);
+      expect(duaCollectionBooks.first.source, CorpusSource.dua);
+      expect(duaCollectionBooks.last.source, CorpusSource.sahifa);
+      expect(kDuaCollectionTitle, contains('مفاتیح الجنان'));
+      expect(kDuaCollectionTitle, contains('صحیفہ سجادیہ'));
+    });
+
+    test('neither book also gets a card of its own', () {
+      final keys = featuredCollections.map((book) => book.key).toSet();
+      for (final book in duaCollectionBooks) {
+        expect(keys, isNot(contains(book.key)));
+      }
+      // Both books are still in the library itself (search, downloads, links).
+      expect(BookDefinition.byKey('mafatih'), isNotNull);
+      expect(BookDefinition.byKey('sahifa'), isNotNull);
     });
   });
 

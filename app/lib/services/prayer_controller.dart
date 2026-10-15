@@ -3,12 +3,31 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../astro/hijri_calendar.dart';
 import '../astro/prayer_calculator.dart';
 import 'alerts.dart';
+import 'place_names.dart';
 import 'prayer_locations.dart';
 
 /// The location chain the controller drives: device fix → IP lookup → null.
 typedef LocationResolver = Future<PrayerLocation?> Function();
+
+/// A background fix that never shows a permission prompt.
+typedef QuietLocationResolver = Future<DeviceFix> Function();
+
+/// Names a coordinate precisely (the online reverse geocoder).
+typedef PlaceNamer = Future<PlaceName?> Function(double latitude, double longitude);
+
+/// Today's Hijri date as the card prints it. After Maghrib the Islamic day has
+/// already begun, so the next date is shown as its eve ("شبِ …").
+class HijriDay {
+  const HijriDay(this.date, {this.eve = false});
+
+  final HijriDate date;
+  final bool eve;
+
+  String get labelUrdu => eve ? 'شبِ ${formatHijriUrdu(date)}' : formatHijriUrdu(date);
+}
 
 /// A prayer whose time has just arrived — what the home screen turns into a
 /// "نماز کا وقت" alert with a Tasbeeh-e-Zahra (s.a.) shortcut.
@@ -34,9 +53,16 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
     DateTime Function()? clock,
     FeedbackSink? feedback,
     LocationResolver? locate,
+    QuietLocationResolver? locateQuietly,
+    PlaceNamer? namePlace,
   })  : _clock = clock ?? DateTime.now,
         _feedback = feedback ?? Alerts.instance,
-        _locate = locate ?? resolveLocation {
+        _locate = locate ?? resolveLocation,
+        // A test that injects its own location chain gets no GPS and no
+        // network behind its back either, unless it asks for them.
+        _live = locate == null,
+        _locateQuietly = locateQuietly ?? (locate == null ? _quietFix : _noQuietFix),
+        _namePlace = namePlace ?? (locate == null ? OnlinePlaces.reverse : _noName) {
     _schedule = PrayerCalculator.schedule(
       latitude: PrayerLocation.fallback.latitude,
       longitude: PrayerLocation.fallback.longitude,
@@ -47,16 +73,39 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   /// The location chain, injectable so tests never touch the GPS or the
-  /// network: a device fix first, then the IP lookup, then nothing.
-  static Future<PrayerLocation?> resolveLocation() async =>
-      await PrayerLocations.fromDevice() ?? await PrayerLocations.fromIp();
+  /// network: a device fix first (named from the offline list), then the IP
+  /// lookup, then nothing. Why the fix failed is kept for the screen.
+  static Future<PrayerLocation?> resolveLocation() async {
+    final fix = await PrayerLocations.deviceFix();
+    _resolverProblem = fix.problem;
+    if (fix.location != null) return fix.location;
+    final ip = await PrayerLocations.fromIp();
+    return ip == null ? null : PrayerLocations.localiseIp(ip);
+  }
+
+  /// Set by [resolveLocation] for the controller that called it.
+  static LocationProblem? _resolverProblem;
+
+  static Future<DeviceFix> _quietFix() => PrayerLocations.deviceFix(interactive: false);
+
+  static Future<DeviceFix> _noQuietFix() async => const DeviceFix.failed(LocationProblem.noFix);
+
+  static Future<PlaceName?> _noName(double latitude, double longitude) async => null;
 
   static const String presetKeyStorage = 'prayer_preset_v1';
   static const String alertStorage = 'prayer_alert_v1';
+  static const String hijriStorage = 'hijri_adjust_v1';
+
+  /// A GPS location older than this is re-checked quietly on the next launch,
+  /// so a reader who travelled sees the new town without touching anything.
+  static const Duration staleFixAge = Duration(hours: 3);
 
   final DateTime Function() _clock;
   final FeedbackSink _feedback;
   final LocationResolver _locate;
+  final QuietLocationResolver _locateQuietly;
+  final PlaceNamer _namePlace;
+  final bool _live;
 
   /// The live clock in the *location's* zone, ticking once a second. Widgets
   /// that only show a countdown listen to this instead of the whole
@@ -75,8 +124,42 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
   bool _soundEnabled = true;
   bool _hapticsEnabled = true;
   String _presetKey = 'jafari';
+  LocationProblem? _locationProblem;
+
+  /// Days added to the Hijri date; null means "automatic for this location".
+  int? _hijriAdjustment;
 
   PrayerLocation get location => _location;
+
+  /// Why the last GPS attempt failed (null when it worked or never ran).
+  LocationProblem? get locationProblem => _locationProblem;
+
+  /// The reader's Hijri shift, or null for automatic.
+  int? get hijriAdjustment => _hijriAdjustment;
+
+  /// The shift actually applied: the reader's, or the location's default.
+  int get effectiveHijriAdjustment =>
+      _hijriAdjustment ?? autoHijriAdjustment(_location.latitude, _location.longitude);
+
+  /// The Hijri date for [at] (the location's wall clock), switching to the
+  /// next date at Maghrib.
+  HijriDay hijriFor(DateTime at) {
+    final maghrib = _schedule.entryFor(PrayerMarker.maghrib).time;
+    final sameDay =
+        maghrib.year == at.year && maghrib.month == at.month && maghrib.day == at.day;
+    final eve = sameDay && !at.isBefore(maghrib);
+    final civil = DateTime.utc(at.year, at.month, at.day);
+    return HijriDay(
+      HijriDate.fromGregorian(
+        eve ? civil.add(const Duration(days: 1)) : civil,
+        adjustDays: effectiveHijriAdjustment,
+      ),
+      eve: eve,
+    );
+  }
+
+  /// Today's Hijri date at the live clock.
+  HijriDay get hijriToday => hijriFor(now.value);
   PrayerSchedule get schedule => _schedule;
   bool get loadingLocation => _loadingLocation;
   bool get alertsEnabled => _alertsEnabled;
@@ -118,13 +201,86 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
 
     final stored = await PrayerLocations.loadStored();
     if (stored != null) {
-      // A stored location means no location request at all: the app opens
-      // offline and instantly with the reader's own city.
+      // A stored location opens the app offline and instantly with the
+      // reader's own city; anything less than a fresh, named GPS fix is then
+      // improved quietly in the background — never with a prompt.
       await _applyLocation(stored, persist: false);
+      unawaited(_improveInBackground(stored));
       return;
     }
     // First run only: a device fix, then the IP lookup, and Islamabad last.
     await refreshLocation();
+  }
+
+  /// After a stored location: name an unnamed fix, re-check a stale one, and
+  /// replace a guess (IP, default) with a real fix when the permission is
+  /// already there. A manually chosen city is left alone.
+  Future<void> _improveInBackground(PrayerLocation stored) async {
+    switch (stored.source) {
+      case LocationSource.manual:
+        return;
+      case LocationSource.gps:
+        final savedAt = stored.savedAt;
+        final stale = savedAt == null || DateTime.now().difference(savedAt) > staleFixAge;
+        if (stale) {
+          await _quietRefresh(minimumMoveKm: 1.0);
+        }
+        if (identical(_location, stored)) await _refinePlaceName();
+      case LocationSource.ip:
+      case LocationSource.fallback:
+        final improved = await _quietRefresh(minimumMoveKm: 0);
+        if (!improved && stored.source == LocationSource.fallback && _live) {
+          final ip = await PrayerLocations.fromIp();
+          if (ip != null && identical(_location, stored)) {
+            final named = PrayerLocations.localiseIp(ip);
+            await PrayerLocations.store(named);
+            await _applyLocation(named, persist: false);
+          }
+        }
+    }
+  }
+
+  /// A fix without a prompt. Applied when it is a different place (more than
+  /// [minimumMoveKm] away) or replaces a non-GPS location. True when applied.
+  Future<bool> _quietRefresh({required double minimumMoveKm}) async {
+    if (_loadingLocation) return false;
+    final before = _location;
+    final fix = await _locateQuietly();
+    final fresh = fix.location;
+    if (fresh == null) return false;
+    // The reader may have picked a city while the fix was being taken.
+    if (!identical(_location, before) || _location.source == LocationSource.manual) {
+      return false;
+    }
+    final moved = PrayerLocations.distanceKm(before, fresh);
+    if (before.source == LocationSource.gps && moved < minimumMoveKm) return false;
+    _locationProblem = null;
+    await PrayerLocations.store(fresh);
+    await _applyLocation(fresh, persist: false);
+    unawaited(_refinePlaceName());
+    return true;
+  }
+
+  /// Upgrades the offline name of a GPS fix with the exact place from the
+  /// online reverse geocoder ("Islamabad" → "G-11، اسلام آباد").
+  Future<void> _refinePlaceName() async {
+    final target = _location;
+    if (target.source != LocationSource.gps || target.refined) return;
+    final name = await _namePlace(target.latitude, target.longitude);
+    if (name == null || name.label.trim().isEmpty) return;
+    if (!identical(_location, target)) return;
+    final refined = PrayerLocation(
+      latitude: target.latitude,
+      longitude: target.longitude,
+      label: name.label.trim(),
+      detail: name.detail.trim().isNotEmpty ? name.detail.trim() : target.detail,
+      source: target.source,
+      savedAt: target.savedAt ?? DateTime.now(),
+      accuracyMeters: target.accuracyMeters,
+      refined: true,
+    );
+    await PrayerLocations.store(refined);
+    await _applyLocation(refined, persist: false);
   }
 
   /// The location chain: high-accuracy GPS → IP lookup → whatever is stored →
@@ -134,10 +290,14 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
     _loadingLocation = true;
     notifyListeners();
 
-    PrayerLocation? resolved = await _locate();
+    _resolverProblem = null;
+    final resolved = await _locate();
+    _locationProblem = _resolverProblem;
+    _resolverProblem = null;
     if (resolved != null) {
       await PrayerLocations.store(resolved);
       await _applyLocation(resolved, persist: false);
+      unawaited(_refinePlaceName());
     } else if (_location.isFallback) {
       const seeded = PrayerLocation(
         latitude: kFallbackLatitude,
@@ -160,24 +320,76 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
       latitude: city.latitude,
       longitude: city.longitude,
       label: city.nameUrdu,
+      detail: city.nameLatin,
       source: LocationSource.manual,
       savedAt: DateTime.now(),
+      refined: true,
     );
+    _locationProblem = null;
     await _applyLocation(location, persist: true);
   }
 
-  /// Coordinates typed straight into the search box.
+  /// Any row of the picker: a curated city, a place from the bundled list, or
+  /// an online search result.
+  Future<void> usePlace(PlaceResult place) async {
+    _locationProblem = null;
+    await _applyLocation(
+      PrayerLocation(
+        latitude: place.latitude,
+        longitude: place.longitude,
+        label: place.title,
+        detail: place.subtitle,
+        source: LocationSource.manual,
+        savedAt: DateTime.now(),
+        refined: true,
+      ),
+      persist: true,
+    );
+  }
+
+  /// Coordinates typed straight into the search box. Without a [label] the
+  /// place is named from the offline list once it is applied.
   Future<void> useCoordinates(double latitude, double longitude, {String? label}) async {
+    final location = PrayerLocation(
+      latitude: latitude,
+      longitude: longitude,
+      label: label ?? 'دستی مقام',
+      source: LocationSource.manual,
+      savedAt: DateTime.now(),
+    );
+    _locationProblem = null;
+    await _applyLocation(location, persist: true);
+    if (label != null || !_live) return;
+    final name = await PrayerLocations.nameOffline(latitude, longitude);
+    if (name == null || !identical(_location, location)) return;
     await _applyLocation(
       PrayerLocation(
         latitude: latitude,
         longitude: longitude,
-        label: label ?? 'دستی مقام',
+        label: name.label,
+        detail: name.detail,
         source: LocationSource.manual,
-        savedAt: DateTime.now(),
+        savedAt: location.savedAt,
+        refined: true,
       ),
       persist: true,
     );
+  }
+
+  /// Forgets the last GPS problem (the banner was dismissed).
+  void clearLocationProblem() {
+    if (_locationProblem == null) return;
+    _locationProblem = null;
+    notifyListeners();
+  }
+
+  /// The reader's Hijri shift (−2…+2), or null for automatic.
+  void setHijriAdjustment(int? days) {
+    final value = days?.clamp(-2, 2);
+    if (value == _hijriAdjustment) return;
+    _hijriAdjustment = value;
+    unawaited(_savePreferences());
+    notifyListeners();
   }
 
   Future<void> _applyLocation(PrayerLocation location, {required bool persist}) async {
@@ -291,12 +503,24 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
     // the zone if either moved while the app slept.
     _rebuildSchedule();
     notifyListeners();
+    // The reader may be back from switching the GPS on (or granting the
+    // permission) after the app said it was off: try again, quietly.
+    if (_locationProblem != null && _location.source != LocationSource.manual) {
+      unawaited(_retryAfterResume());
+    }
+  }
+
+  Future<void> _retryAfterResume() async {
+    final applied = await _quietRefresh(minimumMoveKm: 0);
+    if (applied) notifyListeners();
   }
 
   Future<void> _loadPreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       _presetKey = prefs.getString(presetKeyStorage) ?? 'jafari';
+      final hijri = prefs.getString(hijriStorage);
+      _hijriAdjustment = hijri == null || hijri == 'auto' ? null : int.tryParse(hijri)?.clamp(-2, 2);
       final raw = prefs.getString(alertStorage);
       if (raw != null) {
         final stored = Uri.splitQueryString(raw);
@@ -314,6 +538,7 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(presetKeyStorage, _presetKey);
+      await prefs.setString(hijriStorage, _hijriAdjustment?.toString() ?? 'auto');
       await prefs.setString(
         alertStorage,
         'alerts=$_alertsEnabled&sound=$_soundEnabled&haptics=$_hapticsEnabled',

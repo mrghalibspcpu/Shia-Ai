@@ -2,16 +2,18 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app_theme.dart';
+import '../astro/prayer_format.dart' show formatCount;
 import '../services/prayer_scope.dart';
 import '../services/tasbeeh_controller.dart';
-import '../text_utils.dart' show arabicNumerals;
 import '../widgets/glass_panel.dart';
 
 /// The digital tasbeeh: a big tap zone that feels like a bead, the
-/// Tasbeeh-e-Zahra (s.a.) workflow that advances by itself, a custom target,
-/// haptics, a click sound, and progress that is never lost.
+/// Tasbeeh-e-Zahra (s.a.) workflow that advances by itself, the reader's own
+/// wirds with their own counts, haptics, a click sound, and progress that is
+/// never lost.
 class TasbeehScreen extends StatefulWidget {
   const TasbeehScreen({super.key, this.startWithZahra = false});
 
@@ -82,33 +84,6 @@ class _TasbeehScreenState extends State<TasbeehScreen> with TickerProviderStateM
     controller.tap();
   }
 
-  Future<void> _confirmReset(TasbeehController controller) async {
-    final palette = GlassPalette.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: palette.solid,
-        title: const Text('گنتی صفر کریں؟', style: TextStyle(fontSize: 17)),
-        content: const Text(
-          'موجودہ گنتی صفر ہو جائے گی۔ آج کا کل اور مجموعی گنتی محفوظ رہے گی۔\n'
-          '(فوری ری سیٹ کے لیے بٹن کو دبا کر رکھیں)',
-          style: TextStyle(fontSize: 13, height: 1.6),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('نہیں'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('ری سیٹ'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) controller.reset(whole: true);
-  }
-
   @override
   Widget build(BuildContext context) {
     final palette = GlassPalette.of(context);
@@ -119,7 +94,9 @@ class _TasbeehScreenState extends State<TasbeehScreen> with TickerProviderStateM
     // banner on screen while the reader continues with the next step.
     if (controller.completionTick != _seenCompletion) {
       _seenCompletion = controller.completionTick;
-      _justCompleted = controller.step.urdu;
+      _justCompleted = controller.preset.custom
+          ? controller.preset.titleUrdu
+          : controller.preset.steps[(controller.stepIndex - 1) % controller.preset.steps.length].urdu;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _flash.forward(from: 0);
       });
@@ -134,11 +111,16 @@ class _TasbeehScreenState extends State<TasbeehScreen> with TickerProviderStateM
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         scrolledUnderElevation: 0,
-        title: const Text('تسبیح', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+        title: const Text('تسبیح', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
         actions: <Widget>[
           IconButton(
+            tooltip: 'نیا ورد لکھیں',
+            onPressed: () => unawaited(showWirdEditor(context)),
+            icon: const Icon(Icons.edit_note),
+          ),
+          IconButton(
             tooltip: 'صفر کریں (دبا کر رکھیں)',
-            onPressed: () => unawaited(_confirmReset(controller)),
+            onPressed: () => unawaited(confirmTasbeehReset(context, controller)),
             onLongPress: () {
               controller.reset(whole: true);
               ScaffoldMessenger.of(context).showSnackBar(
@@ -166,10 +148,12 @@ class _TasbeehScreenState extends State<TasbeehScreen> with TickerProviderStateM
             flash: _flash,
             onTap: (local) => _onCount(controller, local),
           ),
+          const SizedBox(height: 10),
+          _QuickActions(controller: controller),
           const SizedBox(height: 14),
           _StepTracker(controller: controller, justCompleted: _justCompleted),
           const SizedBox(height: 12),
-          if (controller.preset.custom) ...<Widget>[
+          if (controller.canSetTarget) ...<Widget>[
             _TargetSelector(controller: controller),
             const SizedBox(height: 12),
           ],
@@ -179,10 +163,469 @@ class _TasbeehScreenState extends State<TasbeehScreen> with TickerProviderStateM
           const SizedBox(height: 12),
           _ResetRow(
             controller: controller,
-            onConfirm: () => unawaited(_confirmReset(controller)),
+            onConfirm: () => unawaited(confirmTasbeehReset(context, controller)),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// "Reset the count?" — shared by the full screen and the home card.
+Future<void> confirmTasbeehReset(BuildContext context, TasbeehController controller) async {
+  final palette = GlassPalette.of(context);
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      backgroundColor: palette.solid,
+      title: const Text('گنتی صفر کریں؟', style: TextStyle(fontSize: 18)),
+      content: const Text(
+        'موجودہ گنتی صفر ہو جائے گی۔ آج کا کل اور مجموعی گنتی محفوظ رہے گی۔\n'
+        '(فوری ری سیٹ کے لیے بٹن کو دبا کر رکھیں)',
+        style: TextStyle(fontSize: 14, height: 1.6),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('نہیں'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('ری سیٹ'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed == true) controller.reset(whole: true);
+}
+
+/// The list of every zikr — the built-in ones, the reader's saved wirds, and
+/// "write a new wird" — as a bottom sheet. Used by the home card's switch
+/// button and the full screen.
+Future<void> showWirdPicker(BuildContext context) async {
+  final controller = TasbeehScope.read(context);
+  final action = await showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) {
+      final palette = GlassPalette.of(sheetContext);
+      final current = controller.preset.key;
+      Widget row({
+        required String key,
+        required String title,
+        required String subtitle,
+        required IconData icon,
+        bool arabic = false,
+        VoidCallback? onEdit,
+      }) {
+        final selected = key == current;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => Navigator.of(sheetContext).pop(key),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                color: selected ? palette.accentSoft : Colors.transparent,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: selected ? palette.accent.withValues(alpha: 0.45) : palette.track,
+                ),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Icon(icon, size: 20, color: selected ? palette.accent : palette.muted),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w700,
+                            color: palette.ink,
+                          ),
+                        ),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: arabic ? kArabicFont : null,
+                            fontSize: 13,
+                            color: palette.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (onEdit != null)
+                    IconButton(
+                      tooltip: 'ورد میں ترمیم',
+                      onPressed: onEdit,
+                      icon: Icon(Icons.edit_outlined, size: 19, color: palette.muted),
+                    )
+                  else if (selected)
+                    Icon(Icons.check_circle, size: 20, color: palette.accent),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.8),
+            child: GlassPanel(
+              radius: 22,
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  const GlassSectionHeader(title: 'ذکر یا ورد منتخب کریں'),
+                  const SizedBox(height: 10),
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: <Widget>[
+                        for (final preset in TasbeehPreset.all)
+                          row(
+                            key: preset.key,
+                            title: preset.titleUrdu,
+                            subtitle: preset.custom
+                                ? (controller.customText.isEmpty ? preset.noteUrdu : controller.customText)
+                                : preset.steps.first.arabic,
+                            icon: preset.custom ? Icons.edit_outlined : Icons.blur_circular,
+                            arabic: !preset.custom,
+                          ),
+                        if (controller.wirds.isNotEmpty) ...<Widget>[
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
+                            child: Text(
+                              'میرے اوراد',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: palette.gold,
+                              ),
+                            ),
+                          ),
+                          for (final wird in controller.wirds)
+                            row(
+                              key: '${TasbeehPreset.wirdPrefix}${wird.id}',
+                              title: TasbeehPreset.shortTitle(wird.text),
+                              subtitle: wird.target == 0
+                                  ? 'لامحدود'
+                                  : '${formatCount(wird.target)} بار'
+                                      '${wird.note.isEmpty ? '' : ' — ${wird.note}'}',
+                              icon: Icons.bookmark_outline,
+                              onEdit: () => Navigator.of(sheetContext).pop('edit:${wird.id}'),
+                            ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(backgroundColor: palette.accent),
+                    onPressed: () => Navigator.of(sheetContext).pop('new'),
+                    icon: const Icon(Icons.add, size: 19),
+                    label: const Text('نیا ورد لکھیں', style: TextStyle(fontSize: 14.5)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+  if (action == null || !context.mounted) return;
+  if (action == 'new') {
+    await showWirdEditor(context);
+  } else if (action.startsWith('edit:')) {
+    final wird = controller.wirdById(action.substring(5));
+    if (wird != null) await showWirdEditor(context, wird: wird);
+  } else {
+    controller.selectPreset(action);
+  }
+}
+
+/// Write (or edit) a wird: its words, an optional meaning or intention, and
+/// how many times to recite it. With [editCustomPreset] the sheet edits the
+/// built-in "اپنا ذکر" instead of a saved wird.
+Future<void> showWirdEditor(
+  BuildContext context, {
+  CustomWird? wird,
+  bool editCustomPreset = false,
+}) async {
+  final controller = TasbeehScope.read(context);
+  final result = await showModalBottomSheet<_WirdDraft>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _WirdEditorSheet(
+      initialText: wird?.text ?? (editCustomPreset ? controller.customText : ''),
+      initialNote: wird?.note ?? (editCustomPreset ? controller.customNote : ''),
+      initialTarget: wird?.target ?? (editCustomPreset ? controller.customTarget : 33),
+      canDelete: wird != null,
+      title: wird != null
+          ? 'ورد میں ترمیم'
+          : (editCustomPreset ? 'اپنا ذکر لکھیں' : 'نیا ورد لکھیں'),
+    ),
+  );
+  if (result == null || !context.mounted) return;
+  if (result.delete && wird != null) {
+    controller.deleteWird(wird.id);
+    return;
+  }
+  if (editCustomPreset) {
+    controller.setCustomZikr(text: result.text, note: result.note, target: result.target);
+  } else {
+    controller.saveWird(id: wird?.id, text: result.text, note: result.note, target: result.target);
+  }
+}
+
+/// A number typed by the reader as the target (0 = unlimited).
+Future<void> showCustomTargetDialog(BuildContext context, TasbeehController controller) async {
+  final entered = await showDialog<int>(
+    context: context,
+    builder: (_) => _TargetDialog(initial: controller.target),
+  );
+  if (entered != null) controller.setTarget(entered);
+}
+
+class _WirdDraft {
+  const _WirdDraft({required this.text, required this.note, required this.target, this.delete = false});
+
+  final String text;
+  final String note;
+  final int target;
+  final bool delete;
+}
+
+class _WirdEditorSheet extends StatefulWidget {
+  const _WirdEditorSheet({
+    required this.initialText,
+    required this.initialNote,
+    required this.initialTarget,
+    required this.canDelete,
+    required this.title,
+  });
+
+  final String initialText;
+  final String initialNote;
+  final int initialTarget;
+  final bool canDelete;
+  final String title;
+
+  @override
+  State<_WirdEditorSheet> createState() => _WirdEditorSheetState();
+}
+
+class _WirdEditorSheetState extends State<_WirdEditorSheet> {
+  late final TextEditingController _text = TextEditingController(text: widget.initialText);
+  late final TextEditingController _note = TextEditingController(text: widget.initialNote);
+  late final TextEditingController _target = TextEditingController(
+    text: widget.initialTarget == 0 ? '' : '${widget.initialTarget}',
+  );
+  late int _chosen = widget.initialTarget;
+
+  @override
+  void dispose() {
+    _text.dispose();
+    _note.dispose();
+    _target.dispose();
+    super.dispose();
+  }
+
+  void _pick(int value) {
+    setState(() {
+      _chosen = value;
+      _target.text = value == 0 ? '' : '$value';
+    });
+  }
+
+  void _save() {
+    final words = _text.text.trim();
+    if (words.isEmpty) return;
+    Navigator.of(context).pop(
+      _WirdDraft(text: words, note: _note.text.trim(), target: TasbeehController.clampTarget(_chosen)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = GlassPalette.of(context);
+    final insets = MediaQuery.viewInsetsOf(context);
+    return Padding(
+      padding: EdgeInsets.only(bottom: insets.bottom),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: GlassPanel(
+            radius: 22,
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  GlassSectionHeader(
+                    title: widget.title,
+                    trailing: IconButton(
+                      tooltip: 'بند کریں',
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close, size: 20),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _text,
+                    autofocus: widget.initialText.isEmpty,
+                    minLines: 2,
+                    maxLines: 4,
+                    maxLength: 300,
+                    textInputAction: TextInputAction.newline,
+                    onChanged: (_) => setState(() {}),
+                    style: const TextStyle(fontSize: 18, height: 1.6),
+                    decoration: const InputDecoration(
+                      labelText: 'ورد / ذکر کے الفاظ',
+                      hintText: 'مثلاً: یا علی مدد  •  صلوات  •  یا حسین',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _note,
+                    maxLines: 1,
+                    maxLength: 120,
+                    style: const TextStyle(fontSize: 15),
+                    decoration: const InputDecoration(
+                      labelText: 'معنی یا نیت (اختیاری)',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'کتنی بار پڑھنا ہے؟',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: palette.ink),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 7,
+                    runSpacing: 7,
+                    children: <Widget>[
+                      for (final choice in TasbeehController.quickTargets)
+                        GlassChip(
+                          label: choice == 0 ? 'لامحدود' : '$choice',
+                          selected: _chosen == choice,
+                          onTap: () => _pick(choice),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _target,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: <TextInputFormatter>[
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(7),
+                    ],
+                    style: const TextStyle(fontFamily: kDigitFont, fontSize: 18, fontWeight: FontWeight.w700),
+                    onChanged: (value) => setState(() => _chosen = int.tryParse(value) ?? 0),
+                    decoration: const InputDecoration(
+                      labelText: 'اپنی تعداد لکھیں (خالی = لامحدود)',
+                      prefixIcon: Icon(Icons.pin_outlined, size: 20),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: <Widget>[
+                      if (widget.canDelete) ...<Widget>[
+                        OutlinedButton.icon(
+                          onPressed: () => Navigator.of(context).pop(
+                            const _WirdDraft(text: '', note: '', target: 0, delete: true),
+                          ),
+                          icon: const Icon(Icons.delete_outline, size: 18),
+                          label: const Text('حذف کریں'),
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+                      Expanded(
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: palette.accent,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          onPressed: _text.text.trim().isEmpty ? null : _save,
+                          icon: const Icon(Icons.check, size: 19),
+                          label: const Text('محفوظ کریں اور شروع کریں', style: TextStyle(fontSize: 15)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TargetDialog extends StatefulWidget {
+  const _TargetDialog({required this.initial});
+
+  final int initial;
+
+  @override
+  State<_TargetDialog> createState() => _TargetDialogState();
+}
+
+class _TargetDialogState extends State<_TargetDialog> {
+  late final TextEditingController _value =
+      TextEditingController(text: widget.initial == 0 ? '' : '${widget.initial}');
+
+  @override
+  void dispose() {
+    _value.dispose();
+    super.dispose();
+  }
+
+  void _submit() => Navigator.of(context).pop(int.tryParse(_value.text.trim()) ?? 0);
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = GlassPalette.of(context);
+    return AlertDialog(
+      backgroundColor: palette.solid,
+      title: const Text('اپنی تعداد مقرر کریں', style: TextStyle(fontSize: 18)),
+      content: TextField(
+        controller: _value,
+        autofocus: true,
+        keyboardType: TextInputType.number,
+        inputFormatters: <TextInputFormatter>[
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(7),
+        ],
+        onSubmitted: (_) => _submit(),
+        style: const TextStyle(fontFamily: kDigitFont, fontSize: 22, fontWeight: FontWeight.w700),
+        decoration: const InputDecoration(hintText: 'مثلاً 313 (خالی = لامحدود)'),
+      ),
+      actions: <Widget>[
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('منسوخ')),
+        FilledButton(onPressed: _submit, child: const Text('ٹھیک ہے')),
+      ],
     );
   }
 }
@@ -207,12 +650,12 @@ class _PostPrayerNote extends StatelessWidget {
       shadow: false,
       child: Row(
         children: <Widget>[
-          Icon(Icons.auto_awesome, size: 17, color: palette.gold),
+          Icon(Icons.auto_awesome, size: 18, color: palette.gold),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               'نماز کے بعد کا معمول: تسبیحِ زہرا (س) شروع ہے — اللہ اکبر سے آغاز کریں',
-              style: TextStyle(fontSize: 12, height: 1.5, color: palette.ink),
+              style: TextStyle(fontSize: 13.5, height: 1.5, color: palette.ink),
             ),
           ),
         ],
@@ -221,8 +664,8 @@ class _PostPrayerNote extends StatelessWidget {
   }
 }
 
-/// Preset picker: the Zahra sequence plus the common single zikr, plus a
-/// custom counter.
+/// Preset picker: the Zahra sequence, the common single zikr, "my own
+/// dhikr", and every wird the reader saved — plus a chip to write a new one.
 class _ModeSelector extends StatelessWidget {
   const _ModeSelector({required this.controller});
 
@@ -250,12 +693,31 @@ class _ModeSelector extends StatelessWidget {
                   icon: preset.custom ? Icons.edit_outlined : null,
                   onTap: () => controller.selectPreset(preset.key),
                 ),
+              for (final wird in controller.wirds)
+                GestureDetector(
+                  onLongPress: () => unawaited(showWirdEditor(context, wird: wird)),
+                  child: GlassChip(
+                    label: TasbeehPreset.shortTitle(wird.text),
+                    icon: Icons.bookmark_outline,
+                    tone: palette.gold,
+                    selected: controller.activeWird?.id == wird.id,
+                    onTap: () => controller.selectWird(wird.id),
+                  ),
+                ),
+              GlassChip(
+                label: 'نیا ورد',
+                icon: Icons.add,
+                tone: palette.gold,
+                onTap: () => unawaited(showWirdEditor(context)),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            controller.preset.noteUrdu,
-            style: TextStyle(fontSize: 11, height: 1.5, color: palette.muted),
+            controller.wirds.isEmpty
+                ? controller.preset.noteUrdu
+                : '${controller.preset.noteUrdu}  •  اپنے ورد میں ترمیم کے لیے اسے دبا کر رکھیں',
+            style: TextStyle(fontSize: 12.5, height: 1.5, color: palette.muted),
           ),
         ],
       ),
@@ -263,7 +725,8 @@ class _ModeSelector extends StatelessWidget {
   }
 }
 
-/// The dhikr itself, in Arabic, with its Urdu meaning.
+/// The dhikr itself — in Arabic for the built-in ones, as the reader wrote it
+/// for their own — with its meaning, and an edit button for "my own".
 class _ZikrCard extends StatelessWidget {
   const _ZikrCard({required this.controller});
 
@@ -272,16 +735,44 @@ class _ZikrCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = GlassPalette.of(context);
+    final preset = controller.preset;
+    final wird = controller.activeWird;
+    final own = preset.custom;
     return GlassPanel(
       radius: 22,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
+          if (own)
+            Row(
+              children: <Widget>[
+                Icon(Icons.bookmark, size: 17, color: palette.gold),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    wird != null ? 'میرا ورد' : 'اپنا ذکر',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: palette.gold),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => unawaited(
+                    wird != null
+                        ? showWirdEditor(context, wird: wird)
+                        : showWirdEditor(context, editCustomPreset: true),
+                  ),
+                  icon: const Icon(Icons.edit, size: 17),
+                  label: Text(
+                    wird != null || controller.customText.isNotEmpty ? 'ترمیم' : 'اپنا ورد لکھیں',
+                    style: const TextStyle(fontSize: 13.5),
+                  ),
+                ),
+              ],
+            ),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 320),
             child: Column(
-              key: ValueKey<String>('${controller.preset.key}-${controller.stepIndex}'),
+              key: ValueKey<String>('${preset.key}-${controller.stepIndex}-${controller.step.arabic}'),
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 Directionality(
@@ -289,20 +780,22 @@ class _ZikrCard extends StatelessWidget {
                   child: Text(
                     controller.step.arabic,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: kArabicFont,
-                      fontSize: 30,
+                    style: TextStyle(
+                      fontFamily: own ? null : kArabicFont,
+                      fontSize: own ? 27 : 30,
                       height: 1.6,
-                      color: kForest,
+                      color: palette.isDark ? palette.accent : kForest,
                     ),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  controller.step.urdu,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12.5, height: 1.5, color: palette.muted),
-                ),
+                if (controller.step.urdu.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 6),
+                  Text(
+                    controller.step.urdu,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, height: 1.5, color: palette.muted),
+                  ),
+                ],
               ],
             ),
           ),
@@ -382,33 +875,35 @@ class _TapZone extends StatelessWidget {
                       children: <Widget>[
                         Text(
                           'گنتی',
-                          style: TextStyle(fontSize: 11, color: palette.muted),
+                          style: TextStyle(fontSize: 13, color: palette.muted),
                         ),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           child: Text(
-                            arabicNumerals(controller.count),
+                            formatCount(controller.count),
                             style: TextStyle(
-                              fontSize: 62,
+                              fontFamily: kDigitFont,
+                              fontSize: 64,
                               height: 1.05,
                               fontWeight: FontWeight.w800,
                               color: flashValue > 0.6 ? palette.gold : palette.accent,
                             ),
                           ),
                         ),
+                        const SizedBox(height: 2),
                         Text(
                           target == 0
-                              ? 'لامحدود — ہر سو پر نیا دور'
-                              : 'ہدف ${arabicNumerals(target)}  •  باقی '
-                                  '${arabicNumerals(controller.remaining ?? 0)}',
+                              ? 'لامحدود — ہر 100 پر نیا دور'
+                              : 'ہدف ${formatCount(target)}  •  باقی '
+                                  '${formatCount(controller.remaining ?? 0)}',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 11.5, color: palette.muted),
+                          style: TextStyle(fontSize: 13, color: palette.muted),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'دبائیں',
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: palette.accent.withValues(alpha: 0.7),
                           ),
@@ -559,6 +1054,35 @@ class _RingPainter extends CustomPainter {
       old.palette.track != palette.track;
 }
 
+/// Under the ring: take back a bead counted by mistake, or switch the zikr.
+class _QuickActions extends StatelessWidget {
+  const _QuickActions({required this.controller});
+
+  final TasbeehController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = GlassPalette.of(context);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        GlassChip(
+          label: 'ایک واپس (−1)',
+          icon: Icons.undo,
+          onTap: controller.count > 0 ? controller.undo : null,
+        ),
+        const SizedBox(width: 8),
+        GlassChip(
+          label: 'ذکر بدلیں',
+          icon: Icons.swap_horiz,
+          tone: palette.gold,
+          onTap: () => unawaited(showWirdPicker(context)),
+        ),
+      ],
+    );
+  }
+}
+
 /// The three steps of Tasbeeh-e-Zahra (s.a.): which one is running and what
 /// comes next. For single-zikr presets this shows the round count instead.
 class _StepTracker extends StatelessWidget {
@@ -580,8 +1104,8 @@ class _StepTracker extends StatelessWidget {
           GlassSectionHeader(
             title: controller.preset.titleUrdu,
             trailing: Text(
-              'دور: ${arabicNumerals(controller.rounds)}',
-              style: TextStyle(fontSize: 11.5, color: palette.muted),
+              'دور: ${formatCount(controller.rounds)}',
+              style: TextStyle(fontSize: 13.5, color: palette.muted),
             ),
           ),
           const SizedBox(height: 10),
@@ -611,18 +1135,20 @@ class _StepTracker extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: <Widget>[
-                Icon(Icons.check_circle, size: 15, color: palette.gold),
+                Icon(Icons.check_circle, size: 16, color: palette.gold),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     'مرحلہ مکمل ہو گیا — «$justCompleted» پوری ہوئی',
-                    style: TextStyle(fontSize: 11.5, color: palette.ink),
+                    style: TextStyle(fontSize: 13, color: palette.ink),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            _ProgressLine(controller: controller, palette: palette),
+            if (steps.length > 1) ...<Widget>[
+              const SizedBox(height: 4),
+              _ProgressLine(controller: controller, palette: palette),
+            ],
           ],
         ],
       ),
@@ -671,14 +1197,14 @@ class _StepTile extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             SizedBox(
-              height: 16,
+              height: 18,
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(
                   step.arabic,
                   style: TextStyle(
                     fontFamily: kArabicFont,
-                    fontSize: 15,
+                    fontSize: 16,
                     height: 1.1,
                     color: tint,
                   ),
@@ -687,17 +1213,18 @@ class _StepTile extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${arabicNumerals(count)} / ${arabicNumerals(step.target)}',
+              '$count / ${step.target}',
               style: TextStyle(
-                fontSize: 11.5,
+                fontFamily: kDigitFont,
+                fontSize: 14,
                 fontWeight: FontWeight.w700,
                 color: tint,
               ),
             ),
             if (done)
-              Icon(Icons.check, size: 12, color: palette.gold)
+              Icon(Icons.check, size: 13, color: palette.gold)
             else
-              const SizedBox(height: 12),
+              const SizedBox(height: 13),
           ],
         ),
       ),
@@ -729,16 +1256,17 @@ class _ProgressLine extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           target == 0
-              ? 'لامحدود — ${arabicNumerals(controller.count)} بار'
-              : '${arabicNumerals(controller.count)} / ${arabicNumerals(target)} بار مکمل',
-          style: TextStyle(fontSize: 11, color: palette.muted),
+              ? 'لامحدود — ${formatCount(controller.count)} بار'
+              : '${formatCount(controller.count)} / ${formatCount(target)} بار مکمل',
+          style: TextStyle(fontSize: 13, color: palette.muted),
         ),
       ],
     );
   }
 }
 
-/// 33 / 100 / 1000 / unlimited for the custom counter.
+/// The target of any one-step zikr: the quick choices, or a number the reader
+/// types (313, 1100, 14000…).
 class _TargetSelector extends StatelessWidget {
   const _TargetSelector({required this.controller});
 
@@ -747,30 +1275,50 @@ class _TargetSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = GlassPalette.of(context);
+    final target = controller.target;
+    final quick = TasbeehController.quickTargets;
     return GlassPanel(
       radius: 20,
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const GlassSectionHeader(title: 'اپنا ہدف'),
+          GlassSectionHeader(
+            title: 'تعداد (ہدف)',
+            trailing: Text(
+              target == 0 ? 'لامحدود' : formatCount(target),
+              style: TextStyle(
+                fontFamily: target == 0 ? null : kDigitFont,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: palette.accent,
+              ),
+            ),
+          ),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: <Widget>[
-              for (final choice in TasbeehController.targetChoices)
+              for (final choice in quick)
                 GlassChip(
-                  label: choice == 0 ? 'لامحدود' : arabicNumerals(choice),
-                  selected: controller.customTarget == choice,
+                  label: choice == 0 ? 'لامحدود' : '$choice',
+                  selected: target == choice,
                   onTap: () => controller.setTarget(choice),
                 ),
+              GlassChip(
+                label: quick.contains(target) ? 'اپنی تعداد' : 'اپنی تعداد: ${formatCount(target)}',
+                icon: Icons.edit_outlined,
+                tone: palette.gold,
+                selected: !quick.contains(target),
+                onTap: () => unawaited(showCustomTargetDialog(context, controller)),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            'ہدف تبدیل کرنے سے موجودہ گنتی صفر ہو جاتی ہے؛ آج اور مجموعی گنتی محفوظ رہتی ہے۔',
-            style: TextStyle(fontSize: 10.5, height: 1.5, color: palette.muted),
+            'تعداد تبدیل کرنے سے موجودہ گنتی صفر ہو جاتی ہے؛ آج اور مجموعی گنتی محفوظ رہتی ہے۔',
+            style: TextStyle(fontSize: 12, height: 1.5, color: palette.muted),
           ),
         ],
       ),
@@ -791,14 +1339,14 @@ class _Totals extends StatelessWidget {
       children: <Widget>[
         _TotalTile(
           label: 'آج کا کل',
-          value: arabicNumerals(controller.dailyTotal),
+          value: formatCount(controller.dailyTotal),
           icon: Icons.today_outlined,
           palette: palette,
         ),
         const SizedBox(width: 10),
         _TotalTile(
           label: 'مجموعی گنتی',
-          value: arabicNumerals(controller.lifetimeTotal),
+          value: formatCount(controller.lifetimeTotal),
           icon: Icons.all_inclusive,
           palette: palette,
         ),
@@ -828,20 +1376,21 @@ class _TotalTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
         child: Row(
           children: <Widget>[
-            Icon(icon, size: 17, color: palette.accent),
+            Icon(icon, size: 18, color: palette.accent),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(label, style: TextStyle(fontSize: 10.5, color: palette.muted)),
+                  Text(label, style: TextStyle(fontSize: 12.5, color: palette.muted)),
                   FittedBox(
                     fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
+                    alignment: Alignment.centerRight,
                     child: Text(
                       value,
                       style: TextStyle(
-                        fontSize: 20,
+                        fontFamily: kDigitFont,
+                        fontSize: 22,
                         height: 1.2,
                         fontWeight: FontWeight.w800,
                         color: palette.ink,
@@ -904,7 +1453,7 @@ class _FeedbackControls extends StatelessWidget {
           Text(
             'ہدف مکمل ہونے پر دوگنا جھٹکا اور نرم چائم بجتا ہے — نماز کے بعد تسبیحِ زہرا '
             'کے لیے بھی یہی ترتیب ہے۔',
-            style: TextStyle(fontSize: 10.5, height: 1.5, color: palette.muted),
+            style: TextStyle(fontSize: 12, height: 1.5, color: palette.muted),
           ),
         ],
       ),
@@ -938,10 +1487,11 @@ class _ResetRow extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: GlassChip(
-              label: 'فوری ری سیٹ (دبائیں اور رکھیں)',
+              label: 'فوری ری سیٹ',
               icon: Icons.timer_outlined,
               onTap: () {
                 controller.reset(whole: true);
+                unawaited(HapticFeedback.lightImpact());
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('گنتی صفر کر دی گئی'),

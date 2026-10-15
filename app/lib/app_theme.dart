@@ -7,6 +7,10 @@ const Color kInk = Color(0xFF1D2925);
 const String kUrduFont = 'JameelNooriNastaleeq';
 const String kArabicFont = 'Amiri';
 
+/// English digits on the prayer card, the Qibla compass and the tasbeeh: the
+/// Nastaliq face draws Latin numerals small, so numbers use the system sans.
+const String kDigitFont = 'sans-serif';
+
 ThemeData buildLightTheme() {
   final scheme = ColorScheme.fromSeed(
     seedColor: kForest,

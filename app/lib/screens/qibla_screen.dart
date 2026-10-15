@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 
+import '../app_theme.dart';
 import '../astro/compass_math.dart';
 import '../astro/prayer_format.dart';
 import '../services/alerts.dart';
@@ -151,7 +152,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         scrolledUnderElevation: 0,
-        title: const Text('قبلہ نما', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+        title: const Text('قبلہ نما', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
         actions: <Widget>[
           IconButton(
             tooltip: 'کمپاس دوبارہ فعال کریں',
@@ -242,7 +243,7 @@ class _CompassCard extends StatelessWidget {
                   },
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11.5, color: palette.muted),
+                  style: TextStyle(fontSize: 13, color: palette.muted),
                 ),
               ),
               _StatusPill(reading: reading, palette: palette),
@@ -321,7 +322,7 @@ class _StatusPill extends StatelessWidget {
         ),
         child: Text(
           'سینسر کا انتظار',
-          style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: palette.muted),
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: palette.muted),
         ),
       );
     }
@@ -339,7 +340,7 @@ class _StatusPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: color),
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
       ),
     );
   }
@@ -364,12 +365,13 @@ class _DialCentre extends StatelessWidget {
       children: <Widget>[
         Text(
           live ? 'رخ' : 'قبلہ',
-          style: TextStyle(fontSize: 10, color: palette.muted),
+          style: TextStyle(fontSize: 12, color: palette.muted),
         ),
         Text(
           formatDegreesUrdu(live ? reading.heading : reading.qiblaBearing),
           style: TextStyle(
-            fontSize: 26,
+            fontFamily: kDigitFont,
+            fontSize: 28,
             height: 1.15,
             fontWeight: FontWeight.w800,
             color: palette.ink,
@@ -377,7 +379,7 @@ class _DialCentre extends StatelessWidget {
         ),
         Text(
           compassPointUrdu(live ? reading.heading : reading.qiblaBearing),
-          style: TextStyle(fontSize: 11, color: palette.muted),
+          style: TextStyle(fontSize: 13, color: palette.muted),
         ),
       ],
     );
@@ -423,7 +425,7 @@ class _AlignmentReadout extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: palette.ink,
                   ),
@@ -435,7 +437,7 @@ class _AlignmentReadout extends StatelessWidget {
                         '— انحراف ${formatDegreesUrdu(reading.turn.abs())}'
                       : 'فون کو سیدھا (افقی) رکھیں اور کمپاس فعال کریں',
                   maxLines: 2,
-                  style: TextStyle(fontSize: 10.5, height: 1.4, color: palette.muted),
+                  style: TextStyle(fontSize: 12.5, height: 1.45, color: palette.muted),
                 ),
               ],
             ),
@@ -619,7 +621,7 @@ class _EnableCompassBanner extends StatelessWidget {
                 child: Text(
                   'کمپاس سینسر دستیاب نہیں',
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: palette.ink,
                   ),
@@ -632,7 +634,7 @@ class _EnableCompassBanner extends StatelessWidget {
             'یہ فون مقناطیسی سینسر کی رپورٹ نہیں دے رہا (یا اجازت نہیں دی گئی)۔ '
             'نیچے دی گئی سمتِ قبلہ کے مطابق نماز پڑھیں، یا دوبارہ کوشش کریں — '
             'آئی او ایس پر پہلے مقام اور حرکت کی اجازت درکار ہوتی ہے۔',
-            style: TextStyle(fontSize: 11.5, height: 1.5, color: palette.muted),
+            style: TextStyle(fontSize: 13, height: 1.55, color: palette.muted),
           ),
           const SizedBox(height: 10),
           Align(
@@ -645,7 +647,7 @@ class _EnableCompassBanner extends StatelessWidget {
               ),
               onPressed: onEnable,
               icon: const Icon(Icons.touch_app, size: 16),
-              label: const Text('کمپاس فعال کریں', style: TextStyle(fontSize: 12.5)),
+              label: const Text('کمپاس فعال کریں', style: TextStyle(fontSize: 14)),
             ),
           ),
         ],
@@ -693,7 +695,7 @@ class _LocationCard extends StatelessWidget {
           ),
           _InfoRow(
             label: 'کعبہ سے فاصلہ',
-            value: '${urduDigits(controller.distanceToKaabaKm.round().toString())} کلومیٹر',
+            value: formatKilometresUrdu(controller.distanceToKaabaKm),
             palette: palette,
             icon: Icons.straighten,
           ),
@@ -706,7 +708,7 @@ class _LocationCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'یہی متناسقات نماز کے اوقات کے لیے بھی استعمال ہوتے ہیں — دوبارہ مقام نہیں پوچھا جاتا۔',
-            style: TextStyle(fontSize: 10.5, height: 1.5, color: palette.muted),
+            style: TextStyle(fontSize: 12.5, height: 1.5, color: palette.muted),
           ),
         ],
       ),
@@ -733,9 +735,9 @@ class _InfoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: <Widget>[
-          Icon(icon, size: 14, color: palette.accent),
+          Icon(icon, size: 16, color: palette.accent),
           const SizedBox(width: 7),
-          Text(label, style: TextStyle(fontSize: 11.5, color: palette.muted)),
+          Text(label, style: TextStyle(fontSize: 13, color: palette.muted)),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -744,7 +746,7 @@ class _InfoRow extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 13.5,
                 fontWeight: FontWeight.w700,
                 color: palette.ink,
               ),
@@ -771,10 +773,10 @@ class _CalibrationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (quality, detail) = switch (accuracy) {
-      null => ('نامعلوم', 'کیلیبریشن کے لیے فون کو ۸ کی شکل میں گھمائیں'),
+      null => ('نامعلوم', 'کیلیبریشن کے لیے فون کو 8 کی شکل میں گھمائیں'),
       final value when value <= 15 => ('عمدہ', 'کمپاس کی درستگی بہتر ہے'),
       final value when value <= 30 => ('درمیانہ', 'دھات، کیس یا چابیاں کمپاس کو متاثر کرتی ہیں'),
-      _ => ('ناقص', 'فون کو ۸ کی شکل میں گھما کر کیلیبریٹ کریں'),
+      _ => ('ناقص', 'فون کو 8 کی شکل میں گھما کر کیلیبریٹ کریں'),
     };
     return GlassPanel(
       radius: 20,
@@ -795,7 +797,7 @@ class _CalibrationCard extends StatelessWidget {
               Text(
                 'درستگی: $quality',
                 style: TextStyle(
-                  fontSize: 12.5,
+                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: palette.ink,
                 ),
@@ -805,7 +807,7 @@ class _CalibrationCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             detail,
-            style: TextStyle(fontSize: 11, height: 1.5, color: palette.muted),
+            style: TextStyle(fontSize: 13, height: 1.5, color: palette.muted),
           ),
         ],
       ),
@@ -850,7 +852,7 @@ class _HowToCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       line,
-                      style: TextStyle(fontSize: 11.5, height: 1.55, color: palette.ink),
+                      style: TextStyle(fontSize: 13.5, height: 1.6, color: palette.ink),
                     ),
                   ),
                 ],
