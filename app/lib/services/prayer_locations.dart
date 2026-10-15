@@ -5,6 +5,15 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Reads a number that a JSON payload may have sent as a number, a string, or
+/// not at all. File-level because both `PrayerLocation` and `PrayerLocations`
+/// parse payloads (the two IP providers disagree on types).
+double? _asDouble(Object? value) {
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value.trim());
+  return null;
+}
+
 /// Where the coordinates on screen came from. The UI says so plainly, so a
 /// reader can tell a GPS fix from a guess.
 enum LocationSource {
@@ -379,11 +388,5 @@ class PrayerLocations {
       (city) => city.matches(trimmed) && !starts.contains(city),
     );
     return <PlaceSuggestion>[...starts, ...contains];
-  }
-
-  static double? _asDouble(Object? value) {
-    if (value is num) return value.toDouble();
-    if (value is String) return double.tryParse(value.trim());
-    return null;
   }
 }

@@ -456,7 +456,12 @@ class _RippleDot extends StatelessWidget {
               ),
             ),
             transform: Matrix4.identity()
-              ..scale(0.65 + 0.35 * value, 0.65 + 0.35 * value),
+              ..scaleByDouble(
+                0.65 + 0.35 * value,
+                0.65 + 0.35 * value,
+                1,
+                1,
+              ),
             transformAlignment: Alignment.center,
           ),
         ),
