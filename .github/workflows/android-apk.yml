@@ -231,7 +231,7 @@ jobs:
           else
             gh release create "$tag" build/apk-release/shia-library.apk \
               --prerelease \
-              --title "Shia Library $version — APK" \
+              --title "ShiaVerse $version — APK" \
               --notes "Installable release build. On the phone, open this page and tap shia-library.apk." \
               --target "$GITHUB_SHA"
           fi
