@@ -246,12 +246,12 @@ class _LibraryBootstrapState extends State<LibraryBootstrap> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(26),
                     child: Image.asset(
-                      'assets/images/tasneemlogo.png',
+                      'assets/images/shiaverse_icon.png',
                       width: 116,
                       height: 116,
                       fit: BoxFit.cover,
-                      // The asset is 1338x1480; decoding it at full size cost
-                      // ~8 MB of bitmap and a visible stall on first paint.
+                      // The asset is 512x512; decoding it at 240 px costs a
+                      // fraction of a megabyte and paints without a stall.
                       cacheWidth: 240,
                       cacheHeight: 240,
                     ),

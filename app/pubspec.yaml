@@ -1,7 +1,7 @@
 name: shia_ai
 publish_to: "none"
 description: Offline Shia library — Quran, Mafatih al-Jinan, Nahj al-Balagha, and 14 hadith books.
-version: 1.6.0+7
+version: 1.7.0+8
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -31,8 +31,10 @@ flutter:
     # downloads each database on demand (see lib/data_installer.dart).
     - assets/databases/
     - assets/database-manifest.json
-    - assets/images/logo.png
-    - assets/images/tasneemlogo.png
+    # Only images the UI actually paints are bundled: `logo.png` and
+    # `tasneemlogo.png` stayed behind when the ShiaVerse plate replaced them,
+    # and every bundled byte is APK size and unpack time.
+    - assets/images/shiaverse_icon.png
     - assets/images/marja_khamenei.png
     - assets/images/marja_sistani.png
   fonts:

@@ -50,13 +50,44 @@ coverage, migration and verification details.
 
 See [`docs/library-1-5-update.md`](docs/library-1-5-update.md).
 
+## One slim last-seen strip, real book names, and the ShiaVerse icon (1.7)
+
+- The home screen used to list every saved position as its own full-width card
+  under **ہر کتاب کا آخری مقام**, which buried the library. All of it now fits
+  in a single 54 dp strip: a fixed **آخری مطالعہ** label, the books scrolling
+  through it sideways (newest first, the most recent one filled), and a button
+  that opens the complete list with every reference. See
+  [`docs/library-1-7-update.md`](docs/library-1-7-update.md).
+- Five books now carry their real titles: **غرر الحکم** (`hakam.db`),
+  **ہدایۃ العلم** (`hidaya.db`), **حکمت نامۂ رسول اکرم(ص)**
+  (`hikmatprophet.db`), **حکمت نامہ امام حسین(ع)** (`imam.db`) and
+  **کتاب التوحید** (`towheed.db`). Only labels changed — no file name, key,
+  digest or row count moved, so installed data is untouched.
+- The launcher icon and the in-app logo are the uploaded **ShiaVerse** plate.
+  `scripts/make_app_icons.py` renders it into the adaptive icon (Android 8+),
+  the round icon (API 25) and every legacy density, so no launcher mask can
+  clip the wordmark.
+
 ## App name and icon
 
-The launcher label and the in-app title are **ShiaVerse**, and the icon comes
-from `docs/app-icon-source.jpg`. The Android package id stays
+The launcher label and the in-app title are **ShiaVerse**. The icon artwork is
+`app/ShiaVerseIcon.png`; `python3 scripts/make_app_icons.py` derives
+`app/assets/images/shiaverse_icon.png` (the logo the UI paints) and every
+Android density, round and adaptive icon from it — rerun it after replacing the
+artwork. The Android package id stays
 `com.shiaai.app` on purpose: changing it would make the phone treat the build
 as a different app, so an update could not install over the old one and every
 downloaded database would be lost.
+
+## Speed
+
+The 1.5 work (background search index, cached bookmarks, lazy readers) also
+applies here, and the last-seen strip keeps it that way: the whole home screen
+still reads `SharedPreferences` once for the strip instead of once per card, the
+chips are built lazily as they scroll in, and only the two images the UI
+actually paints are bundled — `logo.png` and `tasneemlogo.png` left the bundle
+when the ShiaVerse plate replaced them, which is dead weight off the APK and off
+first-launch unpack.
 
 ## Smooth scrolling
 

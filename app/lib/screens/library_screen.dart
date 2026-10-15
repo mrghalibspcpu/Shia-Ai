@@ -8,6 +8,7 @@ import '../library_repository.dart';
 import '../models.dart';
 import '../reader_navigation.dart';
 import '../text_utils.dart' show arabicNumerals;
+import '../widgets/last_seen_bar.dart';
 import '../widgets/reader_kit.dart';
 import '../widgets/resume_card.dart';
 import 'balagha_screen.dart';
@@ -26,23 +27,42 @@ class LibraryHomeScreen extends StatefulWidget {
 }
 
 class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
-  LastReadEntry? _lastRead;
-  Future<List<LastReadEntry>>? _perBookFuture;
+  /// Every book's own saved position, newest first — what the slim
+  /// [LastSeenBar] at the top of the home screen scrolls through.
+  List<LastReadEntry> _lastSeen = const [];
 
   @override
   void initState() {
     super.initState();
-    unawaited(_loadLastRead());
+    unawaited(_loadLastSeen());
   }
 
-  Future<void> _loadLastRead() async {
-    final last = await widget.library.getLastRead();
-    if (mounted) {
-      setState(() {
-        _lastRead = last;
-        _perBookFuture = widget.library.getLastReads();
-      });
+  /// One pass over `SharedPreferences` for the whole strip.
+  ///
+  /// `getLastReads()` returns one entry per book; the global آخری مطالعہ is
+  /// folded in only when that book has no per-book entry (pre-1.5 installs),
+  /// so the newest position is never listed twice.
+  Future<void> _loadLastSeen() async {
+    final global = await widget.library.getLastRead();
+    final perBook = await widget.library.getLastReads();
+    final entries = <LastReadEntry>[];
+    final seen = <String>{};
+    for (final entry in perBook) {
+      final book = entry.book;
+      if (book == null || !widget.library.isInstalled(book)) continue;
+      entries.add(entry);
+      seen.add(entry.bookKey);
     }
+    final latest = global;
+    final latestBook = latest?.book;
+    if (latest != null &&
+        latestBook != null &&
+        !seen.contains(latest.bookKey) &&
+        widget.library.isInstalled(latestBook)) {
+      entries.insert(0, latest);
+    }
+    if (!mounted) return;
+    setState(() => _lastSeen = entries);
   }
 
   @override
@@ -56,9 +76,6 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
   }
 
   Widget _buildHome(BuildContext context) {
-    final lastBook = _lastRead?.book;
-    final showLastRead =
-        lastBook != null && _lastRead != null && widget.library.isInstalled(lastBook);
     return Scaffold(
       appBar: AppBar(
         title: const Text('ShiaVerse'),
@@ -79,7 +96,7 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _loadLastRead,
+        onRefresh: _loadLastSeen,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 4, 18, 28),
           children: [
@@ -91,21 +108,14 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
                 builder: (_) => SavedItemsScreen(library: widget.library),
               )),
             ),
-            if (showLastRead) ...[
-              const SizedBox(height: 14),
-              LastReadTile(
+            if (_lastSeen.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              LastSeenBar(
                 library: widget.library,
-                entry: _lastRead!,
-                margin: EdgeInsets.zero,
-                title: 'آخری مطالعہ جاری رکھیں',
-                onOpened: _loadLastRead,
+                entries: _lastSeen,
+                onOpened: _loadLastSeen,
               ),
             ],
-            _PerBookLastRead(
-              future: _perBookFuture,
-              library: widget.library,
-              onOpened: _loadLastRead,
-            ),
             const SizedBox(height: 22),
             const _SectionHeader('قرآن، دعائیں، فتاویٰ اور نہج البلاغہ'),
             const SizedBox(height: 10),
@@ -412,47 +422,6 @@ class _IndexingBanner extends StatelessWidget {
   }
 }
 
-/// Every book's own last position, most recently read first.
-class _PerBookLastRead extends StatelessWidget {
-  const _PerBookLastRead({required this.future, required this.library, this.onOpened});
-
-  final Future<List<LastReadEntry>>? future;
-  final LibraryRepository library;
-  final VoidCallback? onOpened;
-
-  @override
-  Widget build(BuildContext context) {
-    final pending = future;
-    if (pending == null) return const SizedBox.shrink();
-    return FutureBuilder<List<LastReadEntry>>(
-      future: pending,
-      builder: (context, snapshot) {
-        final entries = snapshot.data ?? const <LastReadEntry>[];
-        final readable = entries
-            .where((entry) => entry.book != null && library.isInstalled(entry.book!))
-            .toList();
-        if (readable.isEmpty) return const SizedBox.shrink();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 18),
-            const _SectionHeader('ہر کتاب کا آخری مقام'),
-            const SizedBox(height: 10),
-            for (final entry in readable)
-              LastReadTile(
-                library: library,
-                entry: entry,
-                title: entry.book!.titleUrdu,
-                showBookName: false,
-                onOpened: onOpened,
-              ),
-          ],
-        );
-      },
-    );
-  }
-}
-
 class _LibraryBanner extends StatelessWidget {
   const _LibraryBanner({required this.onOpenSaved});
 
@@ -511,7 +480,7 @@ class _LibraryBanner extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             clipBehavior: Clip.antiAlias,
-            child: Image.asset('assets/images/tasneemlogo.png', fit: BoxFit.cover,
+            child: Image.asset('assets/images/shiaverse_icon.png', fit: BoxFit.cover,
               cacheWidth: 240, cacheHeight: 240),
           ),
         ],

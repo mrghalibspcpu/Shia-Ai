@@ -4,7 +4,8 @@
     <application
         android:name="${applicationName}"
         android:label="ShiaVerse"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:allowBackup="false"
         android:usesCleartextTraffic="false">
         <activity
