@@ -106,6 +106,31 @@ See [`docs/prayer-qibla-tasbeeh-1-8.md`](docs/prayer-qibla-tasbeeh-1-8.md), and
 `docs/previews/home-1-8.png` for the home layout re-rendered with the new
 widgets.
 
+## Exact location, the home prayer card, and your own wirds (1.9)
+
+- **The exact place.** A GPS fix is named at once from a bundled list of
+  73,023 places (GeoNames; every place of ~500+ people in Pakistan and the
+  region, every town of ~5,000+ elsewhere) and, when online, upgraded to the
+  exact neighbourhood by OpenStreetMap — «G-11، اسلام آباد». High-accuracy fix
+  first, then network, then last known; a clear message and a one-tap fix when
+  location is off or refused; quiet re-detection of stale or guessed
+  locations on launch (never a prompt, never over a chosen city).
+- **Every city.** The picker searches 181 curated cities with Urdu names, the
+  73,000 offline places, and any village online.
+- **Readable numbers.** Larger text throughout the prayer section, and English
+  digits (5:04, 256°, 33/100) in prayer times, Qibla and tasbeeh.
+- **Home prayer card.** Place, date, Hijri date (Umm al-Qura, turning at
+  Maghrib, adjustable ±2 days; South Asia one day behind by default), live
+  clock, the running and next prayer, and the five times — over an animated
+  sky for dawn, day, evening and night.
+- **Circular mini tasbeeh** on the home screen (ring, +, reset, wird), next to
+  a small Qibla dial.
+- **Your own count and wird.** Any count (quick choices or typed) for every
+  one-step zikr; write and save your own wirds; undo one bead.
+- **One tile** for «مفاتیح الجنان و صحیفہ سجادیہ», like the fatawa.
+
+See [`docs/prayer-home-tasbeeh-1-9.md`](docs/prayer-home-tasbeeh-1-9.md).
+
 ## App name and icon
 
 The launcher label and the in-app title are **ShiaVerse**. The icon artwork is

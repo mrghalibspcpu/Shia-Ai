@@ -233,8 +233,11 @@ class _MiniPrayerContent extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             _SkyButton(
-              icon: controller.loadingLocation ? Icons.sync : Icons.my_location,
-              tooltip: 'میرا موجودہ مقام معلوم کریں',
+              icon: controller.loadingLocation
+                  ? Icons.sync
+                  : (controller.locationProblem != null ? Icons.location_disabled : Icons.my_location),
+              tooltip: controller.locationProblem?.messageUrdu ?? 'میرا موجودہ مقام معلوم کریں',
+              warning: controller.locationProblem != null && !controller.loadingLocation,
               onTap: controller.loadingLocation
                   ? null
                   : () => unawaited(refreshLocationWithFeedback(context)),
@@ -455,14 +458,23 @@ class _MiniPrayerCell extends StatelessWidget {
 }
 
 class _SkyButton extends StatelessWidget {
-  const _SkyButton({required this.icon, required this.tooltip, required this.onTap});
+  const _SkyButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.warning = false,
+  });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback? onTap;
 
+  /// Gold, for "the GPS could not be used — tap to fix".
+  final bool warning;
+
   @override
   Widget build(BuildContext context) {
+    const gold = Color(0xFFFFE1A1);
     return Tooltip(
       message: tooltip,
       child: InkWell(
@@ -473,10 +485,10 @@ class _SkyButton extends StatelessWidget {
           height: 38,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.black.withValues(alpha: 0.26),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+            color: Colors.black.withValues(alpha: warning ? 0.4 : 0.26),
+            border: Border.all(color: warning ? gold : Colors.white.withValues(alpha: 0.4)),
           ),
-          child: Icon(icon, size: 19, color: Colors.white),
+          child: Icon(icon, size: 19, color: warning ? gold : Colors.white),
         ),
       ),
     );

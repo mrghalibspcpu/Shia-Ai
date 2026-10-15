@@ -106,6 +106,9 @@ jobs:
       - name: Run Flutter tests
         working-directory: app
         shell: bash
+        env:
+          # test/ui_layout_test.dart saves each checked screen here as a PNG.
+          SHIAVERSE_PREVIEW_DIR: ${{ github.workspace }}/build/previews
         run: |
           set +e
           flutter test --reporter expanded 2>&1 | tee /tmp/flutter-test.log
@@ -115,6 +118,29 @@ jobs:
             python3 ../scripts/flutter_test_digest.py /tmp/flutter-test.log
             exit "$status"
           fi
+
+      # The screens the layout test rendered, as unreferenced git blobs, so
+      # the UI can be looked at from tooling that cannot download artifacts.
+      # Best effort: never fails the build.
+      - name: Stage UI previews as git blobs
+        if: always() && github.event_name == 'push'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          list=""
+          for png in build/previews/*.png; do
+            python3 - "$png" > "$png.json" <<'PY'
+          import base64, json, sys
+          data = open(sys.argv[1], 'rb').read()
+          print(json.dumps({'content': base64.b64encode(data).decode(), 'encoding': 'base64'}))
+          PY
+            sha=$(gh api -X POST "repos/$GITHUB_REPOSITORY/git/blobs" --input "$png.json" --jq .sha)
+            list="$list $(basename "$png" .png)=$sha"
+          done
+          echo "::notice title=UI previews::${list# }"
 
       - name: Configure optional production signing
         id: signing
