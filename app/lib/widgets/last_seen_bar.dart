@@ -10,9 +10,11 @@ import 'resume_card.dart';
 /// The home screen used to stack one full-width card per book under
 /// **ہر کتاب کا آخری مقام**, which pushed the actual library below the fold.
 /// The same information now lives in a single 54 dp strip: the label stays put
-/// and the books scroll through it horizontally, most recent first. Tapping a
-/// chip re-opens that exact spot; the trailing button opens the complete list
-/// with the full reference of every entry.
+/// and the books scroll through it horizontally, most recent first (nearest the
+/// right edge, where an Urdu reader starts). Each chip shows the book and when
+/// it was left on its first line and the locator on its second, so nothing is
+/// squeezed. Tapping a chip re-opens that exact spot; tapping the label opens
+/// the complete history, every entry as a full card.
 ///
 /// The widget is deliberately cheap: the caller hands over an already-loaded
 /// list (one `SharedPreferences` read for the whole bar, never one per chip),
@@ -56,32 +58,42 @@ class LastSeenBar extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Padding(
-              padding: const EdgeInsetsDirectional.only(start: 12, end: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.history_rounded, size: 17, color: scheme.primary),
-                  const SizedBox(width: 6),
-                  Text(
-                    'آخری مطالعہ',
-                    style: TextStyle(
-                      fontFamily: kUrduFont,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: scheme.primary,
-                    ),
+            Tooltip(
+              message: 'تمام آخری مطالعہ کھولیں',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => _showAll(context),
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.only(start: 12, end: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.history_rounded, size: 17, color: scheme.primary),
+                      const SizedBox(width: 5),
+                      Text(
+                        'آخری مطالعہ',
+                        style: TextStyle(
+                          fontFamily: kUrduFont,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: scheme.primary,
+                        ),
+                      ),
+                      Icon(Icons.arrow_drop_down_rounded, size: 19, color: scheme.primary),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
             Container(width: 1, height: 26, color: scheme.outlineVariant.withValues(alpha: 0.6)),
             Expanded(
+              // Index 0 is the newest position and a horizontal list in an RTL
+              // context starts at the right edge — which is exactly where a
+              // reader looks first, so the list is deliberately NOT reversed.
               child: ListView.separated(
                 key: const PageStorageKey('last-seen-strip'),
                 scrollDirection: Axis.horizontal,
-                reverse: true, // RTL: the newest entry sits on the right edge
-                padding: const EdgeInsetsDirectional.only(start: 10, end: 6),
+                padding: const EdgeInsetsDirectional.only(start: 10, end: 8),
                 itemCount: entries.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, index) => _LastSeenChip(
@@ -90,14 +102,6 @@ class LastSeenBar extends StatelessWidget {
                   onTap: () => _open(context, entries[index]),
                 ),
               ),
-            ),
-            IconButton(
-              tooltip: 'تمام آخری مطالعہ',
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(width: 38, height: 38),
-              icon: Icon(Icons.unfold_more_rounded, size: 19, color: scheme.onSurfaceVariant),
-              onPressed: () => _showAll(context),
             ),
           ],
         ),
@@ -165,17 +169,15 @@ class _LastSeenChip extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final book = entry.book;
     if (book == null) return const SizedBox.shrink();
-    final detail = [
-      entry.referenceOrTitle,
-      entry.timeLabel,
-    ].where((part) => part.trim().isNotEmpty).join(' · ');
+    final time = entry.timeLabel.trim();
+    final detail = entry.referenceOrTitle;
     final titleColor = latest ? scheme.onPrimary : scheme.onSurface;
     final detailColor = latest
         ? scheme.onPrimary.withValues(alpha: 0.82)
         : scheme.onSurfaceVariant;
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 240),
+        constraints: const BoxConstraints(maxWidth: 200),
         child: Material(
           color: latest
               ? scheme.primary
@@ -185,7 +187,7 @@ class _LastSeenChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             onTap: onTap,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
@@ -194,32 +196,37 @@ class _LastSeenChip extends StatelessWidget {
                       : scheme.outlineVariant.withValues(alpha: 0.7),
                 ),
               ),
-              child: Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: book.titleUrdu,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    time.isEmpty ? book.titleUrdu : '${book.titleUrdu} · $time',
+                    textDirection: TextDirection.rtl,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: kUrduFont,
+                      fontSize: 12.5,
+                      height: 1.15,
+                      fontWeight: FontWeight.w700,
+                      color: titleColor,
+                    ),
+                  ),
+                  if (detail.isNotEmpty)
+                    Text(
+                      detail,
+                      textDirection: TextDirection.rtl,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontFamily: kUrduFont,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: titleColor,
+                        fontSize: 11.5,
+                        height: 1.15,
+                        color: detailColor,
                       ),
                     ),
-                    if (detail.isNotEmpty)
-                      TextSpan(
-                        text: '  $detail',
-                        style: TextStyle(
-                          fontFamily: kUrduFont,
-                          fontSize: 12,
-                          color: detailColor,
-                        ),
-                      ),
-                  ],
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textDirection: TextDirection.rtl,
+                ],
               ),
             ),
           ),

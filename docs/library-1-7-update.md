@@ -87,6 +87,19 @@ the two marja portraits. `logo.png` and `tasneemlogo.png` are no longer
 referenced by any screen, so they left the bundle — a few hundred kilobytes less
 APK and less to unpack on first launch. The files stay in the repository.
 
+## Preview
+
+`docs/previews/home-1-7.png` is a rendered preview of the top of the home
+screen — banner, the 54 dp strip, then the library. It is drawn (not
+screenshotted) by `scripts/render_home_preview.py` with the app's own fonts and
+dark-theme colours, so it can be re-rendered after a layout change without a
+phone in hand:
+
+```sh
+python3 -m pip install Pillow arabic-reshaper python-bidi
+python3 scripts/render_home_preview.py
+```
+
 ## Checks
 
 - `python3 scripts/check_dart.py` — 24 Dart files, no problems.
