@@ -130,8 +130,13 @@ DECL_RE = re.compile(
     r"""^(?:class|abstract\s+class|enum|mixin|extension(?:\s+type)?|sealed\s+class|base\s+class)\s+([A-Z][A-Za-z0-9_]*)""",
     re.MULTILINE,
 )
+#: Top-level values, typed or untyped: ``const kGold = ...`` and
+#: ``const Color kGold = ...`` both export ``kGold``. Missing the typed form
+#: made the unused-import check report a file as dead when the only symbol it
+#: used was, say, ``kArabicFont``.
 TOPLEVEL_VALUE_RE = re.compile(
-    r"""^(?:const|final|var|late\s+final|late\s+var)\s+([a-z_][A-Za-z0-9_]*)\s*[=;]""",
+    r"""^(?:const|final|var|late\s+final|late\s+var)\s+"""
+    r"""(?:[A-Za-z_][A-Za-z0-9_<>,.\s?]*?\s+)?([a-z_][A-Za-z0-9_]*)\s*[=;]""",
     re.MULTILINE,
 )
 TOPLEVEL_FUNC_RE = re.compile(

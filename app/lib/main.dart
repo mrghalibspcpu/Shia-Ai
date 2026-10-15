@@ -13,6 +13,9 @@ import 'screens/data_screen.dart';
 import 'screens/library_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/settings_screen.dart';
+import 'services/prayer_controller.dart';
+import 'services/prayer_scope.dart';
+import 'services/tasbeeh_controller.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +33,12 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
   final LibraryRepository _library = LibraryRepository();
   late final DataInstaller _installer =
       DataInstaller(directory: () => _library.dataDirectoryHandle);
+  // The prayer/tasbeeh state lives above the navigator for the whole session:
+  // the timings screen, the home banner and the Qibla compass all read the
+  // same coordinates and preferences, and the tasbeeh keeps counting while the
+  // reader moves between screens.
+  final PrayerController _prayer = PrayerController();
+  final TasbeehController _tasbeeh = TasbeehController();
   final AppLinks _appLinks = AppLinks();
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   final GlobalKey<HomeShellState> _homeShellKey = GlobalKey<HomeShellState>();
@@ -43,6 +52,10 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
   void initState() {
     super.initState();
     unawaited(_loadTheme());
+    // Both start from what is already on the phone, so the home screen paints
+    // correct times and a correct count on the very first frame.
+    unawaited(_prayer.start());
+    unawaited(_tasbeeh.load());
     _linkSubscription = _appLinks.uriLinkStream.listen(_handleIncomingLink, onError: (_) {});
     unawaited(_appLinks.getInitialLink().then(_handleIncomingLink, onError: (_) {}));
   }
@@ -78,6 +91,8 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
     unawaited(_linkSubscription?.cancel() ?? Future<void>.value());
     unawaited(_installer.close());
     unawaited(_library.close());
+    _prayer.dispose();
+    _tasbeeh.dispose();
     super.dispose();
   }
 
@@ -141,9 +156,15 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
       theme: buildLightTheme(),
       darkTheme: buildDarkTheme(),
       themeMode: _themeMode,
-      builder: (context, child) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: child ?? const SizedBox.shrink(),
+      builder: (context, child) => PrayerScope(
+        controller: _prayer,
+        child: TasbeehScope(
+          controller: _tasbeeh,
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: child ?? const SizedBox.shrink(),
+          ),
+        ),
       ),
       home: LibraryBootstrap(
         library: _library,

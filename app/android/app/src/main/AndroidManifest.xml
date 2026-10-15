@@ -1,6 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Prayer timings and the Qibla bearing. `neverForLocation` keeps the
+         compass from being treated as a location consumer: only the compass
+         sensor is read, the position itself is asked for separately. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- The magnetometer/compass. Required by the plugin, and deliberately not
+         `required="false"`: a device without one still installs (Android only
+         treats this as a hint), but the store listing says so honestly. -->
+    <uses-feature android:name="android.hardware.sensor.compass" android:required="false" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+
     <application
         android:name="${applicationName}"
         android:label="ShiaVerse"

@@ -1,7 +1,7 @@
 name: shia_ai
 publish_to: "none"
 description: Offline Shia library — Quran, Mafatih al-Jinan, Nahj al-Balagha, and 14 hadith books.
-version: 1.7.1+9
+version: 1.8.0+10
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -10,8 +10,15 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # The three daily utilities: prayer times (adhan_dart is the Dart port of the
+  # battle-tested JS Adhan library and carries the Jafari/Leva Qum method),
+  # device location, and the magnetometer compass.
+  adhan_dart: ^2.0.1
   app_links: ^6.4.1
+  audioplayers: ^6.5.0
   crypto: ^3.0.3
+  flutter_compass: ^0.8.1
+  geolocator: ^14.0.2
   http: ^1.4.0
   path: ^1.9.1
   scrollable_positioned_list: ^0.3.8
@@ -37,6 +44,10 @@ flutter:
     - assets/images/shiaverse_icon.png
     - assets/images/marja_khamenei.png
     - assets/images/marja_sistani.png
+    # The prayer banner's wallpaper and the three synthesised alert sounds.
+    # ~30 kB and ~130 kB: no downloads, no third-party audio.
+    - assets/images/prayer_hero.jpg
+    - assets/audio/
   fonts:
     - family: JameelNooriNastaleeq
       fonts:

@@ -3,10 +3,11 @@
 
 This is not a screenshot: it renders the top of the home screen with the app's
 own fonts and dark-theme colours, at the measurements used by
-``app/lib/screens/library_screen.dart`` and ``app/lib/widgets/last_seen_bar.dart``
-(a 54 dp last-seen strip, 18/26 px radii, 12 px gaps, 18 px side padding). It is
-here so the layout can be reviewed — and re-rendered after a change — without a
-phone in hand.
+``app/lib/screens/library_screen.dart``, ``app/lib/widgets/last_seen_bar.dart``
+and ``app/lib/widgets/home_utilities.dart`` (a 54 dp last-seen strip, a 112 dp
+prayer banner, a 62 dp utility row, 18/22 px radii, 10/14 px gaps, 18 px side
+padding). It is here so the layout can be reviewed — and re-rendered after a
+change — without a phone in hand.
 
 Dependencies::
 
@@ -14,7 +15,7 @@ Dependencies::
 
 Usage::
 
-    python3 scripts/render_home_preview.py            # writes docs/previews/home-1-7.png
+    python3 scripts/render_home_preview.py            # writes docs/previews/home-1-8.png
 """
 from __future__ import annotations
 
@@ -26,7 +27,7 @@ from bidi.algorithm import get_display
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / "docs" / "previews" / "home-1-7.png"
+OUTPUT = ROOT / "docs" / "previews" / "home-1-8.png"
 
 S = 2
 W = 360 * S
@@ -89,7 +90,7 @@ def paste_rounded(canvas, img, box, radius):
 
 def main() -> None:
     pad = 18 * S
-    canvas = Image.new("RGB", (W, 900), BG)
+    canvas = Image.new("RGB", (W, 1096), BG)
     d = ImageDraw.Draw(canvas)
 
     cc = "ShiaVerse"
@@ -143,8 +144,65 @@ def main() -> None:
             (9, 40, 32) if latest else MUTED)
         x = box[0] - 8 * S
 
-    # ---- the library, now above the fold ------------------------------------
-    y = bar_top + bar_h + 22 * S
+    # ---- the prayer banner (112 dp, fixed height: this row never moves) -----
+    banner_top = bar_top + bar_h + 14 * S
+    banner_h = 112 * S
+    rounded(d, (pad, banner_top, W - pad, banner_top + banner_h), 22 * S,
+            fill=CARD, outline=BORDER, width=2)
+    ring = 46 * S
+    ring_left = W - pad - 14 * S - ring
+    ring_top = banner_top + (banner_h - ring) // 2
+    d.ellipse((ring_left, ring_top, ring_left + ring, ring_top + ring),
+              outline=BORDER, width=4 * S)
+    # three quarters of the way through the Asr window
+    d.arc((ring_left, ring_top, ring_left + ring, ring_top + ring),
+          start=-90, end=180, fill=PRIMARY, width=4 * S)
+    d.text((ring_left + 16 * S, ring_top + 13 * S), "◷", font=lfont(15), fill=PRIMARY)
+
+    bx = ring_left - 12 * S
+    rtl(d, bx, banner_top + 10 * S, "عصر", ufont(19), PRIMARY)
+    name_w = int(d.textlength(shaped("عصر"), font=ufont(19)))
+    rtl(d, bx - name_w - 20 * S, banner_top + 10 * S, "۴:۰۲", ufont(17), TEXT)
+    rtl(d, bx, banner_top + 40 * S, "باقی ۱ گھنٹے ۴۱ منٹ", ufont(15), GOLD_TEXT)
+    rtl(d, bx, banner_top + 68 * S, "کراچی • ۳:۲۳ سے عصر کا وقت", ufont(13), MUTED)
+    act = 36 * S
+    act_box = (pad + 14 * S, banner_top + (banner_h - act) // 2)
+    d.ellipse((act_box[0], act_box[1], act_box[0] + act, act_box[1] + act),
+              fill=(38, 34, 22), outline=(120, 96, 40), width=2)
+    d.text((act_box[0] + 10 * S, act_box[1] + 8 * S), "◎", font=lfont(16), fill=GOLD_TEXT)
+
+    # ---- tasbeeh and Qibla cards (62 dp, same glass as the banner) ----------
+    row_top = banner_top + banner_h + 10 * S
+    row_h = 62 * S
+    card_w = (W - 2 * pad - 10 * S) // 2
+
+    # Tasbeeh (the first card in reading order, so it sits on the right).
+    t_left = W - pad - card_w
+    rounded(d, (t_left, row_top, W - pad, row_top + row_h), 20 * S,
+            fill=CARD, outline=BORDER, width=2)
+    tring = 38 * S
+    tring_left = W - pad - 12 * S - tring
+    tring_top = row_top + (row_h - tring) // 2
+    d.ellipse((tring_left, tring_top, tring_left + tring, tring_top + tring),
+              outline=BORDER, width=3 * S)
+    d.arc((tring_left, tring_top, tring_left + tring, tring_top + tring),
+          start=-90, end=-90 + 331, fill=PRIMARY, width=3 * S)
+    rtl(d, tring_left + 19 * S, tring_top + 9 * S, "۳۴", ufont(14), PRIMARY)
+    rtl(d, tring_left - 10 * S, row_top + 9 * S, "تسبیح", ufont(16), TEXT)
+    rtl(d, tring_left - 10 * S, row_top + 34 * S, "آج: ۱۳۴ • ہدف ۳۳", ufont(13), MUTED)
+
+    # Qibla.
+    q_left = pad
+    rounded(d, (q_left, row_top, q_left + card_w, row_top + row_h), 20 * S,
+            fill=CARD, outline=BORDER, width=2)
+    needle_left = q_left + card_w - 12 * S - tring
+    d.text((needle_left + 10 * S, row_top + (row_h - 24 * S) // 2), "➤",
+           font=lfont(18), fill=GOLD_TEXT)
+    rtl(d, needle_left - 10 * S, row_top + 9 * S, "قبلہ نما", ufont(16), TEXT)
+    rtl(d, needle_left - 10 * S, row_top + 34 * S, "۲۶۸° مغرب • ۲۸۰۰ کلومیٹر", ufont(13), MUTED)
+
+    # ---- the library --------------------------------------------------------
+    y = row_top + row_h + 22 * S
     rtl(d, W - pad, y, "قرآن، دعائیں، فتاویٰ اور نہج البلاغہ", ufont(21), TEXT)
     y += 40 * S
     x = W - pad
@@ -174,7 +232,7 @@ def main() -> None:
         d.text((bx - cw + 14 * S, y + 100 * S), latin, font=lfont(11), fill=MUTED)
         rounded(d, (bx - 34 * S, y + 92 * S, bx - 14 * S, y + 108 * S), 8 * S, fill=(36, 47, 43))
 
-    d.text((pad, 856), "design preview — ShiaVerse 1.7 home screen (dark theme)",
+    d.text((pad, 1046), "design preview — ShiaVerse 1.8 home screen (dark theme)",
            font=lfont(12), fill=(105, 122, 112))
     out = OUTPUT
     out.parent.mkdir(parents=True, exist_ok=True)

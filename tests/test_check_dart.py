@@ -94,6 +94,13 @@ class CheckDartTests(TestCase):
         source = "import '../data_packages.dart';\n" "final label = '${formatBytes(9)}';\n"
         self.assertIn("formatBytes", self.guard.identifiers_in(source))
 
+    def test_typed_top_level_constants_count_as_exported(self) -> None:
+        """Regression: `const Color kGold = ...` used to be invisible, which
+        made the unused-import check flag files that only used that constant."""
+        names = self.guard.exported_names(ROOT / "app" / "lib" / "app_theme.dart")
+        self.assertIn("kArabicFont", names)
+        self.assertIn("kForest", names)
+
     def test_exported_names_include_reexports(self) -> None:
         names = self.guard.exported_names(ROOT / "app" / "lib" / "library_repository.dart")
         self.assertIn("LibraryRepository", names)

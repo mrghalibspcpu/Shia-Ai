@@ -8,6 +8,7 @@ import '../library_repository.dart';
 import '../models.dart';
 import '../reader_navigation.dart';
 import '../text_utils.dart' show arabicNumerals;
+import '../widgets/home_utilities.dart';
 import '../widgets/last_seen_bar.dart';
 import '../widgets/reader_kit.dart';
 import '../widgets/resume_card.dart';
@@ -116,6 +117,19 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
                 onOpened: _loadLastSeen,
               ),
             ],
+            // The prayer banner and the utility row open the two features that
+            // are used every day; their height is fixed, so nothing below them
+            // moves while the countdown ticks or the location resolves.
+            const SizedBox(height: 14),
+            const HomePrayerBanner(),
+            const SizedBox(height: 10),
+            const Row(
+              children: <Widget>[
+                Expanded(child: HomeTasbeehCard()),
+                SizedBox(width: 10),
+                Expanded(child: HomeQiblaCard()),
+              ],
+            ),
             const SizedBox(height: 22),
             const _SectionHeader('قرآن، دعائیں، فتاویٰ اور نہج البلاغہ'),
             const SizedBox(height: 10),

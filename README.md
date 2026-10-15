@@ -68,6 +68,43 @@ See [`docs/library-1-5-update.md`](docs/library-1-5-update.md).
   the round icon (API 25) and every legacy density, so no launcher mask can
   clip the wordmark.
 
+## Prayer timings, Qibla compass, and the digital tasbeeh (1.8)
+
+Three daily utilities, sharing one set of coordinates and one design language.
+They open from the home screen — a glass banner with the next prayer and its
+live countdown, and a row with the counter and the compass — and each has its
+own screen.
+
+- **Shia (Jafari) prayer timings.** `adhan_dart` with the Jafari/Leva-Qum preset
+  (Fajr 16°, Isha 14°, Maghrib at 4° — the disappearance of the eastern red
+  twilight), or the Tehran reading (Fajr 17.7°, Maghrib 4.5°). Nisf al-Layl is
+  the midpoint of Maghrib to the next Fajr. Every time on the card is the wall
+  clock of *the place*, not of the phone, so a phone set to the wrong timezone
+  cannot print Isha in the afternoon. A hero header paints the mosque wallpaper
+  with the place, the date and the day's times on glass over it.
+- **Location, asked for once.** GPS → IP lookup → manual city (70 cities, offline
+  list) → Islamabad. Whatever wins is stored, so later launches open instantly,
+  offline, and the compass never asks for a second fix.
+- **Qibla compass.** The specification's bearing formula from those same
+  coordinates, and the phone's own magnetometer for the heading, smoothed by a
+  filter that cannot snap through the north seam. A green
+  **الائن / کیلیبریٹڈ** state (with a short haptic) when the phone is within 5°
+  of the Qibla; the bearing, the compass point and the distance to the Kaaba are
+  shown even on a phone with no sensor at all.
+- **Digital tasbeeh.** Tasbeeh-e-Zahra (s.a.) advances by itself
+  (34× Allahu Akbar → 33× Alhamdulillah → 33× Subhanallah), plus salawat,
+  istighfar, tawheed and a custom counter with 33/100/1000/unlimited targets. A
+  ripple, a selection haptic and a quiet click on every tap; a double haptic and
+  a three-note chime when a step completes. Counts, today's total and the
+  lifetime total survive a kill, and the daily counter rolls over by itself.
+- **Post-prayer shortcut.** Within half an hour of a prayer's time (and of Fajr's
+  window closing at sunrise) the dashboard offers **تسبیحِ زہرا (س) شروع کریں**,
+  which arms the sequence and opens the counter.
+
+See [`docs/prayer-qibla-tasbeeh-1-8.md`](docs/prayer-qibla-tasbeeh-1-8.md), and
+`docs/previews/home-1-8.png` for the home layout re-rendered with the new
+widgets.
+
 ## App name and icon
 
 The launcher label and the in-app title are **ShiaVerse**. The icon artwork is
