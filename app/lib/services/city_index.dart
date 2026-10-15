@@ -223,8 +223,9 @@ class CityIndex {
 
   /// Places whose name contains [query]: exact names first, then names that
   /// start with it, then a later word that starts with it, then anything else
-  /// — each group biggest-first (the list is stored by population).
-  List<GeoCity> search(String query, {int limit = 40}) {
+  /// — each group biggest-first (the list is stored by population), with the
+  /// places of [preferCountry] (the reader's own country) ahead in each group.
+  List<GeoCity> search(String query, {int limit = 40, String? preferCountry}) {
     final needle = normaliseQuery(query);
     if (needle.length < 2) return const <GeoCity>[];
     final exact = <int>[];
@@ -249,7 +250,22 @@ class CityIndex {
       // Enough to fill any page: a two-letter query matches thousands.
       if (++found >= 4000) break;
     }
-    final ordered = <int>[...exact, ...prefix, ...word, ...inside];
+    List<int> homeFirst(List<int> group) {
+      if (preferCountry == null) return group;
+      final home = <int>[];
+      final away = <int>[];
+      for (final entry in group) {
+        (_countryCodes[_countryIds[entry]] == preferCountry ? home : away).add(entry);
+      }
+      return <int>[...home, ...away];
+    }
+
+    final ordered = <int>[
+      ...homeFirst(exact),
+      ...homeFirst(prefix),
+      ...homeFirst(word),
+      ...homeFirst(inside),
+    ];
     return <GeoCity>[for (final index in ordered.take(limit)) cityAt(index)];
   }
 

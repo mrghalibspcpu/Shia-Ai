@@ -637,11 +637,16 @@ class PrayerLocations {
   /// Everything the picker can show without the network: the curated cities
   /// that match first (they have Urdu names), then the bundled list, with the
   /// curated twins of GeoNames rows removed so no city appears twice.
-  static List<PlaceResult> searchOffline(String query, CityIndex? index, {int limit = 60}) {
+  static List<PlaceResult> searchOffline(
+    String query,
+    CityIndex? index, {
+    int limit = 60,
+    String? preferCountry,
+  }) {
     final curated = searchCities(query).map(resultForSuggestion).toList();
     if (index == null || query.trim().isEmpty) return curated;
     final results = <PlaceResult>[...curated];
-    for (final city in index.search(query, limit: limit)) {
+    for (final city in index.search(query, limit: limit, preferCountry: preferCountry)) {
       final row = resultForCity(city);
       final duplicate = curated.any(
         (known) => known.sameSpotAs(row) && namesAgree(known.subtitle, city.name),

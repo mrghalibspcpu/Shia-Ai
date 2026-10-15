@@ -1284,6 +1284,9 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
   final TextEditingController _query = TextEditingController();
   CityIndex? _index;
   bool _indexLoading = true;
+
+  /// The reader's own country, whose towns are listed first.
+  String? _homeCountry;
   List<PlaceResult> _offline = PrayerLocations.searchCities('').map(PrayerLocations.resultForSuggestion).toList();
   List<PlaceResult> _online = const <PlaceResult>[];
   bool _onlineBusy = false;
@@ -1301,10 +1304,13 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
   Future<void> _loadIndex() async {
     final index = await CityIndexLoader.load();
     if (!mounted) return;
+    final location = PrayerScope.read(context).location;
+    final home = index?.nearest(location.latitude, location.longitude, maxKm: 300)?.city.countryCode;
     setState(() {
       _index = index;
       _indexLoading = false;
-      _offline = PrayerLocations.searchOffline(_query.text, index);
+      _homeCountry = home;
+      _offline = PrayerLocations.searchOffline(_query.text, index, preferCountry: home);
     });
   }
 
@@ -1318,7 +1324,7 @@ class _LocationPickerSheetState extends State<LocationPickerSheet> {
   void _onQueryChanged(String value) {
     final generation = ++_generation;
     setState(() {
-      _offline = PrayerLocations.searchOffline(value, _index);
+      _offline = PrayerLocations.searchOffline(value, _index, preferCountry: _homeCountry);
       _online = const <PlaceResult>[];
       _onlineTried = false;
     });

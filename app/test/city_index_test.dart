@@ -75,6 +75,20 @@ void main() {
       expect(index.search('zzzz'), isEmpty);
     });
 
+    test('the home country of the reader comes first within each group', () {
+      final mixed = CityIndex.parse(
+        'Al Hillah\tIQ\tBabil\t32.464\t44.420\t460000\n'
+        'Alizai\tPK\tKhyber Pakhtunkhwa\t33.539\t70.346\t3300\n'
+        'Al\tNO\tViken\t60.630\t8.564\t2000\n',
+      );
+      expect(mixed.search('al').map((city) => city.name), <String>['Al', 'Al Hillah', 'Alizai']);
+      expect(
+        mixed.search('al', preferCountry: 'PK').map((city) => city.name),
+        <String>['Al', 'Alizai', 'Al Hillah'],
+        reason: 'an exact name still beats a prefix from home',
+      );
+    });
+
     test('the limit is respected', () {
       expect(index.search('a', limit: 2), isEmpty);
       expect(index.search('al', limit: 1).length, 1);
