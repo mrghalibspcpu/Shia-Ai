@@ -757,10 +757,6 @@ class LibraryRepository {
   /// furniture: the Imam's biography, "ہمارے بارے میں", lecture videos, and
   /// quiz pages. Those were never part of the book and used to appear as
   /// numbered entries 84 and up.
-  /// Written literally (not interpolated) so `scripts/verify_client_sql.py` can
-  /// lift the statement verbatim out of this file and run it.
-  static const String _sahifaSupplicationTypes = '(1, 2, 3, 4)';
-
   String _extraQuery(BookDefinition book) => book.source == CorpusSource.sahifa
       ? """
         SELECT d.ID AS record_id, d.t_id * 10000 + d.t_no AS section_id,

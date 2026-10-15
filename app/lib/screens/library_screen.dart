@@ -45,11 +45,6 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
     }
   }
 
-  Future<void> _openLast(LastReadEntry entry) async {
-    await openLastRead(context, widget.library, entry);
-    await _loadLastRead();
-  }
-
   @override
   Widget build(BuildContext context) {
     final lastBook = _lastRead?.book;
