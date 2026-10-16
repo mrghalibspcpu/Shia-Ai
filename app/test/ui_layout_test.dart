@@ -516,18 +516,14 @@ void main() {
 
   testWidgets('the Qibla bearing carries the transparent Kaaba asset on a narrow phone', (tester) async {
     phone(tester, width: 320);
-    // The widget has a real compass subscription; stand in for its platform
-    // listen/cancel so a headless test does not leak a MissingPluginException
-    // into whichever suite runs next.
-    const channel = MethodChannel('hemanthraj/flutter_compass');
-    final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-    messenger.setMockMethodCallHandler(channel, (_) async => null);
-    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
     final (prayer, tasbeeh) = await controllersAt(tester, localTime(15, 30));
-    await tester.pumpWidget(host(prayer, tasbeeh, const QiblaScreen()));
+    // No hardware in a widget test: the sensor-less bearing still points to
+    // the Kaaba, without opening a real EventChannel subscription.
+    await tester.pumpWidget(host(prayer, tasbeeh, const QiblaScreen(autoStartCompass: false)));
     await settle(tester);
     final marker = tester.widget<Image>(find.byKey(const ValueKey<String>('qibla-kaaba-marker')));
-    expect((marker.image as AssetImage).assetName, 'assets/images/kaaba_icon.png');
+    final resized = marker.image as ResizeImage;
+    expect((resized.image as AssetImage).assetName, 'assets/images/kaaba_icon.png');
     expect(tester.takeException(), isNull);
     await shoot(tester, 'qibla-3d');
     await finish(tester, prayer, tasbeeh);

@@ -28,7 +28,11 @@ enum _CompassStatus {
 /// the Kaaba computed from the coordinates the prayer card uses, and a needle
 /// that is aligned/not-aligned instead of a number to interpret.
 class QiblaScreen extends StatefulWidget {
-  const QiblaScreen({super.key});
+  const QiblaScreen({super.key, this.autoStartCompass = true});
+
+  /// Off only for a sensor-free preview/test: the bearing and Kaaba marker
+  /// must still render even when a device cannot supply a heading.
+  final bool autoStartCompass;
 
   @override
   State<QiblaScreen> createState() => _QiblaScreenState();
@@ -48,6 +52,10 @@ class _QiblaScreenState extends State<QiblaScreen> {
   @override
   void initState() {
     super.initState();
+    if (!widget.autoStartCompass) {
+      _status = _CompassStatus.unavailable;
+      return;
+    }
     // The location (and therefore the bearing) may still be resolving; when it
     // lands, the dial redraws on its own because the scope notifies.
     WidgetsBinding.instance.addPostFrameCallback((_) {
