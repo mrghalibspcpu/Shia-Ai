@@ -781,7 +781,7 @@ class _MomentCardState extends State<_MomentCard> {
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: () => unawaited(_open(line)),
-        child: Container(
+        child: Ink(
           padding: const EdgeInsets.fromLTRB(8, 7, 10, 7),
           decoration: BoxDecoration(
             gradient: palette.moment,
@@ -1487,7 +1487,7 @@ class _SectionCard extends StatelessWidget {
                             fontFamily: kUrduFont,
                             fontSize: 9.5,
                             height: 1.25,
-                            color: palette.goldSoft.withValues(alpha: 0.95),
+                            color: palette.onDarkMuted,
                           ),
                         ),
                       ],

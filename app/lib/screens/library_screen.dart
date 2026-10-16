@@ -175,11 +175,13 @@ class _NoticeChip extends StatelessWidget {
 }
 
 class _IconBadge extends StatelessWidget {
-  const _IconBadge({required this.icon, required this.color, this.size = 42});
+  const _IconBadge({required this.icon, required this.color});
 
   final IconData icon;
   final Color color;
-  final double size;
+
+  /// The badge the book rows and the hadith grid draw.
+  static const double size = 42;
 
   @override
   Widget build(BuildContext context) {
