@@ -5,6 +5,11 @@ test log is the least useful part of it. This reads the log the CI run already
 writes and lists the *failures* instead: the failing test's file and name,
 followed by the expectation it broke.
 
+A widget test reports its cause in the exception block printed *above* its
+failure line (`Test failed. See exception logs above.`), so that block is read
+too — otherwise the one annotation a run produces says only that something
+broke.
+
 Usage: `python3 scripts/flutter_test_digest.py /tmp/flutter-test.log`
 """
 
@@ -24,9 +29,37 @@ TIMESTAMP_RE = re.compile(r"^\d\d:\d\d ")
 BLOCK_LINES = 5
 MAX_DETAIL = 3600
 
+# The exception block above a failure line: how far back to look for its first
+# line, how many lines of it to keep, and which lines are noise (the stack).
+LOOK_BACK = 160
+EXCEPTION_LINES = 14
+EXCEPTION_MARKERS = ("EXCEPTION CAUGHT BY", "The following TestFailure", "The following ")
+STACK_RE = re.compile(r"^#\d+\s")
+
 
 def _is_progress(line: str) -> bool:
     return bool(PROGRESS_RE.match(line.strip()))
+
+
+def _exception_before(lines: list[str], index: int) -> list[str]:
+    """The exception block `flutter test` prints above a failure line."""
+    start = None
+    for back in range(1, min(LOOK_BACK, index) + 1):
+        line = lines[index - back].strip()
+        if any(marker in line for marker in EXCEPTION_MARKERS):
+            start = index - back
+            break
+    if start is None:
+        return []
+    block: list[str] = []
+    for raw in lines[start:index]:
+        text = TIMESTAMP_RE.sub("", raw.strip()).strip()
+        if not text or STACK_RE.match(text):
+            continue
+        block.append(text)
+        if len(block) >= EXCEPTION_LINES:
+            break
+    return block
 
 
 def digest(log_text: str) -> str:
@@ -37,7 +70,8 @@ def digest(log_text: str) -> str:
     while index < len(lines):
         line = lines[index].strip()
         if "[E]" in line:
-            block = [PROGRESS_RE.sub("", line).strip()]
+            block = _exception_before(lines, index)
+            block.append(PROGRESS_RE.sub("", line).strip())
             index += 1
             while (
                 index < len(lines)

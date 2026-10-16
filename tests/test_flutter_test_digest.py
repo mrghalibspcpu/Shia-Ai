@@ -33,6 +33,26 @@ LOG = """\
 """
 
 
+# A widget test's real cause sits *above* its failure line: `flutter test`
+# prints the exception first, then `[E]` with "See exception logs above."
+WIDGET_LOG = """\
+00:03 +200: /w/app/test/ui_layout_test.dart: the dashboard fits
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _WidgetTypeFinder:<zero widgets with icon IconData(U+0E3AC) (lock)>
+   Which: means none were found but one was expected
+When the exception was thrown, this was the stack:
+#0      fail (package:matcher/src/expect/expect.dart:160:31)
+#1      main.<anonymous closure> (file:///w/app/test/ui_layout_test.dart:255:5)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:03 +200 -1: /w/app/test/ui_layout_test.dart: the tasbeeh dial locks its reset button [E]
+  Test failed. See exception logs above.
+  The test description was: the tasbeeh dial locks its reset button
+00:03 +201 -1: Some tests failed.
+"""
+
+
 def annotate_text(text: str) -> str:
     """annotate() reads a file; this keeps the real code path under test."""
     with tempfile.NamedTemporaryFile("w", suffix=".log", delete=False) as handle:
@@ -89,6 +109,18 @@ class DigestTest(unittest.TestCase):
 
     def test_an_empty_log_is_not_an_error(self) -> None:
         self.assertIn("no failure blocks", digest(""))
+
+    def test_the_exception_above_a_widget_failure_is_read(self) -> None:
+        detail = digest(WIDGET_LOG)
+        self.assertIn("the tasbeeh dial locks its reset button [E]", detail)
+        self.assertIn("The following TestFailure was thrown running a test:", detail)
+        self.assertIn("zero widgets with icon", detail)
+        self.assertIn("Which: means none were found but one was expected", detail)
+        # The stack frames are noise in an annotation GitHub cuts at 4 KB.
+        self.assertNotIn("#0      fail", detail)
+
+    def test_the_exception_block_does_not_look_like_a_second_failure(self) -> None:
+        self.assertTrue(annotate_text(WIDGET_LOG).startswith("::error title=Flutter tests failed (1)::"))
 
 
 if __name__ == "__main__":
