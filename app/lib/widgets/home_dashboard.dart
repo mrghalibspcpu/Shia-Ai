@@ -1267,7 +1267,6 @@ class _DialRoundButton extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,
-            onLongPress: onLongPress,
             child: Ink(
               width: size,
               height: size,
@@ -1306,11 +1305,21 @@ class _DialRoundButton extends StatelessWidget {
     );
   }
 
-  /// The tooltip is wrapped around every button except the ones that own the
-  /// long press: a tooltip's own long-press recognizer would compete with the
-  /// button's (the reset button locks and unlocks with a long press).
-  Widget _maybeTooltip({required Widget child}) =>
-      onLongPress == null ? Tooltip(message: tooltip, child: child) : child;
+  /// Every button except the one that owns the long press gets a tooltip: a
+  /// tooltip carries its own long-press recognizer, and two recognizers for one
+  /// gesture is how a long press gets swallowed.
+  Widget _maybeTooltip({required Widget child}) {
+    final long = onLongPress;
+    if (long == null) return Tooltip(message: tooltip, child: child);
+    // The long press is claimed by exactly one recognizer, wrapped *around*
+    // the button, so the tap inside it stays the InkWell's and nothing else
+    // can take the press away from the button the reader is holding.
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onLongPress: long,
+      child: child,
+    );
+  }
 }
 
 /// 10 — the search bar, moved off the bottom panel. It opens the working

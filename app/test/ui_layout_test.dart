@@ -253,10 +253,24 @@ void main() {
     expect(find.byIcon(Icons.restart_alt), findsOneWidget);
     expect(find.byIcon(Icons.lock), findsNothing);
 
+    // If this ever fails again, the reason carries the hit path: which render
+    // objects the press actually reached.
+    final centre = tester.getCenter(find.byIcon(Icons.restart_alt));
+    final path = tester
+        .hitTestOnBinding(centre)
+        .path
+        .take(16)
+        .map((entry) => entry.target.runtimeType.toString())
+        .join(' > ');
+
     await tester.longPress(find.byIcon(Icons.restart_alt));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
-    expect(find.byIcon(Icons.lock), findsOneWidget, reason: 'the long press locks the reset button');
+    expect(
+      find.byIcon(Icons.lock),
+      findsOneWidget,
+      reason: 'the long press locks the reset button; hit path at $centre: $path',
+    );
     expect(find.byIcon(Icons.restart_alt), findsNothing);
     expect(tasbeeh.count, 1);
 
