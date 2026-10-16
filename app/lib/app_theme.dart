@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'models.dart';
 
@@ -64,11 +65,16 @@ ThemeData buildLightTheme() {
       centerTitle: false,
       elevation: 0,
       surfaceTintColor: Colors.transparent,
+      systemOverlayStyle: SystemUiOverlayStyle.dark,
     ),
     cardTheme: CardThemeData(
       color: Colors.white,
-      elevation: 0.5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 0,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: kGold.withValues(alpha: 0.24)),
+      ),
       margin: EdgeInsets.zero,
     ),
     navigationBarTheme: NavigationBarThemeData(
@@ -90,6 +96,11 @@ ThemeData buildLightTheme() {
         borderSide: BorderSide.none,
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      showDragHandle: true,
     ),
     dividerTheme: const DividerThemeData(color: Color(0xFFE7E2D8), thickness: 0.8),
   );
@@ -144,9 +155,9 @@ class ReaderPalette {
   final String key;
 
   static const paper = ReaderPalette(
-    background: Color(0xFFFFFEFA),
-    foreground: Color(0xFF252721),
-    name: 'کاغذی',
+    background: Colors.white,
+    foreground: kInk,
+    name: 'سفید',
     key: 'paper',
   );
   static const sepia = ReaderPalette(
@@ -161,6 +172,10 @@ class ReaderPalette {
     name: 'رات',
     key: 'night',
   );
+
+  bool get isNight => key == 'night';
+  Color get accent => isNight ? const Color(0xFFE4BC70) : kForest;
+  Color get border => isNight ? const Color(0xFF625238) : const Color(0xFFE5D8BD);
 
   static const List<ReaderPalette> all = [paper, sepia, night];
 
@@ -241,11 +256,11 @@ class DashboardPalette {
     backdrop: LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: <Color>[Color(0xFFF2F5F3), Color(0xFFDFE7E3)],
+      colors: <Color>[Colors.white, Colors.white],
     ),
     gold: kGold,
     goldSoft: Color(0xFFEBD5A8),
-    cream: Color(0xFFF8F4EA),
+    cream: Colors.white,
     creamInk: Color(0xFF6E6A5C),
     ink: kInk,
     onDark: Color(0xFFF6FBF7),
@@ -267,8 +282,10 @@ class DashboardPalette {
       colors: <Color>[Color(0xFF45225C), Color(0xFF26103A)],
     ),
     metal: RadialGradient(
-      colors: <Color>[Color(0xFFF3F6F7), Color(0xFFD8DEE1), Color(0xFFB9C2C6)],
-      stops: <double>[0, 0.62, 1],
+      center: Alignment(-0.4, -0.55),
+      radius: 1.1,
+      colors: <Color>[Color(0xFFFFFFFF), Color(0xFFE5E9EC), Color(0xFFADB6BF)],
+      stops: <double>[0, 0.48, 1],
     ),
     metalInk: Color(0xFF3C4448),
     bead: Color(0xFF31204E),

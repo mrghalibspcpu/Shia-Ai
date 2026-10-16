@@ -63,12 +63,12 @@ class GlassPalette {
     return dark ? _dark : _light;
   }
 
-  /// Light mode: `#f4f6f8` page, cream glass, emerald and gold.
+  /// Light mode: white page and white glass, with emerald and gold accents.
   static const GlassPalette _light = GlassPalette(
-    scaffold: Color(0xFFF4F6F8),
+    scaffold: Colors.white,
     fill: Color(0xB8FFFFFF),
-    solid: Color(0xFFFDFCF7),
-    border: Color(0xE6FFFFFF),
+    solid: Colors.white,
+    border: Color(0x40C59A50),
     highlight: Color(0x99FFFFFF),
     ink: Color(0xFF1D2925),
     muted: Color(0xFF6B7A73),

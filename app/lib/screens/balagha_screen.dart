@@ -7,6 +7,7 @@ import '../app_theme.dart';
 import '../library_repository.dart';
 import '../models.dart';
 import '../widgets/reader_kit.dart';
+import '../widgets/reader_chrome.dart';
 import '../widgets/resume_card.dart';
 
 /// Nahj al-Balagha: khutbas, letters, wisdoms, prophetic traditions, and the
@@ -296,19 +297,11 @@ class _BalaghaPassageListState extends State<_BalaghaPassageList> {
   @override
   Widget build(BuildContext context) {
     final palette = _preferences.palette;
-    return Scaffold(
-      backgroundColor: palette.background,
-      appBar: AppBar(
-        backgroundColor: palette.background,
-        foregroundColor: palette.foreground,
-        title: JustifiedText(widget.title, style: TextStyle(color: palette.foreground), maxLines: 1),
-        actions: [
-          ReaderControls(
-            preferences: _preferences,
-            onChanged: (value) => setState(() => _preferences = value),
-          ),
-        ],
-      ),
+    return ReaderScaffold(
+      book: _book,
+      title: widget.title,
+      preferences: _preferences,
+      onPreferencesChanged: (value) => setState(() => _preferences = value),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -323,7 +316,7 @@ class _BalaghaPassageListState extends State<_BalaghaPassageList> {
                         itemCount: _passages.length,
                         addAutomaticKeepAlives: false,
                         minCacheExtent: 350,
-                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 40),
+                        padding: const EdgeInsets.fromLTRB(14, 8, 14, 112),
                         itemBuilder: (context, index) {
                           final passage = _passages[index];
                           if (passage.format == 4) {

@@ -222,6 +222,24 @@ See [`docs/home-dashboard-1-11.md`](docs/home-dashboard-1-11.md), and
 `docs/previews/home-1-11.png` for the layout re-drawn at the app's own
 measurements (`scripts/render_home_preview.py`).
 
+## White home, personal dock, and coordinated readers (1.12)
+
+The bottom dock now carries **Home, Settings, Bookmarks, Last seen, More**, with
+larger icon containers, smaller gaps and English names underneath. Collections
+remain on their side rail, whose titles are larger and centred. The spine faces
+the opposite way. Home fills the available height, so the search field and
+**دینی مسائل** finish on one baseline immediately above the dock, without the
+old gap beneath the status bar.
+
+Prayer information is arranged in a clean two-row grid and the mini tasbeeh is
+larger, with a bevelled metallic 3D face. Home, utility pages, the dock and the
+default reader paper are white. All readers share a collection-coloured,
+gold-edged header and a compact appearance sheet, while preserving their lazy
+lists, search targets, bookmarks, notes and reading positions.
+
+See [`docs/home-reader-1-12.md`](docs/home-reader-1-12.md) for the layout,
+preservation details and regression checks.
+
 ## App name and icon
 
 The launcher label and the in-app title are **ShiaVerse**. The icon artwork is

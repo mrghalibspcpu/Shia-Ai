@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_theme.dart';
@@ -27,8 +28,14 @@ import 'widgets/reading_hub.dart';
 /// Set once the 1.10 light-by-default rule has run on this phone.
 const String _kLightDefaultKey = 'light_default_applied';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark.copyWith(
+    statusBarColor: Colors.transparent,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarDividerColor: Colors.transparent,
+  ));
   runApp(const ShiaLibraryApp());
 }
 
@@ -470,9 +477,7 @@ class HomeShell extends StatefulWidget {
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
 
-  /// What the panel's **مزید** button opens: the sheet with every feature
-  /// that is not a panel button. The three collection buttons are handled
-  /// inside the shell, because the shell already holds the library.
+  /// The shared page actions used by the dock and the reading hub.
   final ValueChanged<HubDestination> onAction;
 
   @override
@@ -480,9 +485,7 @@ class HomeShell extends StatefulWidget {
 }
 
 class HomeShellState extends State<HomeShell> {
-  // One page, and the five buttons of the bottom panel: گھر, قرآن, احادیث,
-  // دعائیں and مزید. Search is the bar on the dashboard, so the panel keeps
-  // the collections themselves.
+  // Collections stay on the side rail; personal tools live in the dock.
   late final Widget _homePage = LibraryHomeScreen(
     library: widget.library,
     onOpenData: openData,
@@ -518,24 +521,17 @@ class HomeShellState extends State<HomeShell> {
   }
 
   void _onDockSelected(HomeDockItem item) {
-    final section = item.section;
-    if (section != null) {
-      unawaited(openHomeSection(
-        context,
-        library: widget.library,
-        section: section,
-        onOpenData: openData,
-      ));
-      return;
-    }
     switch (item) {
       case HomeDockItem.home:
         refresh();
+      case HomeDockItem.settings:
+        openSettings();
+      case HomeDockItem.bookmarks:
+        widget.onAction(HubDestination.bookmarks);
+      case HomeDockItem.lastSeen:
+        unawaited(showLastSeenSheet(context, library: widget.library, onOpened: refresh));
       case HomeDockItem.more:
         widget.onAction(HubDestination.more);
-      case HomeDockItem.quran || HomeDockItem.hadith || HomeDockItem.duas:
-        // Handled by the section branch above.
-        break;
     }
   }
 
@@ -545,11 +541,17 @@ class HomeShellState extends State<HomeShell> {
     // new book immediately instead of after a manual refresh.
     return ValueListenableBuilder<int>(
       valueListenable: widget.library.catalogVersion,
-      builder: (context, _, __) => Scaffold(
-        body: TickerMode(enabled: true, child: _homePage),
-        bottomNavigationBar: HomeDockBar(
-          selected: HomeDockItem.home,
-          onSelected: _onDockSelected,
+      builder: (context, _, __) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: (Theme.of(context).brightness == Brightness.dark
+                ? SystemUiOverlayStyle.light
+                : SystemUiOverlayStyle.dark)
+            .copyWith(statusBarColor: Colors.transparent, systemNavigationBarColor: Colors.transparent),
+        child: Scaffold(
+          body: TickerMode(enabled: true, child: _homePage),
+          bottomNavigationBar: HomeDockBar(
+            selected: HomeDockItem.home,
+            onSelected: _onDockSelected,
+          ),
         ),
       ),
     );

@@ -8,6 +8,7 @@ import '../library_repository.dart';
 import '../models.dart';
 import '../text_utils.dart' show arabicNumerals, parseReaderNumber;
 import '../widgets/reader_kit.dart';
+import '../widgets/reader_chrome.dart';
 import '../widgets/resume_card.dart';
 
 /// Surah / juz / page browser for the Quran collection.
@@ -375,31 +376,19 @@ class _QuranVerseListState extends State<_QuranVerseList> {
   @override
   Widget build(BuildContext context) {
     final palette = _preferences.palette;
-    return Scaffold(
-      backgroundColor: palette.background,
-      appBar: AppBar(
-        backgroundColor: palette.background,
-        foregroundColor: palette.foreground,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            JustifiedText(widget.title, style: TextStyle(color: palette.foreground), maxLines: 1),
-            Text(
-              widget.subtitle,
-              style: TextStyle(color: palette.foreground.withValues(alpha: 0.6), fontSize: 11),
-              textDirection: TextDirection.rtl,
-            ),
-          ],
+    return ReaderScaffold(
+      book: _book,
+      title: widget.title,
+      subtitle: widget.subtitle,
+      preferences: _preferences,
+      onPreferencesChanged: (value) => setState(() => _preferences = value),
+      actions: <Widget>[
+        IconButton(
+          tooltip: 'سورہ / آیت پر جائیں',
+          icon: const Icon(Icons.my_location),
+          onPressed: () => showQuranJump(context, widget.library),
         ),
-        actions: [
-          IconButton(tooltip: 'سورہ / آیت پر جائیں', icon: const Icon(Icons.my_location),
-            onPressed: () => showQuranJump(context, widget.library)),
-          ReaderControls(
-            preferences: _preferences,
-            onChanged: (value) => setState(() => _preferences = value),
-          ),
-        ],
-      ),
+      ],
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -420,10 +409,10 @@ class _QuranVerseListState extends State<_QuranVerseList> {
                           initialAlignment: 0.04,
                           addAutomaticKeepAlives: false,
                           minCacheExtent: 400,
-                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 60),
+                          padding: const EdgeInsets.fromLTRB(14, 8, 14, 112),
                           itemCount: _verses.length + (widget.bismillah ? 1 : 0),
                           itemBuilder: (context, index) {
-                            if (widget.bismillah && index == 0) return _Bismillah(scale: _preferences.fontScale);
+                            if (widget.bismillah && index == 0) return _Bismillah(scale: _preferences.fontScale, color: palette.accent);
                             final verse = _verses[index - (widget.bismillah ? 1 : 0)];
                             return PassageCard(
                               key: ValueKey('quran-${verse.recordId}'),
@@ -448,9 +437,10 @@ class _QuranVerseListState extends State<_QuranVerseList> {
 }
 
 class _Bismillah extends StatelessWidget {
-  const _Bismillah({required this.scale});
+  const _Bismillah({required this.scale, required this.color});
 
   final double scale;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -464,7 +454,7 @@ class _Bismillah extends StatelessWidget {
           fontFamily: kArabicFont,
           fontSize: 26 * scale,
           height: 1.8,
-          color: kForest,
+          color: color,
         ),
       ),
     );

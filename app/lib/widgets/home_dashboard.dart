@@ -29,26 +29,22 @@ import 'sky_backdrop.dart';
 /// sky, 3–7 the five collections, 8 **آیت / حدیثِ وقت**, 9 the circular tasbeeh,
 /// 10 the search bar, and 11–15 the five buttons of the bottom panel.
 ///
-/// Everything is drawn on one fixed design canvas and scaled as a single piece
-/// to the phone, so every container keeps the shape and the position it was
-/// designed with — on a 360 dp phone, on a tall phone and on a tablet alike.
+/// The original arrangement is preserved, but its columns fill the screen's
+/// available height. Width-based scaling keeps the proportions on a phone or
+/// tablet without leaving an empty band above and below the dashboard.
 
-/// The design canvas. All the numbers below are the approved design's
-/// measurements: the whole screen is one drawing, never a re-flow.
-const double _canvasWidth = 352;
+/// Width-based design units. Height is supplied by the screen, not a fixed
+/// canvas: both columns end on the same baseline and start by the status bar.
+const double _canvasWidth = 360;
 const double _canvasHeight = 610;
 const double _pad = 6;
 const double _gap = 8;
-const double _rowGap = 10;
-const double _railWidth = 42;
-const double _prayerHeight = 190;
-const double _momentHeight = 80;
+const double _rowGap = 8;
+const double _railWidth = 40;
 const double _searchHeight = 46;
-const double _rightWidth = 90;
-const double _rightCardHeight = 110;
+const double _rightWidth = 96;
 
-/// The widest the dashboard is ever drawn: a tablet shows the same dashboard,
-/// centred, instead of stretching it across the glass.
+/// The dashboard and its dock share this width cap and the same edge inset.
 const double _maxScale = 1.45;
 
 /// One of the five collections on the dashboard — containers 3 to 7 — and
@@ -138,75 +134,72 @@ Future<void> openHomeSection(
   );
 }
 
-/// The five buttons of the bottom panel — containers 11 to 15.
-///
-/// Three of them are the collections a reader opens every day (the Quran, the
-/// hadith corpus, the dua books), so they are one tap away; everything else
-/// lives under **مزید**.
+/// The collections already have their own side rail. The dock is for the
+/// reader's personal tools instead, with English names on every button.
 enum HomeDockItem {
-  home('گھر', Icons.home_rounded, Color(0xFF45225C)),
-  quran('قرآن', Icons.menu_book_rounded, Color(0xFF19654C)),
-  hadith('احادیث', Icons.format_quote_rounded, Color(0xFF146B70)),
-  duas('دعائیں', Icons.mosque, Color(0xFF135C78)),
-  more('مزید', Icons.apps_rounded, Color(0xFF45225C));
+  home('Home', Icons.home_rounded, Color(0xFF45225C)),
+  settings('Settings', Icons.settings_rounded, Color(0xFF19654C)),
+  bookmarks('Bookmarks', Icons.bookmark_rounded, Color(0xFF146B70)),
+  lastSeen('Last seen', Icons.history_rounded, Color(0xFF135C78)),
+  more('More', Icons.apps_rounded, Color(0xFF45225C));
 
   const HomeDockItem(this.label, this.icon, this.color);
 
   final String label;
   final IconData icon;
   final Color color;
-
-  /// The collection behind the button, if it opens one.
-  HomeSection? get section => switch (this) {
-        HomeDockItem.quran => HomeSection.quran,
-        HomeDockItem.hadith => HomeSection.hadith,
-        HomeDockItem.duas => HomeSection.duas,
-        HomeDockItem.home || HomeDockItem.more => null,
-      };
 }
 
-/// The pure-black bottom panel: five rounded squares, each with its icon and
-/// its name, in the panel's order (right to left, as an Urdu reader starts).
+/// Large, closely spaced icon containers, with their names OUTSIDE underneath.
+/// No black tray: the white page continues behind the dock and system bar.
 class HomeDockBar extends StatelessWidget {
   const HomeDockBar({super.key, required this.selected, required this.onSelected});
 
-  /// The button that is lit (the home button while the dashboard is in front).
   final HomeDockItem selected;
   final ValueChanged<HomeDockItem> onSelected;
-
-  /// Edge of a button square, and the panel's own padding.
-  static const double squareSize = 62;
 
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: Colors.black,
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: SafeArea(
         top: false,
         child: MediaQuery.withClampedTextScaling(
           maxScaleFactor: 1.1,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(6, 10, 6, 10),
-            // The Row's height is the button's, spelled out: a Scaffold hands
-            // its bottom bar the whole screen as loose constraints, and a
-            // Center inside that would stretch the panel over the dashboard.
-            child: SizedBox(
-              height: squareSize,
-              child: Row(
-                children: <Widget>[
-                  for (final item in HomeDockItem.values)
-                    Expanded(
-                      child: Center(
-                        child: _DockSquare(
-                          item: item,
-                          selected: item == selected,
-                          onTap: () => onSelected(item),
-                        ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final width = math.min(constraints.maxWidth, _canvasWidth * _maxScale);
+              final scale = width / _canvasWidth;
+              final iconHeight = 76 * math.min(scale, 1.25);
+              return Align(
+                heightFactor: 1,
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  width: width,
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(_pad * scale, 4, _pad * scale, 6),
+                    child: SizedBox(
+                      height: iconHeight + 24,
+                      child: Row(
+                        children: <Widget>[
+                          for (final item in HomeDockItem.values) ...<Widget>[
+                            if (item != HomeDockItem.values.first) const SizedBox(width: 4),
+                            Expanded(
+                              child: _DockSquare(
+                                item: item,
+                                iconHeight: iconHeight,
+                                selected: item == selected,
+                                onTap: () => onSelected(item),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                ],
-              ),
-            ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -214,78 +207,81 @@ class HomeDockBar extends StatelessWidget {
   }
 }
 
-/// One button of the panel: a 62 px rounded square with a gold hairline, the
-/// icon above its name.
 class _DockSquare extends StatelessWidget {
-  const _DockSquare({required this.item, required this.selected, required this.onTap});
+  const _DockSquare({
+    required this.item,
+    required this.iconHeight,
+    required this.selected,
+    required this.onTap,
+  });
 
   final HomeDockItem item;
+  final double iconHeight;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final palette = DashboardPalette.of(context);
-    final base = item.color;
     return Semantics(
       button: true,
       selected: selected,
       label: item.label,
-      child: SizedBox(
-        width: HomeDockBar.squareSize,
-        height: HomeDockBar.squareSize,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: <Color>[
-                Color.lerp(base, Colors.white, selected ? 0.16 : 0.04)!,
-                Color.lerp(base, Colors.black, selected ? 0.10 : 0.28)!,
-              ],
-            ),
-            border: Border.all(
-              color: selected ? palette.gold : palette.gold.withValues(alpha: 0.55),
-              width: selected ? 1.6 : 1,
-            ),
-            boxShadow: <BoxShadow>[
-              if (selected)
-                BoxShadow(
-                  color: palette.gold.withValues(alpha: 0.35),
-                  blurRadius: 14,
-                  spreadRadius: -2,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: ValueKey<String>('dock-${item.name}'),
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              AnimatedContainer(
+                key: ValueKey<String>('dock-icon-${item.name}'),
+                duration: const Duration(milliseconds: 200),
+                height: iconHeight,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: <Color>[
+                      Color.lerp(item.color, Colors.white, selected ? 0.2 : 0.08)!,
+                      Color.lerp(item.color, Colors.black, 0.28)!,
+                    ],
+                  ),
+                  border: Border.all(color: palette.gold, width: selected ? 1.6 : 1),
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: item.color.withValues(alpha: 0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: onTap,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Icon(item.icon, size: 21, color: selected ? Colors.white : Colors.white70),
-                  const SizedBox(height: 3),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      item.label,
-                      maxLines: 1,
-                      style: TextStyle(
-                        fontFamily: kUrduFont,
-                        fontSize: 11.5,
-                        height: 1.1,
-                        fontWeight: FontWeight.w700,
-                        color: selected ? Colors.white : Colors.white70,
-                      ),
+                child: Icon(item.icon, size: 29, color: Colors.white),
+              ),
+              const SizedBox(height: 6),
+              SizedBox(
+                height: 16,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    item.label,
+                    key: ValueKey<String>('dock-label-${item.name}'),
+                    maxLines: 1,
+                    textDirection: TextDirection.ltr,
+                    style: TextStyle(
+                      fontFamily: kDigitFont,
+                      fontSize: 11.5,
+                      height: 1.1,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                      color: palette.ink,
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -293,7 +289,8 @@ class _DockSquare extends StatelessWidget {
   }
 }
 
-/// Containers 1–10, scaled as one drawing.
+/// The same fifteen containers, now filling the available height instead of
+/// centring a short drawing in a tall screen.
 class HomeDashboard extends StatelessWidget {
   const HomeDashboard({
     super.key,
@@ -318,13 +315,16 @@ class HomeDashboard extends StatelessWidget {
         final availableWidth = constraints.maxWidth.isFinite ? constraints.maxWidth : _canvasWidth;
         final availableHeight = constraints.maxHeight.isFinite ? constraints.maxHeight : _canvasHeight;
         final scale = math.min(
-          math.min(availableWidth / _canvasWidth, availableHeight / _canvasHeight),
-          _maxScale,
+          math.min(availableWidth / _canvasWidth, _maxScale),
+          availableHeight / 500,
         );
-        return Center(
+        final designHeight = availableHeight / scale;
+        return Align(
+          alignment: Alignment.topCenter,
           child: SizedBox(
+            key: const ValueKey<String>('home-canvas'),
             width: _canvasWidth * scale,
-            height: _canvasHeight * scale,
+            height: availableHeight,
             child: FittedBox(
               fit: BoxFit.fill,
               child: MediaQuery.withClampedTextScaling(
@@ -333,20 +333,13 @@ class HomeDashboard extends StatelessWidget {
                   decoration: BoxDecoration(gradient: palette.backdrop),
                   child: SizedBox(
                     width: _canvasWidth,
-                    height: _canvasHeight,
+                    height: designHeight,
                     child: Padding(
                       padding: const EdgeInsets.all(_pad),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: <Widget>[
-                          // The row runs right to left (the app is RTL): the
-                          // design's right column first, then the wide column
-                          // that carries the rail, the prayer card, the dial
-                          // and the search bar.
-                          SizedBox(
-                            width: _rightWidth,
-                            child: _sectionColumn(context),
-                          ),
+                          SizedBox(width: _rightWidth, child: _sectionColumn(context)),
                           const SizedBox(width: _gap),
                           Expanded(child: _leftColumn(context)),
                         ],
@@ -364,45 +357,48 @@ class HomeDashboard extends StatelessWidget {
 
   /// Containers 1, 2, 8, 9 and 10.
   Widget _leftColumn(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        SizedBox(
-          height: _prayerHeight,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Expanded(child: _MiniPrayerCard()),
-              const SizedBox(width: _gap),
-              const SizedBox(width: _railWidth, child: _TitleRail()),
-            ],
+    return LayoutBuilder(builder: (context, constraints) {
+      final height = constraints.maxHeight;
+      final prayerHeight = (height * 0.34).clamp(178.0, 230.0).toDouble();
+      final momentHeight = (height * 0.12).clamp(60.0, 78.0).toDouble();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          SizedBox(
+            height: prayerHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Expanded(child: _MiniPrayerCard()),
+                const SizedBox(width: _gap),
+                const SizedBox(width: _railWidth, child: _TitleRail()),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: _rowGap),
-        SizedBox(
-          height: _momentHeight,
-          child: _MomentCard(library: library),
-        ),
-        // The dial takes whatever is left between the moment card and the bar.
-        Expanded(child: _TasbeehDial()),
-        const SizedBox(height: _rowGap),
-        SizedBox(
-          height: _searchHeight,
-          child: _SearchPill(onTap: onSearch),
-        ),
-      ],
-    );
+          const SizedBox(height: _rowGap),
+          SizedBox(height: momentHeight, child: _MomentCard(library: library)),
+          const SizedBox(height: _rowGap),
+          const Expanded(child: _TasbeehDial()),
+          const SizedBox(height: _rowGap),
+          SizedBox(
+            key: const ValueKey<String>('home-search'),
+            height: _searchHeight,
+            child: _SearchPill(onTap: onSearch),
+          ),
+        ],
+      );
+    });
   }
 
-  /// Containers 3 to 7, top to bottom.
+  /// Equal-height side cards stretch to the EXACT same baseline as search.
   Widget _sectionColumn(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         for (final section in HomeSection.values) ...<Widget>[
-          SizedBox(
-            height: _rightCardHeight,
+          Expanded(
             child: _SectionCard(
+              key: ValueKey<String>('home-section-${section.name}'),
               section: section,
               installed: section.isInstalled(library),
               onTap: () => unawaited(
@@ -415,6 +411,7 @@ class HomeDashboard extends StatelessWidget {
       ],
     );
   }
+
 }
 
 /// 1 — the app title rail: the ShiaVerse mark, and the name written down the
@@ -459,7 +456,7 @@ class _TitleRail extends StatelessWidget {
             const SizedBox(height: 8),
             Expanded(
               child: RotatedBox(
-                quarterTurns: 1,
+                quarterTurns: 3,
                 child: Center(
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
@@ -468,9 +465,9 @@ class _TitleRail extends StatelessWidget {
                       maxLines: 1,
                       style: TextStyle(
                         fontFamily: kDigitFont,
-                        fontSize: 14,
+                        fontSize: 24,
                         height: 1.1,
-                        letterSpacing: 1.4,
+                        letterSpacing: 1.1,
                         fontWeight: FontWeight.w800,
                         color: palette.goldSoft,
                       ),
@@ -520,63 +517,86 @@ class _MiniPrayerCard extends StatelessWidget {
         final window = schedule.window(now);
         final next = schedule.nextEntry(now);
         final running = !window.previousNight && now.isBefore(window.endsAt);
-        return SkyBackdrop(
-          phase: skyPhaseFor(schedule, now),
-          radius: 20,
-          child: Material(
-            type: MaterialType.transparency,
-            child: InkWell(
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const PrayerTimesScreen()),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(9, 9, 9, 9),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    _placeRow(context, controller),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.center,
-                      child: Text.rich(
-                        TextSpan(
-                          children: <InlineSpan>[
-                            TextSpan(
-                              text: formatClockDigitsUrdu(now),
-                              style: _onSky(31, weight: FontWeight.w800, digits: true, height: 1),
-                            ),
-                            TextSpan(
-                              text: formatClockSeconds(now),
-                              style: _onSky(12, weight: FontWeight.w700, digits: true),
-                            ),
-                          ],
+        final prayers = schedule.obligatory;
+        return Container(
+          key: const ValueKey<String>('home-prayer-card'),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: DashboardPalette.of(context).gold, width: 1.2),
+          ),
+          child: SkyBackdrop(
+            phase: skyPhaseFor(schedule, now),
+            radius: 19,
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const PrayerTimesScreen()),
+                ),
+                child: LayoutBuilder(builder: (context, constraints) {
+                  final compact = constraints.maxHeight < 205;
+                  Widget prayerRow(Iterable<PrayerEntry> entries) => Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      for (final entry in entries)
+                        Expanded(
+                          child: _MiniPrayerCell(
+                            entry: entry,
+                            active: running && window.marker == entry.marker,
+                            upcoming: !(running && window.marker == entry.marker) && next.marker == entry.marker,
+                            remaining: next.marker == entry.marker ? next.time.difference(now) : null,
+                          ),
                         ),
-                        textDirection: TextDirection.ltr,
-                      ),
-                    ),
-                    Text(
-                      controller.hijriFor(now).labelUrdu,
-                      maxLines: 1,
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                      style: _onSky(10.5, weight: FontWeight.w700, color: const Color(0xFFFFE1A1), height: 1.3),
-                    ),
-                    Row(
+                    ],
+                  );
+                  return Padding(
+                    padding: const EdgeInsets.all(7),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        for (final entry in schedule.obligatory)
-                          Expanded(
-                            child: _MiniPrayerCell(
-                              entry: entry,
-                              active: running && window.marker == entry.marker,
-                              upcoming: !(running && window.marker == entry.marker) && next.marker == entry.marker,
-                              remaining: next.marker == entry.marker ? next.time.difference(now) : null,
+                        SizedBox(height: 22, child: _placeRow(context, controller)),
+                        SizedBox(
+                          height: compact ? 32 : 39,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text.rich(
+                              TextSpan(children: <InlineSpan>[
+                                TextSpan(
+                                  text: formatClockDigitsUrdu(now),
+                                  style: _onSky(34, weight: FontWeight.w800, digits: true, height: 1),
+                                ),
+                                TextSpan(
+                                  text: ' ${formatClockSeconds(now)}',
+                                  style: _onSky(12, weight: FontWeight.w600, digits: true),
+                                ),
+                              ]),
+                              textDirection: TextDirection.ltr,
                             ),
                           ),
+                        ),
+                        SizedBox(
+                          height: 18,
+                          child: Center(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                controller.hijriFor(now).labelUrdu,
+                                maxLines: 1,
+                                style: _onSky(11.5, weight: FontWeight.w700, color: const Color(0xFFFFE1A1), height: 1.2),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: compact ? 3 : 8),
+                        // Three above, two below: prayer names and digits no
+                        // longer compete for five tiny slots across one row.
+                        Expanded(child: prayerRow(prayers.take(3))),
+                        const SizedBox(height: 4),
+                        Expanded(child: prayerRow(prayers.skip(3))),
                       ],
                     ),
-                  ],
-                ),
+                  );
+                }),
               ),
             ),
           ),
@@ -589,7 +609,7 @@ class _MiniPrayerCard extends StatelessWidget {
   Widget _placeRow(BuildContext context, PrayerController controller) {
     return Row(
       children: <Widget>[
-        const Icon(Icons.place, size: 12, color: Colors.white),
+        const Icon(Icons.place, size: 11, color: Colors.white),
         const SizedBox(width: 3),
         Expanded(
           child: Text(
@@ -597,7 +617,7 @@ class _MiniPrayerCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: _onSky(11.5, weight: FontWeight.w700, height: 1.2),
+            style: _onSky(11, weight: FontWeight.w700, height: 1.25),
           ),
         ),
         GestureDetector(
@@ -642,7 +662,7 @@ class _MiniPrayerCell extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       margin: const EdgeInsets.symmetric(horizontal: 1.5),
-      padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 1),
+      padding: const EdgeInsets.symmetric(vertical: 1, horizontal: 2),
       decoration: BoxDecoration(
         color: active
             ? Colors.white.withValues(alpha: 0.22)
@@ -655,20 +675,23 @@ class _MiniPrayerCell extends StatelessWidget {
           width: lit ? 1.3 : 1,
         ),
       ),
-      child: Column(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Text(
             entry.marker.labelUrdu,
             maxLines: 1,
             overflow: TextOverflow.clip,
-            style: _onSky(9.5, weight: lit ? FontWeight.w800 : FontWeight.w600, height: 1.2),
+            style: _onSky(11, weight: lit ? FontWeight.w800 : FontWeight.w600, height: 1.2),
           ),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
               formatClockDigitsUrdu(entry.time),
-              style: _onSky(11, weight: FontWeight.w800, digits: true, color: upcoming ? gold : Colors.white),
+              textDirection: TextDirection.ltr,
+              style: _onSky(14, weight: FontWeight.w800, digits: true, height: 1, color: upcoming ? gold : Colors.white),
             ),
           ),
           const SizedBox(height: 1),
@@ -683,12 +706,13 @@ class _MiniPrayerCell extends StatelessWidget {
                           fit: BoxFit.scaleDown,
                           child: Text(
                             formatCountdownClock(left),
-                            style: _onSky(8.5, weight: FontWeight.w700, color: gold, digits: true),
+                            style: _onSky(9, weight: FontWeight.w700, color: gold, digits: true),
                           ),
                         )),
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -992,12 +1016,13 @@ class _TasbeehDialState extends State<_TasbeehDial> {
     final arabicWird = !controller.preset.custom || looksArabic(controller.step.arabic);
     return LayoutBuilder(
       builder: (context, constraints) {
-        final diameter = math.min(constraints.maxWidth, constraints.maxHeight) * 0.9;
+        final diameter = math.min(constraints.maxWidth, constraints.maxHeight) * 0.99;
         final radius = diameter / 2;
-        final bead = diameter * 0.46;
+        final bead = diameter * 0.50;
         final sideButton = diameter * 0.19;
         return Center(
           child: SizedBox.square(
+            key: const ValueKey<String>('home-tasbeeh'),
             dimension: diameter,
             child: Stack(
               children: <Widget>[
@@ -1023,7 +1048,7 @@ class _TasbeehDialState extends State<_TasbeehDial> {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontFamily: arabicWird ? kArabicFont : kUrduFont,
-                          fontSize: arabicWird ? 14 : 12.5,
+                          fontSize: arabicWird ? 16 : 14,
                           height: 1.25,
                           fontWeight: FontWeight.w700,
                           color: palette.metalInk,
@@ -1088,7 +1113,7 @@ class _TasbeehDialState extends State<_TasbeehDial> {
                       textDirection: TextDirection.rtl,
                       style: TextStyle(
                         fontFamily: kUrduFont,
-                        fontSize: 10.5,
+                        fontSize: 11.5,
                         height: 1.3,
                         color: palette.metalInk.withValues(alpha: 0.8),
                       ),
@@ -1132,8 +1157,10 @@ class _Bead extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: RadialGradient(
+                center: const Alignment(-0.35, -0.5),
+                radius: 1.1,
                 colors: <Color>[
-                  Color.lerp(palette.bead, Colors.white, 0.14)!,
+                  Color.lerp(palette.bead, Colors.white, 0.32)!,
                   palette.bead,
                   Color.lerp(palette.bead, Colors.black, 0.55)!,
                 ],
@@ -1142,7 +1169,8 @@ class _Bead extends StatelessWidget {
               border: Border.all(color: palette.gold, width: 1.6),
               boxShadow: <BoxShadow>[
                 BoxShadow(color: palette.gold.withValues(alpha: 0.35), blurRadius: 18, spreadRadius: -2),
-                const BoxShadow(color: Color(0x33000000), blurRadius: 10, offset: Offset(0, 3)),
+                const BoxShadow(color: Color(0x66000000), blurRadius: 9, offset: Offset(0, 5)),
+                const BoxShadow(color: Color(0xBBFFFFFF), blurRadius: 2, offset: Offset(-1, -2)),
               ],
             ),
             child: FittedBox(
@@ -1187,41 +1215,68 @@ class _DialPainter extends CustomPainter {
     final radius = size.width / 2;
     final rect = Rect.fromCircle(center: centre, radius: radius);
 
-    // The brushed face, then the gold rim on top of it.
-    canvas.drawCircle(centre, radius - 2, Paint()..shader = palette.metal.createShader(rect));
+    // A real cast shadow, not a glow: the dial sits above the white page.
+    final outline = Path()..addOval(Rect.fromCircle(center: centre, radius: radius - 5));
+    canvas.drawShadow(outline.shift(const Offset(0, 5)), const Color(0x88000000), 8, true);
     canvas.drawCircle(
       centre,
-      radius - 1.2,
+      radius - 2,
+      Paint()..shader = const SweepGradient(
+        colors: <Color>[
+          Color(0xFF8C9298), Color(0xFFF9FCFF), Color(0xFFCBD1D6),
+          Color(0xFF6E7882), Color(0xFFEFF4F6), Color(0xFF8C9298),
+        ],
+        stops: <double>[0, 0.20, 0.38, 0.62, 0.83, 1],
+      ).createShader(rect),
+    );
+    canvas.drawCircle(
+      centre,
+      radius - 9,
+      Paint()..shader = palette.metal.createShader(rect),
+    );
+    canvas.drawCircle(
+      centre,
+      radius - 1.5,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.4
-        ..shader = SweepGradient(
-          colors: <Color>[
-            palette.gold,
-            palette.goldSoft,
-            palette.gold,
-            Color.lerp(palette.gold, Colors.black, 0.35)!,
-            palette.gold,
-          ],
+        ..strokeWidth = 2
+        ..shader = SweepGradient(colors: <Color>[
+          palette.gold, palette.goldSoft, palette.gold,
+          Color.lerp(palette.gold, Colors.black, 0.45)!, palette.gold,
+        ]).createShader(rect),
+    );
+    canvas.drawCircle(
+      centre,
+      radius - 9,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..shader = const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[Color(0x88000000), Color(0xCCFFFFFF)],
         ).createShader(rect),
     );
-
-    // Turning marks: what makes the disc read as metal instead of a circle.
+    // Fine turning marks and engraved minute/bead ticks catch the light.
     final marks = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.8
-      ..color = Colors.white.withValues(alpha: 0.5);
-    for (final step in const <double>[0.42, 0.58, 0.74, 0.88, 0.95]) {
-      canvas.drawCircle(centre, radius * step, marks);
+      ..strokeWidth = 0.45
+      ..color = Colors.white.withValues(alpha: 0.24);
+    for (var r = radius * 0.54; r < radius - 11; r += 2.5) {
+      canvas.drawCircle(centre, r, marks);
     }
-    canvas.drawCircle(
-      centre,
-      radius - 6,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 5
-        ..color = Colors.black.withValues(alpha: 0.05),
-    );
+    for (var index = 0; index < 60; index++) {
+      final angle = index * math.pi / 30;
+      final outer = radius - 13;
+      final inner = outer - (index % 5 == 0 ? 5 : 2);
+      canvas.drawLine(
+        centre + Offset(math.cos(angle), math.sin(angle)) * inner,
+        centre + Offset(math.cos(angle), math.sin(angle)) * outer,
+        Paint()
+          ..strokeWidth = index % 5 == 0 ? 1.2 : 0.7
+          ..color = palette.metalInk.withValues(alpha: index % 5 == 0 ? 0.36 : 0.18),
+      );
+    }
 
     // How far today's wird has come, hugging the bead.
     final ring = radius * 0.68;
@@ -1430,6 +1485,7 @@ class _SearchPill extends StatelessWidget {
 /// the data screen instead.
 class _SectionCard extends StatelessWidget {
   const _SectionCard({
+    super.key,
     required this.section,
     required this.installed,
     required this.onTap,
@@ -1453,85 +1509,81 @@ class _SectionCard extends StatelessWidget {
           child: Ink(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
                 colors: <Color>[section.start, section.end],
               ),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: palette.gold.withValues(alpha: 0.85), width: 1.2),
               boxShadow: <BoxShadow>[
-                BoxShadow(
-                  color: section.end.withValues(alpha: 0.35),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
+                BoxShadow(color: section.end.withValues(alpha: 0.18), blurRadius: 8, offset: const Offset(0, 3)),
               ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: palette.goldSoft.withValues(alpha: 0.7)),
-                        ),
-                        child: Icon(section.icon, size: 14, color: palette.goldSoft),
-                      ),
-                      const Spacer(),
-                      Icon(
-                        installed ? Icons.chevron_left : Icons.download_rounded,
-                        size: 15,
-                        color: installed ? Colors.white70 : palette.goldSoft,
-                      ),
-                    ],
+            child: Stack(
+              children: <Widget>[
+                if (!installed)
+                  Positioned(
+                    top: 7,
+                    left: 7,
+                    child: Icon(Icons.download_rounded, size: 12, color: palette.goldSoft),
                   ),
-                  const SizedBox(height: 3),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        Text(
-                          section.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.right,
-                          textDirection: TextDirection.rtl,
-                          style: TextStyle(
-                            fontFamily: kUrduFont,
-                            fontSize: 12.5,
-                            height: 1.25,
-                            fontWeight: FontWeight.w700,
-                            color: palette.onDark,
-                            shadows: const <Shadow>[Shadow(color: Color(0x66000000), blurRadius: 4)],
-                          ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+                  child: LayoutBuilder(builder: (context, constraints) => Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: SizedBox(
+                        width: constraints.maxWidth,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            Center(
+                              child: Container(
+                                width: 26,
+                                height: 26,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(9),
+                                  border: Border.all(color: palette.goldSoft.withValues(alpha: 0.65)),
+                                ),
+                                child: Icon(section.icon, size: 17, color: palette.goldSoft),
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              section.title,
+                              maxLines: 3,
+                              textAlign: TextAlign.center,
+                              textDirection: TextDirection.rtl,
+                              style: TextStyle(
+                                fontFamily: kUrduFont,
+                                fontSize: 17.5,
+                                height: 1.2,
+                                fontWeight: FontWeight.w700,
+                                color: palette.onDark,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              section.slogan,
+                              maxLines: 2,
+                              textAlign: TextAlign.center,
+                              textDirection: TextDirection.rtl,
+                              style: TextStyle(
+                                fontFamily: kUrduFont,
+                                fontSize: 12,
+                                height: 1.25,
+                                color: palette.onDarkMuted,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          section.slogan,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.right,
-                          textDirection: TextDirection.rtl,
-                          style: TextStyle(
-                            fontFamily: kUrduFont,
-                            fontSize: 9.5,
-                            height: 1.25,
-                            color: palette.onDarkMuted,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  )),
+                ),
+              ],
             ),
           ),
         ),

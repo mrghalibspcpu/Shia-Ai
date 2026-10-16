@@ -57,11 +57,8 @@ class ReaderPreferences {
       );
 }
 
-/// The font size and palette controls used by every reader app bar.
-///
-/// The Arabic/Urdu/both choice intentionally lives in Settings, not here: a
-/// toolbar button for it (the old globe icon) was removed at readers'
-/// request so the reading screen stays uncluttered.
+/// One compact appearance button instead of three competing app-bar buttons.
+/// The same font range and palette keys are retained, so saved choices survive.
 class ReaderControls extends StatelessWidget {
   const ReaderControls({
     super.key,
@@ -74,57 +71,174 @@ class ReaderControls extends StatelessWidget {
   final ValueChanged<ReaderPreferences> onChanged;
   final List<Widget> extra;
 
-  Future<void> _choosePalette(BuildContext context) async {
-    final selected = await showModalBottomSheet<ReaderPalette>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final entry in ReaderPalette.all)
-              ListTile(
-                leading: Icon(Icons.circle, color: entry.background),
-                title: JustifiedText(entry.name),
-                trailing: entry.key == preferences.palette.key ? const Icon(Icons.check) : null,
-                onTap: () => Navigator.pop(context, entry),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (selected == null) return;
-    await preferences.savePalette(selected);
-    onChanged(preferences.copyWith(palette: selected));
-  }
-
-  Future<void> _adjustFont(double delta) async {
-    final next = (preferences.fontScale + delta).clamp(0.85, 1.6).toDouble();
-    await preferences.saveFontScale(next);
-    onChanged(preferences.copyWith(fontScale: next));
-  }
-
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: [
+      children: <Widget>[
         ...extra,
         IconButton(
-          tooltip: 'حروف چھوٹے',
-          onPressed: () => _adjustFont(-0.08),
-          icon: const Icon(Icons.text_decrease),
-        ),
-        IconButton(
-          tooltip: 'حروف بڑے',
-          onPressed: () => _adjustFont(0.08),
-          icon: const Icon(Icons.text_increase),
-        ),
-        IconButton(
+          key: const ValueKey<String>('reader-appearance'),
           tooltip: 'مطالعے کا انداز',
-          onPressed: () => _choosePalette(context),
-          icon: const Icon(Icons.palette_outlined),
+          style: IconButton.styleFrom(
+            foregroundColor: preferences.palette.accent,
+            backgroundColor: preferences.palette.accent.withValues(alpha: 0.07),
+          ),
+          onPressed: () => showModalBottomSheet<void>(
+            context: context,
+            isScrollControlled: true,
+            showDragHandle: false,
+            backgroundColor: Colors.transparent,
+            builder: (_) => _ReaderAppearanceSheet(preferences: preferences, onChanged: onChanged),
+          ),
+          icon: const Icon(Icons.tune_rounded, size: 22),
         ),
       ],
+    );
+  }
+}
+
+class _ReaderAppearanceSheet extends StatefulWidget {
+  const _ReaderAppearanceSheet({required this.preferences, required this.onChanged});
+
+  final ReaderPreferences preferences;
+  final ValueChanged<ReaderPreferences> onChanged;
+
+  @override
+  State<_ReaderAppearanceSheet> createState() => _ReaderAppearanceSheetState();
+}
+
+class _ReaderAppearanceSheetState extends State<_ReaderAppearanceSheet> {
+  late ReaderPreferences _preferences = widget.preferences;
+
+  void _font(double scale) {
+    final next = scale.clamp(0.85, 1.6).toDouble();
+    setState(() => _preferences = _preferences.copyWith(fontScale: next));
+    widget.onChanged(_preferences);
+    unawaited(_preferences.saveFontScale(next));
+  }
+
+  void _palette(ReaderPalette palette) {
+    setState(() => _preferences = _preferences.copyWith(palette: palette));
+    widget.onChanged(_preferences);
+    unawaited(_preferences.savePalette(palette));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _preferences.palette;
+    return Container(
+      decoration: BoxDecoration(
+        color: palette.background,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border.all(color: palette.border),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          // The reading hub floats above the navigator; keep controls clear.
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 92),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(color: palette.border, borderRadius: BorderRadius.circular(4)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'مطالعے کا انداز',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: palette.accent),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: <Widget>[
+                  Text('حروف کا سائز', style: TextStyle(fontSize: 16, color: palette.foreground)),
+                  const Spacer(),
+                  Text(
+                    '${(_preferences.fontScale * 100).round()}%',
+                    style: TextStyle(fontFamily: kDigitFont, fontSize: 14, color: palette.accent),
+                  ),
+                ],
+              ),
+              Row(
+                children: <Widget>[
+                  IconButton(
+                    tooltip: 'حروف چھوٹے',
+                    color: palette.accent,
+                    onPressed: () => _font(_preferences.fontScale - 0.08),
+                    icon: const Icon(Icons.text_decrease),
+                  ),
+                  Expanded(
+                    child: Slider(
+                      value: _preferences.fontScale,
+                      min: 0.85,
+                      max: 1.6,
+                      activeColor: palette.accent,
+                      onChanged: _font,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'حروف بڑے',
+                    color: palette.accent,
+                    onPressed: () => _font(_preferences.fontScale + 0.08),
+                    icon: const Icon(Icons.text_increase),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text('صفحے کا رنگ', style: TextStyle(fontSize: 16, color: palette.foreground)),
+              const SizedBox(height: 10),
+              Row(
+                children: <Widget>[
+                  for (final entry in ReaderPalette.all) ...<Widget>[
+                    if (entry != ReaderPalette.all.first) const SizedBox(width: 10),
+                    Expanded(
+                      child: Semantics(
+                        selected: entry.key == palette.key,
+                        button: true,
+                        child: InkWell(
+                          key: ValueKey<String>('reader-palette-${entry.key}'),
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => _palette(entry),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: entry.background,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: entry.key == palette.key ? kGold : palette.border,
+                                width: entry.key == palette.key ? 2 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                Icon(
+                                  entry.key == palette.key ? Icons.check_circle_rounded : Icons.circle_outlined,
+                                  color: entry.accent,
+                                  size: 24,
+                                ),
+                                const SizedBox(height: 5),
+                                Text(entry.name, style: TextStyle(color: entry.foreground, fontSize: 15)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -296,46 +410,63 @@ class _PassageCardState extends State<PassageCard> {
     return RepaintBoundary(
       child: Card(
         color: widget.palette.background,
-        margin: const EdgeInsets.only(bottom: 14),
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        margin: const EdgeInsets.only(bottom: 16),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: BorderSide(color: textColor.withValues(alpha: 0.08)),
+          borderRadius: BorderRadius.circular(22),
+          side: BorderSide(color: widget.palette.border),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      header,
-                      style: TextStyle(color: textColor.withValues(alpha: 0.65), fontSize: 12),
+              Container(
+                padding: const EdgeInsetsDirectional.only(start: 10, end: 2, top: 2, bottom: 2),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: widget.palette.accent.withValues(alpha: 0.055),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        header,
+                        style: TextStyle(color: widget.palette.accent, fontSize: 13, fontWeight: FontWeight.w700),
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: _bookmarked ? 'محفوظ سے ہٹائیں' : 'محفوظ کریں',
-                    onPressed: () async {
-                      await widget.library.toggleBookmark(widget.book.key, _stateId);
-                      if (mounted) setState(() => _bookmarked = !_bookmarked);
-                    },
-                    icon: Icon(
-                      _bookmarked ? Icons.bookmark : Icons.bookmark_border,
-                      color: _bookmarked ? kGold : textColor,
+                    IconButton(
+                      tooltip: _bookmarked ? 'محفوظ سے ہٹائیں' : 'محفوظ کریں',
+                      constraints: const BoxConstraints.tightFor(width: 36, height: 40),
+                      padding: EdgeInsets.zero,
+                      onPressed: () async {
+                        await widget.library.toggleBookmark(widget.book.key, _stateId);
+                        if (mounted) setState(() => _bookmarked = !_bookmarked);
+                      },
+                      icon: Icon(
+                        _bookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                        size: 21,
+                        color: _bookmarked ? kGold : widget.palette.accent,
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: 'کاپی',
-                    onPressed: _copyText,
-                    icon: Icon(Icons.copy, color: textColor),
-                  ),
-                  IconButton(
-                    tooltip: 'نوٹ',
-                    onPressed: _editNote,
-                    icon: Icon(Icons.edit_note, color: textColor),
-                  ),
-                ],
+                    IconButton(
+                      tooltip: 'کاپی',
+                      constraints: const BoxConstraints.tightFor(width: 36, height: 40),
+                      padding: EdgeInsets.zero,
+                      onPressed: _copyText,
+                      icon: Icon(Icons.copy_rounded, size: 19, color: widget.palette.accent),
+                    ),
+                    IconButton(
+                      tooltip: 'نوٹ',
+                      constraints: const BoxConstraints.tightFor(width: 36, height: 40),
+                      padding: EdgeInsets.zero,
+                      onPressed: _editNote,
+                      icon: Icon(Icons.edit_note_rounded, size: 23, color: widget.palette.accent),
+                    ),
+                  ],
+                ),
               ),
               if (showArabic) ...[
                 // Plain Text on purpose, inside a SelectionArea provided by the
@@ -348,14 +479,15 @@ class _PassageCardState extends State<PassageCard> {
                   scrollToMatch: widget.focusMatch,
                   arabic: true,
                   style: TextStyle(
-                    fontSize: (isTitle ? 25 : isSubHeading ? 21 : 22) * widget.fontScale,
+                    fontSize: (isTitle ? 25 : isSubHeading ? 21 : 24) * widget.fontScale,
+                    height: 1.85,
                     fontWeight: isTitle || isSubHeading ? FontWeight.bold : null,
-                    color: isTitle || isSubHeading ? kForest : textColor,
+                    color: isTitle || isSubHeading ? widget.palette.accent : textColor,
                   ),
                 ),
                 if (showUrdu || showCommentary) ...[
                   const SizedBox(height: 12),
-                  Divider(color: textColor.withValues(alpha: 0.12)),
+                  Divider(color: widget.palette.border),
                   const SizedBox(height: 8),
                 ],
               ],
@@ -447,15 +579,16 @@ class _SourceLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = textColor.computeLuminance() > 0.5 ? const Color(0xFFE4BC70) : kForest;
     final label = reference.trim().isEmpty
         ? 'اصل ماخذ پر جائیں'
         : 'اصل ماخذ پر جائیں — مسئلہ ${reference.trim()}';
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
       decoration: BoxDecoration(
-        color: kForest.withValues(alpha: 0.07),
+        color: accent.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kForest.withValues(alpha: 0.22)),
+        border: Border.all(color: accent.withValues(alpha: 0.22)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -465,7 +598,7 @@ class _SourceLink extends StatelessWidget {
             textDirection: TextDirection.rtl,
             textAlign: TextAlign.right,
             style: TextStyle(
-              color: kForest,
+              color: accent,
               fontSize: 12 * fontScale,
               fontWeight: FontWeight.bold,
             ),
@@ -516,6 +649,7 @@ class _ExpandableNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = textColor.computeLuminance() > 0.5 ? const Color(0xFFE4BC70) : kForest;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -529,12 +663,12 @@ class _ExpandableNote extends StatelessWidget {
                 Icon(
                   expanded ? Icons.expand_less : Icons.expand_more,
                   size: 18,
-                  color: kForest,
+                  color: accent,
                 ),
                 const SizedBox(width: 4),
                 Text(
                   label,
-                  style: const TextStyle(color: kForest, fontSize: 13, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: accent, fontSize: 13, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -547,7 +681,7 @@ class _ExpandableNote extends StatelessWidget {
             body: body,
             query: query,
             focusMatch: focusMatch,
-            color: kForest,
+            color: accent,
             textColor: textColor,
             fontScale: fontScale,
           ),

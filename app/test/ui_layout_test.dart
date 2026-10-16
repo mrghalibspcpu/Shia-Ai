@@ -7,6 +7,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shia_ai/app_theme.dart';
+import 'package:shia_ai/data_installer.dart';
+import 'package:shia_ai/main.dart' show HomeShell;
+import 'package:shia_ai/screens/settings_screen.dart';
+import 'package:shia_ai/screens/quran_screen.dart';
+import 'package:shia_ai/screens/library_screen.dart';
+import 'package:shia_ai/screens/duas_screen.dart';
+import 'package:shia_ai/screens/balagha_screen.dart';
+import 'package:shia_ai/widgets/reader_chrome.dart';
+import 'package:shia_ai/widgets/reader_kit.dart';
+import 'package:shia_ai/widgets/reading_hub.dart';
+import 'package:shia_ai/widgets/glass_panel.dart';
 import 'package:shia_ai/library_repository.dart';
 import 'package:shia_ai/models.dart';
 import 'package:shia_ai/screens/prayer_times_screen.dart';
@@ -19,7 +30,7 @@ import 'package:shia_ai/services/prayer_scope.dart';
 import 'package:shia_ai/services/tasbeeh_controller.dart';
 import 'package:shia_ai/widgets/home_dashboard.dart';
 
-/// Layout checks for the 1.9 home dashboard and the screens around it on a
+/// Layout checks for the 1.12 home dashboard and readers and the screens around it on a
 /// small (360 dp) phone, with the app's real fonts: any overflow fails the
 /// test. When `SHIAVERSE_PREVIEW_DIR` is set (CI does), each screen is also
 /// saved as a PNG so the layout can be looked at without a device.
@@ -102,8 +113,8 @@ void main() {
     );
   }
 
-  void phone(WidgetTester tester, {double height = 800}) {
-    tester.view.physicalSize = Size(360 * 3, height * 3);
+  void phone(WidgetTester tester, {double height = 800, double width = 360}) {
+    tester.view.physicalSize = Size(width * 3, height * 3);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
   }
@@ -188,8 +199,7 @@ void main() {
       expect(find.text('پوری لائبریری میں تلاش کریں…'), findsOneWidget);
       expect(find.byType(HomeDockBar), findsOneWidget);
       for (final item in HomeDockItem.values) {
-        // احادیث names both the collection card and its dock button.
-        expect(find.text(item.label), findsAtLeastNWidgets(1), reason: item.label);
+        expect(find.text(item.label), findsOneWidget, reason: item.label);
       }
       await shoot(tester, 'home-$name');
       await finish(tester, prayer, tasbeeh);
@@ -212,7 +222,7 @@ void main() {
   });
 
   testWidgets('the dashboard fits a short phone without scrolling', (tester) async {
-    // 640 dp tall: the whole design still fits, scaled as one piece.
+    // 640 dp tall: both columns still fill the screen and share a baseline.
     phone(tester, height: 640);
     final (prayer, tasbeeh) = await controllersAt(tester, localTime(18, 20));
     await tester.pumpWidget(host(prayer, tasbeeh, homeScreen()));
@@ -222,6 +232,22 @@ void main() {
     await shoot(tester, 'home-short');
     await finish(tester, prayer, tasbeeh);
   });
+
+  for (final (width, height) in <(double, double)>[(320, 640), (412, 915), (800, 1280)]) {
+    testWidgets('the dashboard and dock fit a ${width.toInt()} by ${height.toInt()} screen', (tester) async {
+      phone(tester, width: width, height: height);
+      final (prayer, tasbeeh) = await controllersAt(tester, localTime(12, 10));
+      await tester.pumpWidget(host(prayer, tasbeeh, homeScreen()));
+      await settle(tester);
+      final search = tester.getRect(find.byKey(const ValueKey<String>('home-search')));
+      final fatawa = tester.getRect(find.byKey(const ValueKey<String>('home-section-fatawa')));
+      expect(search.bottom, closeTo(fatawa.bottom, 0.1));
+      expect(tester.getRect(find.byType(HomeDockBar)).top - search.bottom, lessThan(10));
+      expect(tester.takeException(), isNull);
+      await shoot(tester, 'home-${width.toInt()}');
+      await finish(tester, prayer, tasbeeh);
+    });
+  }
 
   testWidgets('the bottom panel runs the features behind its five buttons', (tester) async {
     phone(tester);
@@ -238,18 +264,176 @@ void main() {
       ),
     ));
     await tester.pump();
-    for (final item in <HomeDockItem>[HomeDockItem.quran, HomeDockItem.hadith, HomeDockItem.duas, HomeDockItem.more]) {
+    for (final item in HomeDockItem.values) {
       await tester.tap(find.text(item.label));
       await tester.pump();
     }
     expect(tapped, <HomeDockItem>[
-      HomeDockItem.quran,
-      HomeDockItem.hadith,
-      HomeDockItem.duas,
+      HomeDockItem.home,
+      HomeDockItem.settings,
+      HomeDockItem.bookmarks,
+      HomeDockItem.lastSeen,
       HomeDockItem.more,
     ]);
     await finish(tester, prayer, tasbeeh);
   });
+
+  testWidgets('home starts at the status bar and shares its lower and side edges with the dock', (tester) async {
+    phone(tester);
+    tester.view.padding = const FakeViewPadding(top: 72, bottom: 72);
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(12, 10));
+    await tester.pumpWidget(host(prayer, tasbeeh, homeScreen()));
+    await settle(tester);
+    final canvas = tester.getRect(find.byKey(const ValueKey<String>('home-canvas')));
+    final search = tester.getRect(find.byKey(const ValueKey<String>('home-search')));
+    final fatawa = tester.getRect(find.byKey(const ValueKey<String>('home-section-fatawa')));
+    final first = tester.getRect(find.byKey(const ValueKey<String>('home-section-quran')));
+    final dock = tester.getRect(find.byType(HomeDockBar));
+    expect(canvas.top, closeTo(24, 0.1), reason: 'no centred-canvas gap under the status bar');
+    expect(first.top - canvas.top, lessThan(7));
+    expect(search.bottom, closeTo(fatawa.bottom, 0.1));
+    expect(dock.top - search.bottom, lessThan(8));
+    final homeIcon = tester.getRect(find.byKey(const ValueKey<String>('dock-icon-home')));
+    final moreIcon = tester.getRect(find.byKey(const ValueKey<String>('dock-icon-more')));
+    expect(homeIcon.right, closeTo(fatawa.right, 0.1));
+    expect(moreIcon.left, closeTo(search.left, 0.1));
+    for (final item in HomeDockItem.values) {
+      final icon = tester.getRect(find.byKey(ValueKey<String>('dock-icon-${item.name}')));
+      final label = tester.getRect(find.byKey(ValueKey<String>('dock-label-${item.name}')));
+      expect(icon.height, greaterThanOrEqualTo(76));
+      expect(label.top, greaterThan(icon.bottom), reason: 'the name belongs below, not inside, the box');
+    }
+    final rail = tester.widget<RotatedBox>(find.ancestor(of: find.text('ShiaVerse'), matching: find.byType(RotatedBox)).first);
+    expect(rail.quarterTurns, 3);
+    expect(find.text('قرآن'), findsNothing);
+    expect(find.text('دعائیں'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await shoot(tester, 'home-status-bar');
+    await finish(tester, prayer, tasbeeh);
+  });
+
+  testWidgets('the shell connects Settings, Bookmarks, Last seen and More without touching the collections', (tester) async {
+    phone(tester);
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(12, 10));
+    final library = LibraryRepository();
+    final installer = DataInstaller(directory: () => Directory('.cache/ui-test-data'));
+    final actions = <HubDestination>[];
+    await tester.pumpWidget(host(prayer, tasbeeh, HomeShell(
+      library: library,
+      installer: installer,
+      themeMode: ThemeMode.light,
+      onThemeModeChanged: (_) {},
+      onAction: actions.add,
+    )));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey<String>('dock-settings')));
+    await settle(tester);
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    await tester.pageBack();
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey<String>('dock-bookmarks')));
+    await tester.tap(find.byKey(const ValueKey<String>('dock-more')));
+    expect(actions, <HubDestination>[HubDestination.bookmarks, HubDestination.more]);
+    await tester.tap(find.byKey(const ValueKey<String>('dock-lastSeen')));
+    await settle(tester);
+    expect(find.text('تمام آخری مطالعہ'), findsOneWidget);
+    expect(find.text('ابھی کوئی آخری مطالعہ محفوظ نہیں ہوا۔ کوئی کتاب کھولیں گے تو وہ یہاں دکھائی دے گی۔'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await finish(tester, prayer, tasbeeh);
+    await installer.close();
+  });
+
+  testWidgets('every default page palette is white', (tester) async {
+    await tester.pumpWidget(MaterialApp(theme: buildLightTheme(), home: Builder(builder: (context) {
+      expect(Theme.of(context).scaffoldBackgroundColor, Colors.white);
+      expect(GlassPalette.of(context).scaffold, Colors.white);
+      expect(DashboardPalette.of(context).backdrop.colors, everyElement(Colors.white));
+      return const SizedBox.shrink();
+    })));
+    expect((await ReaderPreferences.load()).palette.background, Colors.white);
+    expect(HomeDockItem.values.map((item) => item.label).toList(),
+        <String>['Home', 'Settings', 'Bookmarks', 'Last seen', 'More']);
+  });
+
+  for (final (name, palette, scale) in <(String, String, double)>[
+    ('quran', 'paper', 1),
+    ('night', 'night', 1),
+    ('large-font', 'paper', 1.6),
+  ]) {
+    testWidgets('the refreshed reader fits and retains its preferences ($name)', (tester) async {
+      phone(tester);
+      SharedPreferences.setMockInitialValues(<String, Object>{'reader_palette': palette, 'reader_font_scale': scale});
+      final (prayer, tasbeeh) = await controllersAt(tester, localTime(12, 10));
+      await tester.pumpWidget(host(prayer, tasbeeh, SurahReaderScreen(
+        library: _PreviewReaderLibrary(),
+        surah: _previewSurah,
+      ), textScale: name == 'large-font' ? 1.35 : 1));
+      await settle(tester);
+      expect(find.byType(ReaderScaffold), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('reader-banner')), findsOneWidget);
+      expect(find.byType(PassageCard), findsWidgets);
+      final frame = tester.widget<ReaderScaffold>(find.byType(ReaderScaffold));
+      expect(frame.preferences.palette.key, palette);
+      expect(frame.preferences.fontScale, scale);
+      expect(tester.takeException(), isNull);
+      await shoot(tester, 'reader-$name');
+      await finish(tester, prayer, tasbeeh);
+    });
+  }
+
+  testWidgets('reader appearance, bookmarks, notes and last position still work', (tester) async {
+    phone(tester);
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(12, 10));
+    final library = _PreviewReaderLibrary();
+    await tester.pumpWidget(host(prayer, tasbeeh, SurahReaderScreen(library: library, surah: _previewSurah)));
+    await settle(tester);
+    expect((await library.getLastReadFor('quran'))?.recordId, 1);
+    await tester.tap(find.byTooltip('محفوظ کریں').first);
+    await tester.pump();
+    expect(await library.isBookmarked('quran', 1), isTrue);
+    await tester.tap(find.byTooltip('نوٹ').first);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.enterText(find.byType(TextField), 'میرا محفوظ نوٹ');
+    await tester.tap(find.text('محفوظ کریں').last);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(await library.getNote('quran', 1), 'میرا محفوظ نوٹ');
+    await tester.tap(find.byKey(const ValueKey<String>('reader-appearance')));
+    await tester.pump(const Duration(milliseconds: 400));
+    await shoot(tester, 'reader-appearance');
+    await tester.tap(find.byTooltip('حروف بڑے'));
+    await tester.pump();
+    expect((await ReaderPreferences.load()).fontScale, greaterThan(1));
+    await tester.tap(find.byKey(const ValueKey<String>('reader-palette-night')));
+    await tester.pump();
+    expect((await ReaderPreferences.load()).palette, ReaderPalette.night);
+    final frame = tester.widget<ReaderScaffold>(find.byType(ReaderScaffold));
+    expect(frame.preferences.palette, ReaderPalette.night);
+    expect(tester.takeException(), isNull);
+    await finish(tester, prayer, tasbeeh);
+  });
+
+  for (final source in <CorpusSource>[CorpusSource.hadith, CorpusSource.sahifa, CorpusSource.fatwa, CorpusSource.balagha, CorpusSource.dua]) {
+    testWidgets('the ${source.name} reader uses the shared chrome without changing its list', (tester) async {
+      phone(tester);
+      final (prayer, tasbeeh) = await controllersAt(tester, localTime(12, 10));
+      final library = _PreviewReaderLibrary();
+      final book = BookDefinition.bookFor(source)!;
+      final Widget screen = switch (source) {
+        CorpusSource.balagha => BalaghaReaderScreen(library: library, type: 1, typeNo: 1, title: 'آزمائشی مطالعہ'),
+        CorpusSource.dua => DuaReaderScreen(library: library, item: const DuaItem(rowId: 1,
+          name: 'آزمائشی مطالعہ', categoryId: 1, isHeader: false, isFeatured: false)),
+        _ => ReaderScreen(library: library, book: book, sectionId: 1, sectionTitle: 'آزمائشی مطالعہ'),
+      };
+      await tester.pumpWidget(host(prayer, tasbeeh, screen));
+      await settle(tester);
+      expect(find.byType(ReaderScaffold), findsOneWidget);
+      expect(find.byKey(const ValueKey<String>('reader-banner')), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.textContaining('آزمائشی متن'), findsWidgets);
+      expect(tester.takeException(), isNull);
+      await finish(tester, prayer, tasbeeh);
+    });
+  }
 
   testWidgets('the tasbeeh dial locks its reset button on a long press', (tester) async {
     phone(tester);
@@ -354,4 +538,33 @@ void main() {
       expect(line.isOpenable, isFalse);
     }
   });
+}
+
+
+const _previewSurah = QuranSurah(number: 1, nameArabic: 'الفاتحة', nameUrdu: 'الفاتحہ',
+    revelationPlace: 'مکی', verseCount: 7, revelationOrder: 5);
+
+class _PreviewReaderLibrary extends LibraryRepository {
+  @override
+  Future<List<Passage>> getSurahVerses(int chapter) async => const <Passage>[
+    Passage(recordId: 1, sectionId: 1, arabic: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
+      urdu: '(۱)اللہ کے نام کی مدد سے (شروع کرتا ہوں) جو سب کو فیض پہنچانے والا بڑا ہی مہربان ہے۔', locator: 'آیت 1'),
+    Passage(recordId: 2, sectionId: 1, arabic: 'الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ',
+      urdu: '(۲) ہر ایک تعریف اُس اللہ کے لیے ہے جو تمام کائنات کاپالنے والا ہے۔', locator: 'آیت 2'),
+    Passage(recordId: 3, sectionId: 1, arabic: 'الرَّحْمَٰنِ الرَّحِيمِ',
+      urdu: '(۳) سب کو فیض پہنچانے والا،مسلسل بے حدرحم کرنے والا۔', locator: 'آیت 3'),
+  ];
+
+  static const _layoutText = <Passage>[
+    Passage(recordId: 1, sectionId: 1, arabic: '', urdu: 'آزمائشی متن — صرف لے آؤٹ کی جانچ کے لیے۔'),
+  ];
+
+  @override
+  Future<List<Passage>> getSectionPassages(BookDefinition book, int sectionId) async => _layoutText;
+
+  @override
+  Future<List<Passage>> getDuaLines(int itemRowId) async => _layoutText;
+
+  @override
+  Future<List<Passage>> getBalaghaEntry(int type, int typeNo) async => _layoutText;
 }

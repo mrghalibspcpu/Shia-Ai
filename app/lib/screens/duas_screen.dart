@@ -8,6 +8,7 @@ import '../app_theme.dart';
 import '../library_repository.dart';
 import '../models.dart';
 import '../widgets/reader_kit.dart';
+import '../widgets/reader_chrome.dart';
 import '../widgets/resume_card.dart';
 import '../widgets/highlighted_text.dart';
 import '../text_utils.dart' show searchMatchRanges;
@@ -318,19 +319,11 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
   Widget build(BuildContext context) {
     final palette = _preferences.palette;
     final textColor = palette.foreground;
-    return Scaffold(
-      backgroundColor: palette.background,
-      appBar: AppBar(
-        backgroundColor: palette.background,
-        foregroundColor: palette.foreground,
-        title: JustifiedText(widget.item.name, style: TextStyle(color: palette.foreground), maxLines: 1),
-        actions: [
-          ReaderControls(
-            preferences: _preferences,
-            onChanged: (value) => setState(() => _preferences = value),
-          ),
-        ],
-      ),
+    return ReaderScaffold(
+      book: _book,
+      title: widget.item.name,
+      preferences: _preferences,
+      onPreferencesChanged: (value) => setState(() => _preferences = value),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -341,7 +334,7 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
                       child: ScrollablePositionedList.builder(
                         initialScrollIndex: _matchIndex < 0 ? 0 : _matchIndex + 1,
                         initialAlignment: 0.04,
-                        padding: const EdgeInsets.fromLTRB(18, 12, 18, 48),
+                        padding: const EdgeInsets.fromLTRB(18, 8, 18, 112),
                         itemCount: _lines.length + 1,
                         addAutomaticKeepAlives: false,
                         minCacheExtent: 350,
@@ -357,8 +350,14 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
   /// Title and the item-level actions (one bookmark for the whole dua,
   /// not one per line as the old card-per-line layout suggested).
   Widget _header(Color textColor) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _preferences.palette.accent.withValues(alpha: 0.045),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _preferences.palette.border),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -366,7 +365,7 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
             widget.item.name,
             query: widget.searchQuery,
             scrollToMatch: _matchIndex < 0,
-            style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: kForest),
+            style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: _preferences.palette.accent),
           ),
           const SizedBox(height: 6),
           Row(
@@ -419,13 +418,14 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
         margin: const EdgeInsets.symmetric(vertical: 10),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
-          color: kForest.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(10),
+          color: _preferences.palette.accent.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _preferences.palette.border),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.info_outline, size: 17, color: kForest),
+            Icon(Icons.info_outline, size: 17, color: _preferences.palette.accent),
             const SizedBox(width: 8),
             Expanded(
               child: HighlightedText(
@@ -453,7 +453,7 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
               query: widget.searchQuery,
               scrollToMatch: _matchIndex >= 0 && _lines[_matchIndex].recordId == line.recordId,
               arabic: true,
-              style: TextStyle(fontSize: 22 * _preferences.fontScale, color: textColor),
+              style: TextStyle(fontSize: 24 * _preferences.fontScale, height: 1.85, color: textColor),
             ),
           if (showArabic && showUrdu) const SizedBox(height: 6),
           if (showUrdu)

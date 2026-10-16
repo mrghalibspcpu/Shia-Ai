@@ -10,6 +10,7 @@ import '../reader_navigation.dart';
 import '../text_utils.dart' show arabicNumerals;
 import '../widgets/home_dashboard.dart';
 import '../widgets/reader_kit.dart';
+import '../widgets/reader_chrome.dart';
 import '../widgets/resume_card.dart';
 import 'search_screen.dart';
 
@@ -98,7 +99,7 @@ class _HomeNoticeStrip extends StatelessWidget {
         if (missing <= 0 && !state.active) return const SizedBox.shrink();
         final scheme = Theme.of(context).colorScheme;
         return Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          padding: const EdgeInsets.fromLTRB(6, 2, 6, 0),
           child: Row(
             children: <Widget>[
               if (missing > 0)
@@ -549,23 +550,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = _preferences.palette;
-    return Scaffold(
-      backgroundColor: palette.background,
-      appBar: AppBar(
-        backgroundColor: palette.background,
-        foregroundColor: palette.foreground,
-        title: JustifiedText(
-          widget.sectionTitle ?? widget.book.titleUrdu,
-          style: TextStyle(color: palette.foreground),
-          maxLines: 1,
-        ),
-        actions: [
-          ReaderControls(
-            preferences: _preferences,
-            onChanged: (value) => setState(() => _preferences = value),
-          ),
-        ],
-      ),
+    return ReaderScaffold(
+      book: widget.book,
+      title: widget.sectionTitle ?? widget.book.titleUrdu,
+      preferences: _preferences,
+      onPreferencesChanged: (value) => setState(() => _preferences = value),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -582,7 +571,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       // element tree until the GC ran mid-scroll.
                       addAutomaticKeepAlives: false,
                       minCacheExtent: 350,
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+                      padding: const EdgeInsets.fromLTRB(14, 8, 14, 112),
                       itemBuilder: (context, index) => PassageCard(
                         key: ValueKey('${widget.book.key}-${_passages[index].recordId}'),
                         library: widget.library,

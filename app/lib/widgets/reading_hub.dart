@@ -9,10 +9,10 @@ import '../app_theme.dart';
 /// (right to left, as an Urdu reader starts), and the radial menu uses it too.
 enum HubDestination {
   home('Home', Icons.home_rounded, Color(0xFF145B45)),
-  search('تلاش', Icons.search_rounded, Color(0xFF2F6FD6)),
-  bookmarks('محفوظات', Icons.bookmark_rounded, Color(0xFFD9466B)),
-  more('مزید خصوصیات', Icons.apps_rounded, Color(0xFFE08A1E)),
-  settings('ترتیبات', Icons.settings_rounded, Color(0xFF5C6BC0));
+  search('Search', Icons.search_rounded, Color(0xFF2F6FD6)),
+  bookmarks('Bookmarks', Icons.bookmark_rounded, Color(0xFFD9466B)),
+  more('More', Icons.apps_rounded, Color(0xFFE08A1E)),
+  settings('Settings', Icons.settings_rounded, Color(0xFF5C6BC0));
 
   const HubDestination(this.label, this.icon, this.color);
 
@@ -377,8 +377,8 @@ class _HubItem extends StatelessWidget {
                     destination.label,
                     maxLines: 1,
                     style: const TextStyle(
-                      fontFamily: kUrduFont,
-                      fontSize: 15,
+                      fontFamily: kDigitFont,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF1D2925),
                     ),
