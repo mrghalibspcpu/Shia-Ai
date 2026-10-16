@@ -1856,6 +1856,13 @@ class LibraryRepository {
   Set<String>? _bookmarkCache;
   Map<String, String>? _noteCache;
 
+  /// Drops the bookmark/note caches so the next read reflects a restored
+  /// backup. Preferences are re-read on the next query.
+  void invalidateUserStateCache() {
+    _bookmarkCache = null;
+    _noteCache = null;
+  }
+
   Future<Set<String>> _bookmarkSet() async {
     final cached = _bookmarkCache;
     if (cached != null) return cached;

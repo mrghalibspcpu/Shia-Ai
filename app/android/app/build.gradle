@@ -26,7 +26,39 @@ android {
         versionName flutter.versionName
     }
 
+    // Production builds must be signed with the owner's private key and must
+    // fail loudly when it is missing — a store submission signed with the
+    // public CI key (or a throwaway debug key) would be a security incident,
+    // not a release. `ANDROID_REQUIRE_PRODUCTION_SIGNING=true` (set by
+    // .github/workflows/production-release.yml) turns the fallbacks off; see
+    // docs/signing-and-migration-plan.md.
+    def requireProductionSigning =
+            (System.getenv("ANDROID_REQUIRE_PRODUCTION_SIGNING") ?: "").equalsIgnoreCase("true") ||
+            project.hasProperty("requireProductionSigning")
     def keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+    def signingStorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+    def signingKeyAlias = System.getenv("ANDROID_KEY_ALIAS")
+    def signingKeyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+
+    if (requireProductionSigning) {
+        def missing = []
+        if (keystorePath == null || keystorePath.isBlank()) missing << "ANDROID_KEYSTORE_PATH"
+        if (signingStorePassword == null || signingStorePassword.isBlank()) missing << "ANDROID_KEYSTORE_PASSWORD"
+        if (signingKeyAlias == null || signingKeyAlias.isBlank()) missing << "ANDROID_KEY_ALIAS"
+        if (signingKeyPassword == null || signingKeyPassword.isBlank()) missing << "ANDROID_KEY_PASSWORD"
+        if (!missing.isEmpty()) {
+            throw new GradleException(
+                    "Production signing required, but signing secrets are missing: " + missing.join(", ") +
+                    ". Refusing to fall back to the public CI key or the debug key." +
+                    " Configure the four ANDROID_* repository secrets (docs/signing-and-migration-plan.md).")
+        }
+        if (keystorePath.contains("ci-signing")) {
+            throw new GradleException(
+                    "Production builds must never be signed with the checked-in CI key" +
+                    " (app/android/ci-signing). Point ANDROID_KEYSTORE_PATH at the owner's private keystore.")
+        }
+    }
+
     if (keystorePath != null && !keystorePath.isBlank()) {
         // Pick the keystore format from the extension: the repository CI key
         // is PKCS#12, an owner-supplied key is usually a .jks.
@@ -38,9 +70,9 @@ android {
             release {
                 storeFile file(keystorePath)
                 storeType keystoreType
-                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
-                keyAlias System.getenv("ANDROID_KEY_ALIAS")
-                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                storePassword signingStorePassword
+                keyAlias signingKeyAlias
+                keyPassword signingKeyPassword
             }
         }
     }
@@ -49,7 +81,8 @@ android {
         release {
             // If release secrets are configured in GitHub, use the owner's key.
             // Otherwise this is a locally installable debug-key-signed release,
-            // not an update-compatible Play Store release.
+            // not an update-compatible Play Store release. Production builds
+            // (above) never reach this fallback.
             signingConfig = (keystorePath != null && !keystorePath.isBlank())
                     ? signingConfigs.release
                     : signingConfigs.debug

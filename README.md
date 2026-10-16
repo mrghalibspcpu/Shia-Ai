@@ -1,5 +1,33 @@
 # ShiaVerse
 
+## New in 1.13.2 — backup, privacy policy, and production signing
+
+The working features are untouched; this release prepares the app for public
+store distribution without putting anyone's data at risk:
+
+- **بیک اپ و منتقلی (Settings → Backup & migrate).** Bookmarks, notes,
+  last-read positions, tasbeeh counts and wirds, prayer settings, the chosen
+  location and all preferences export to one small JSON file (file picker, with
+  a clipboard fallback) and restore on any device. The ~230 MB of books are not
+  in the file — they re-download. This is the bridge for the signing-key switch
+  below; see [`docs/signing-and-migration-plan.md`](docs/signing-and-migration-plan.md).
+- **In-app privacy policy** (Settings → ایپ کے بارے میں), showing the bundled
+  copy of [`docs/privacy-policy.md`](docs/privacy-policy.md) — written from the
+  app's real behaviour: no accounts, no analytics, no data collection; optional
+  GitHub downloads, IP/city lookups and source links are the only network use.
+- **Production signing pipeline** (`.github/workflows/production-release.yml`):
+  store releases are signed with the owner's private key only — the workflow
+  and `build.gradle` both **fail** if the signing secrets are missing, and
+  refuse the public CI key by certificate fingerprint. `store-v*` releases are
+  immutable and no `app-v*` release is ever overwritten. The 1.13.x line stays
+  on the CI key so 1.13.1 updates to 1.13.2 in place, exactly as before.
+- **Store kit** for APKPure: listing text (EN/UR), permissions and data-safety
+  declarations, IARC questionnaire answers, 512×512 icon, screenshot
+  candidates, and the publishing checklist with every owner-only step —
+  [`store/apkpure/`](store/apkpure/) and
+  [`docs/store-readiness-audit.md`](docs/store-readiness-audit.md). Nothing is
+  submitted anywhere without the owner's explicit approval.
+
 ## New in 1.13 — reading and home polish
 
 The home has a black dock and raised glass keys, closer mini-prayer and

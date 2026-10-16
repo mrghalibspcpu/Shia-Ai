@@ -25,9 +25,15 @@ echo "Emulator ABI: $(adb shell getprop ro.product.cpu.abi | tr -d '\r')"
 
 # Isolate any regression from the previous release. A failure on the old APK
 # is diagnostic, not a pass for the new one. Also check upgrade compatibility.
+# The baseline is the release installed on the owner's phone (1.13.1): a
+# successful `adb install -r` here is exactly the in-place update that phone
+# would do. A production-key build is expected to warn on this step — different
+# signing keys cannot update each other (docs/signing-and-migration-plan.md).
+baseline_tag="${SMOKE_BASELINE_TAG:-app-v1.13.1}"
+baseline_asset="${SMOKE_BASELINE_ASSET:-ShiaVerse-1.13.1.apk}"
 mkdir -p build/install-smoke
-if gh release download app-v1.13.0 -p 'ShiaVerse-1.13.0.apk' -D build/install-smoke --clobber; then
-  old=build/install-smoke/ShiaVerse-1.13.0.apk
+if gh release download "$baseline_tag" -p "$baseline_asset" -D build/install-smoke --clobber; then
+  old="build/install-smoke/$baseline_asset"
   echo "Previous release SHA-256: $(sha256sum "$old" | cut -d' ' -f1)"
   if adb install --no-streaming "$old"; then
     echo 'Previous release installed on emulator; trying an in-place update.'
@@ -63,6 +69,16 @@ if ! adb shell pidof "$package" | grep -Eq '[0-9]+'; then
   adb logcat -d -t 200 -s AndroidRuntime:E ActivityTaskManager:E flutter:E || true
   echo '::error title=App launch failed::Process exited during startup'
   exit 1
+fi
+
+# Optional: capture listing screenshots from the live emulator (the production
+# workflow collects these for the store submission kit).
+if [[ -n "${SHIAVERSE_SMOKE_SHOTS:-}" ]]; then
+  mkdir -p "$SHIAVERSE_SMOKE_SHOTS"
+  adb exec-out screencap -p > "$SHIAVERSE_SMOKE_SHOTS/01-home-clean-install.png" || true
+  sleep 2
+  adb exec-out screencap -p > "$SHIAVERSE_SMOKE_SHOTS/02-home-settled.png" || true
+  echo "Screenshots saved under $SHIAVERSE_SMOKE_SHOTS"
 fi
 
 echo 'Android emulator clean install AND launch verified.'

@@ -1,7 +1,8 @@
 # CI signing key
 
-`shia-library-ci.p12` is the key every CI build signs the APK with, so that
-successive builds installed from download links **update over each other**.
+`shia-library-ci.p12` is the key every **CI build** (`.github/workflows/android-apk.yml`)
+signs the APK with, so that successive builds installed from download links
+**update over each other**.
 
 ## Why this exists
 
@@ -18,13 +19,20 @@ With one fixed key:
 
 ## Status of the secret
 
-The keystore and its passphrase are checked in on purpose — they are the same
-for everyone who builds this repository, and the app has no accounts, no
+The keystore and its passphrase are checked in **on purpose** — they are the
+same for everyone who builds this repository, and the app has no accounts, no
 payment, and no server, so the key only has to be *stable*, not private.
 
-If you want a private key instead, set these four repository secrets
-(Settings → Secrets and variables → Actions) and the workflow will use them in
-preference to this file:
+**This key must never sign a public/store release.** Anyone can read it, so
+anyone could craft an "update" over such a release. Store builds are handled by
+a separate workflow (`.github/workflows/production-release.yml`) which refuses
+to run without the owner's private key and refuses this key if it is configured
+by mistake (it checks the certificate fingerprint below).
+
+## Production (store) signing
+
+For a store-uploadable release, the owner generates a **new private keystore**
+and stores it in GitHub Actions secrets — never in Git, artifacts, or chat:
 
 | Secret | Value |
 | --- | --- |
@@ -33,9 +41,14 @@ preference to this file:
 | `ANDROID_KEY_ALIAS` | key alias |
 | `ANDROID_KEY_PASSWORD` | key password |
 
-Note that switching keys changes the signature, so one last uninstall +
-re-install is needed at the moment of the switch; after that, updates are
-seamless again.
+The full runbook — key generation, backup of the key itself, the data-migration
+plan for phones that hold the CI-signed 1.13.x, and the release steps — is in
+[`docs/signing-and-migration-plan.md`](../../../docs/signing-and-migration-plan.md).
+
+Note that switching keys changes the signature: a production APK **cannot**
+update a CI-signed installation in place. The 1.13.2 build ships an in-app
+backup (Settings → بیک اپ و منتقلی) precisely so no data is lost at that
+moment. Nothing gets uninstalled without the owner's say-so.
 
 The current CI key's certificate fingerprint (SHA-256):
 `15:6A:C3:03:0B:A5:B9:A8:97:72:BB:FC:06:D5:9E:9D:38:FB:59:92:30:09:3B:46:11:30:DA:3D:99:AF:2D:11`

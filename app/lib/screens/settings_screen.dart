@@ -1,13 +1,18 @@
 import 'dart:async';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app_theme.dart';
 import '../data_installer.dart';
 import '../data_packages.dart';
 import '../library_repository.dart';
+import '../services/backup_service.dart';
 import '../widgets/reader_kit.dart';
 import 'data_screen.dart';
+import 'privacy_policy_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
@@ -123,6 +128,157 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (_) => DataScreen(library: widget.library, installer: widget.installer),
     ));
     if (mounted) setState(() {});
+  }
+
+  bool _backupBusy = false;
+
+  /// The reader's own data — the exact set `BackupService` serialises.
+  Future<BackupService> _backupService() async =>
+      BackupService(await SharedPreferences.getInstance());
+
+  List<String> _installedDatabaseNames() => widget.installer.catalog.packages
+      .where(widget.installer.isInstalled)
+      .map((package) => package.fileName)
+      .toList();
+
+  void _report(String message, {bool error = false}) {
+    if (!mounted) return;
+    setState(() {
+      _status = message;
+      _statusError = error;
+    });
+  }
+
+  /// Saves the complete user state as a JSON file, wherever the reader
+  /// chooses (Downloads, Drive, WhatsApp…). Books are re-downloadable and
+  /// stay out of the file.
+  Future<void> _exportBackup() async {
+    if (_backupBusy) return;
+    setState(() {
+      _backupBusy = true;
+      _status = null;
+      _statusError = false;
+    });
+    try {
+      final json = (await _backupService()).exportJson(
+        installedDatabases: _installedDatabaseNames(),
+      );
+      final stamp = DateTime.now().toUtc().toIso8601String().split('.').first.replaceAll(':', '-');
+      final saved = await FilePicker.platform.saveFile(
+        dialogTitle: 'بیک اپ محفوظ کریں',
+        fileName: 'shiaverse-backup-$stamp.json',
+        bytes: BackupService.encodeFileBytes(json),
+      );
+      _report(saved == null
+          ? 'بیک اپ محفوظ نہیں ہوا (عمل منسوخ یا فائل نہیں بنی)۔'
+          : 'بیک اپ محفوظ ہو گیا — فائل کو محفوظ جگہ پر رکھیں۔');
+    } catch (error) {
+      _report('بیک اپ محفوظ نہیں ہوا: $error', error: true);
+    } finally {
+      if (mounted) setState(() => _backupBusy = false);
+    }
+  }
+
+  /// The clipboard fallback: same JSON, copy-pasteable anywhere.
+  Future<void> _exportBackupToClipboard() async {
+    if (_backupBusy) return;
+    setState(() {
+      _backupBusy = true;
+      _status = null;
+      _statusError = false;
+    });
+    try {
+      final json = (await _backupService()).exportJson(
+        installedDatabases: _installedDatabaseNames(),
+      );
+      await Clipboard.setData(ClipboardData(text: json));
+      _report('بیک اپ کاپی ہو گیا — کسی محفوظ جگہ (نوٹس/WhatsApp/ای میل) میں چسپاں کریں۔');
+    } catch (error) {
+      _report('بیک اپ کاپی نہیں ہوا: $error', error: true);
+    } finally {
+      if (mounted) setState(() => _backupBusy = false);
+    }
+  }
+
+  Future<void> _importBackup() async {
+    if (_backupBusy) return;
+    setState(() {
+      _backupBusy = true;
+      _status = null;
+      _statusError = false;
+    });
+    try {
+      final picked = await FilePicker.platform.pickFiles(withData: true);
+      if (picked == null || picked.files.isEmpty) {
+        _report('کوئی فائل منتخب نہیں ہوئی۔');
+        return;
+      }
+      final bytes = picked.files.single.bytes;
+      if (bytes == null) {
+        _report('فائل نہیں پڑھی جا سکی — دوبارہ کوشش کریں۔', error: true);
+        return;
+      }
+      await _restoreBackup(BackupService.decodeFileBytes(bytes));
+    } catch (error) {
+      _report('بیک اپ بحال نہیں ہوا: $error', error: true);
+    } finally {
+      if (mounted) setState(() => _backupBusy = false);
+    }
+  }
+
+  Future<void> _importBackupFromClipboard() async {
+    if (_backupBusy) return;
+    setState(() {
+      _backupBusy = true;
+      _status = null;
+      _statusError = false;
+    });
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = data?.text ?? '';
+      if (text.trim().isEmpty) {
+        _report('کلپ بورڈ خالی ہے — پہلے بیک اپ کاپی کریں۔', error: true);
+        return;
+      }
+      await _restoreBackup(text);
+    } catch (error) {
+      _report('بیک اپ بحال نہیں ہوا: $error', error: true);
+    } finally {
+      if (mounted) setState(() => _backupBusy = false);
+    }
+  }
+
+  /// Validates, confirms, then replaces the device state with the backup.
+  Future<void> _restoreBackup(String text) async {
+    final backup = BackupService.parse(text);
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const JustifiedText('بیک اپ بحال کریں؟'),
+        content: JustifiedText(
+          'اس فائل میں ${backup.bookmarkCount} بک مارکس، ${backup.noteCount} نوٹ اور دیگر ترتیبات ہیں۔ '
+          'اس ڈیوائس کا موجودہ ذاتی ڈیٹا اس سے بدل جائے گا۔ کتابیں اپنے آپ دوبارہ '
+          'ڈاؤن لوڈ کرنی پڑیں گی۔ جاری رکھیں؟',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('منسوخ')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('بحال کریں')),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      _report('بیک اپ بحال نہیں کیا گیا۔');
+      return;
+    }
+    final summary = await (await _backupService()).restore(backup);
+    widget.library.invalidateUserStateCache();
+    final books = summary.installedDatabases.length;
+    _report(
+      'بیک اپ بحال ہو گیا: ${summary.restored} اشیاء۔ '
+      '${books > 0 ? 'پہلے $books کتابیں نصب تھیں — انہیں ڈاؤن لوڈ صفحے سے دوبارہ انسٹال کریں۔ ' : ''}'
+      'مکمل اثر کے لیے ایپ بند کر کے دوبارہ کھولیں۔',
+    );
   }
 
   @override
@@ -267,6 +423,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
                 const SizedBox(height: 26),
+                const _SectionTitle('بیک اپ و منتقلی'),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        JustifiedText(
+                          'محفوظات، نوٹ، آخری مقامات، تسبیح اور ترتیبات کا ذاتی ڈیٹا فائل میں محفوظ کریں — '
+                          'نئے فون یا نئی ایپ پر بحالی کے لیے۔ کتابیں اس فائل میں نہیں جاتیں؛ وہ ڈاؤن لوڈ '
+                          'صفحے سے دوبارہ انسٹال ہو جاتی ہیں۔',
+                          style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            FilledButton.icon(
+                              onPressed: _backupBusy ? null : _exportBackup,
+                              icon: const Icon(Icons.save_alt),
+                              label: const Text('بیک اپ محفوظ کریں'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: _backupBusy ? null : _importBackup,
+                              icon: const Icon(Icons.settings_backup_restore),
+                              label: const Text('بیک اپ بحال کریں'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: _backupBusy ? null : _exportBackupToClipboard,
+                              icon: const Icon(Icons.copy),
+                              label: const Text('کلپ بورڈ پر کاپی'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: _backupBusy ? null : _importBackupFromClipboard,
+                              icon: const Icon(Icons.paste),
+                              label: const Text('کلپ بورڈ سے بحالی'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 26),
                 const _SectionTitle('ایپ کے بارے میں'),
                 JustifiedText(
                   'ShiaVerse ایک مکمل آف لائن مطالعہ گاہ ہے: قرآنِ کریم اردو ترجمہ اور تفسیری حواشی کے ساتھ، '
@@ -278,6 +479,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 JustifiedText(
                   'نصب شدہ کتب: ${installed.map((book) => book.titleUrdu).join('، ')}',
                   style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.privacy_tip_outlined),
+                    title: const JustifiedText(
+                      'رازداری کی پالیسی',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: const JustifiedText(
+                      'یہ ایپ کیا ڈیٹا محفوظ کرتی ہے اور کیا کہیں نہیں بھیجتی',
+                      maxLines: 2,
+                    ),
+                    trailing: const Icon(Icons.chevron_left),
+                    onTap: () {
+                      Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => const PrivacyPolicyScreen(),
+                      ));
+                    },
+                  ),
                 ),
               ],
             ),
