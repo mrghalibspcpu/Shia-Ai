@@ -40,7 +40,7 @@ void main() {
     expect(mushafVerseNumber(_ayahs[1]), 2);
     final nextSurah = <Passage>[
       ..._ayahs.take(2),
-      const Passage(recordId: 4, page: 1, containerType: 2, arabic: 'الم', locator: 'آیت 1'),
+      const Passage(recordId: 4, page: 1, containerType: 2, arabic: 'الم', urdu: '', locator: 'آیت 1'),
     ];
     expect(groupMushafVerses(nextSurah), hasLength(2), reason: 'new surah starts a flow');
   });
