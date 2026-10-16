@@ -233,6 +233,8 @@ class _MiniPrayerContent extends StatelessWidget {
         // Place, centred. The refresh button sits in the top corner, out of the
         // way of the centred text.
         Stack(
+          // The place sits in the middle of the card, not at the start edge.
+          alignment: Alignment.topCenter,
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 36),
