@@ -168,6 +168,13 @@ void main() {
       await settle(tester);
       // The fifteen containers of the design.
       expect(find.byType(HomeDashboard), findsOneWidget);
+      // The two bugs this replaced: the panel's Center stretched it over the
+      // whole screen (the dashboard was given zero height and painted nothing,
+      // so every time-of-day shot was byte-identical), and the dashboard
+      // itself laid out below the visible area. Both are sizes, so both are
+      // asserted as sizes.
+      expect(tester.getSize(find.byType(HomeDashboard)).height, greaterThan(400));
+      expect(tester.getSize(find.byType(HomeDockBar)).height, lessThan(140));
       expect(find.text('ShiaVerse'), findsOneWidget);
       expect(find.text('G-11، اسلام آباد'), findsOneWidget);
       expect(find.text('قرآنِ کریم'), findsOneWidget);
