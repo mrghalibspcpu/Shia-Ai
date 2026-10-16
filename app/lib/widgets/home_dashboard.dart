@@ -170,7 +170,7 @@ class HomeDockBar extends StatelessWidget {
             builder: (context, constraints) {
               final width = math.min(constraints.maxWidth, _canvasWidth * _maxScale);
               final scale = width / _canvasWidth;
-              final iconHeight = 76 * math.min(scale, 1.25);
+              final iconHeight = 76.0 * math.min(scale, 1.25);
               return Align(
                 heightFactor: 1,
                 alignment: Alignment.topCenter,
