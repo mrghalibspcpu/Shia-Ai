@@ -1,0 +1,42 @@
+name: Deliver APK
+
+# Fetches the APK already published on the app-v* release, zips it, and
+# stores the zip as a git blob. Sandboxed tooling that can only reach
+# api.github.com can then download the exact bytes through the blobs API.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The app release tag whose APK to deliver
+        default: app-v1.12.1
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  deliver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download, zip, and stage the APK as a git blob
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p work && cd work
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.apk'
+          apk=$(ls *.apk)
+          zip -9 "${apk%.apk}-apk.zip" "$apk"
+          zipfile="${apk%.apk}-apk.zip"
+          echo "apk sha256   : $(sha256sum "$apk" | cut -d' ' -f1)"
+          echo "zip sha256   : $(sha256sum "$zipfile" | cut -d' ' -f1)"
+          echo "zip size     : $(stat -c%s "$zipfile") bytes"
+          python3 - "$zipfile" > blob.json <<'PY'
+          import base64, json, sys
+          data = open(sys.argv[1], 'rb').read()
+          print(json.dumps({'content': base64.b64encode(data).decode(), 'encoding': 'base64'}))
+          PY
+          sha=$(gh api -X POST "repos/$GITHUB_REPOSITORY/git/blobs" --input blob.json --jq .sha)
+          echo "::notice title=APK zip blob::name=$zipfile sha=$sha sha256=$(sha256sum "$zipfile" | cut -d' ' -f1)"
