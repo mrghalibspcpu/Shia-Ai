@@ -4,12 +4,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
-import '../astro/compass_math.dart' show compassPointUrdu;
 import '../astro/prayer_calculator.dart';
 import '../astro/prayer_format.dart';
 import '../astro/sky_phase.dart';
 import '../screens/prayer_times_screen.dart';
-import '../screens/qibla_screen.dart';
 import '../screens/tasbeeh_screen.dart';
 import '../services/prayer_controller.dart';
 import '../services/prayer_scope.dart';
@@ -18,10 +16,11 @@ import 'glass_panel.dart';
 import 'sky_backdrop.dart';
 
 /// The daily utilities as they appear on the home dashboard: the mini prayer
-/// card at the top (place, both dates, the live clock, the running prayer and
-/// the five times, over a sky that follows the time of day), then a row with
-/// the circular mini tasbeeh and the Qibla. They read the same controllers as
-/// their full screens, so nothing here can disagree with the screens behind.
+/// card at the top (place, Hijri date, the live clock, and the five times with
+/// the running prayer marked **Now** and the next one counting down), then the
+/// circular mini tasbeeh. They read the same controllers as their full
+/// screens, so nothing here can disagree with the screens behind.
+/// The Qibla lives in the bottom panel now.
 class HomePrayerBanner extends StatefulWidget {
   const HomePrayerBanner({super.key});
 
@@ -196,8 +195,6 @@ class _MiniPrayerContent extends StatelessWidget {
     final window = schedule.window(now);
     final next = schedule.nextEntry(now);
     final hijri = controller.hijriFor(now);
-    final afterSunrise = !window.previousNight && now.isAfter(window.endsAt);
-    final current = afterSunrise ? 'طلوعِ آفتاب کے بعد' : '${window.marker.labelUrdu} کا وقت';
     const gold = Color(0xFFFFE1A1);
 
     return Column(
@@ -242,122 +239,39 @@ class _MiniPrayerContent extends StatelessWidget {
                   ? null
                   : () => unawaited(refreshLocationWithFeedback(context)),
             ),
-            const SizedBox(width: 6),
-            _SkyButton(
-              icon: Icons.explore,
-              tooltip: 'قبلہ نما',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const QiblaScreen()),
-              ),
-            ),
           ],
         ),
         const SizedBox(height: 8),
-        Row(
-          children: <Widget>[
-            Flexible(
-              child: Text(
-                '${weekdayUrdu(now)}، ${formatDayMonthYearUrdu(now)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _onSky(14, weight: FontWeight.w700),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 7),
-              child: Text('•', style: _onSky(14, alpha: 0.7)),
-            ),
-            Flexible(
-              child: Text(
-                hijri.labelUrdu,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _onSky(14, weight: FontWeight.w800, color: gold),
-              ),
-            ),
-          ],
+        // The Hijri date alone: the Gregorian day is no longer printed here.
+        Text(
+          hijri.labelUrdu,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: _onSky(14, weight: FontWeight.w800, color: gold),
         ),
         const SizedBox(height: 10),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: <Widget>[
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: AlignmentDirectional.centerStart,
-                    child: Text.rich(
-                      TextSpan(
-                        children: <InlineSpan>[
-                          TextSpan(
-                            text: formatClockDigitsUrdu(now),
-                            style: _onSky(38, weight: FontWeight.w700, digits: true, height: 1.0),
-                          ),
-                          TextSpan(
-                            text: formatClockSeconds(now),
-                            style: _onSky(18, weight: FontWeight.w600, alpha: 0.85, digits: true),
-                          ),
-                          TextSpan(
-                            text: '  ${dayPartUrdu(now.hour)}',
-                            style: _onSky(15, weight: FontWeight.w700, alpha: 0.9),
-                          ),
-                        ],
-                      ),
-                      maxLines: 1,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: <Widget>[
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF7CF0B4),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          'ابھی: $current',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: _onSky(15, weight: FontWeight.w800),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                Text('اگلی نماز', style: _onSky(12.5, alpha: 0.85)),
-                Text(
-                  '${next.marker.labelUrdu}  ${formatClockDigitsUrdu(next.time)}',
-                  style: _onSky(17, weight: FontWeight.w800),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: AlignmentDirectional.centerStart,
+          child: Text.rich(
+            TextSpan(
+              children: <InlineSpan>[
+                TextSpan(
+                  text: formatClockDigitsUrdu(now),
+                  style: _onSky(38, weight: FontWeight.w700, digits: true, height: 1.0),
                 ),
-                Container(
-                  margin: const EdgeInsets.only(top: 3),
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.28),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: gold.withValues(alpha: 0.55)),
-                  ),
-                  child: Text(
-                    '${formatCountdownClock(next.time.difference(now))} باقی',
-                    style: _onSky(14, weight: FontWeight.w800, color: gold, digits: true),
-                  ),
+                TextSpan(
+                  text: formatClockSeconds(now),
+                  style: _onSky(18, weight: FontWeight.w600, alpha: 0.85, digits: true),
+                ),
+                TextSpan(
+                  text: '  ${dayPartUrdu(now.hour)}',
+                  style: _onSky(15, weight: FontWeight.w700, alpha: 0.9),
                 ),
               ],
             ),
-          ],
+            maxLines: 1,
+          ),
         ),
         const SizedBox(height: 12),
         _FivePrayerStrip(schedule: schedule, now: now, window: window, next: next),
@@ -366,8 +280,9 @@ class _MiniPrayerContent extends StatelessWidget {
   }
 }
 
-/// The five prayers on one translucent strip; the running one is lit, the
-/// next one is underlined in gold.
+/// The five prayers on one translucent strip. The running prayer is lit and
+/// tagged **Now**; the next prayer is outlined in gold and shows the time left
+/// to it inside its own box.
 class _FivePrayerStrip extends StatelessWidget {
   const _FivePrayerStrip({
     required this.schedule,
@@ -398,7 +313,8 @@ class _FivePrayerStrip extends StatelessWidget {
               child: _MiniPrayerCell(
                 entry: entry,
                 active: running && window.marker == entry.marker,
-                upcoming: next.marker == entry.marker && !next.tomorrow,
+                upcoming: !(running && window.marker == entry.marker) && next.marker == entry.marker,
+                remaining: next.marker == entry.marker ? next.time.difference(now) : null,
               ),
             ),
         ],
@@ -408,26 +324,39 @@ class _FivePrayerStrip extends StatelessWidget {
 }
 
 class _MiniPrayerCell extends StatelessWidget {
-  const _MiniPrayerCell({required this.entry, required this.active, required this.upcoming});
+  const _MiniPrayerCell({
+    required this.entry,
+    required this.active,
+    required this.upcoming,
+    this.remaining,
+  });
 
   final PrayerEntry entry;
   final bool active;
   final bool upcoming;
 
+  /// Time left until this prayer; only set on the next prayer's cell.
+  final Duration? remaining;
+
   @override
   Widget build(BuildContext context) {
     const gold = Color(0xFFFFE1A1);
+    final lit = active || upcoming;
+    final left = remaining;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       margin: const EdgeInsets.symmetric(horizontal: 2),
-      padding: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
       decoration: BoxDecoration(
-        color: active ? Colors.white.withValues(alpha: 0.24) : Colors.transparent,
+        color: active
+            ? Colors.white.withValues(alpha: 0.24)
+            : (upcoming ? gold.withValues(alpha: 0.12) : Colors.transparent),
         borderRadius: BorderRadius.circular(13),
         border: Border.all(
           color: active
               ? Colors.white.withValues(alpha: 0.6)
-              : (upcoming ? gold.withValues(alpha: 0.7) : Colors.transparent),
+              : (upcoming ? gold.withValues(alpha: 0.85) : Colors.transparent),
+          width: lit ? 1.4 : 1,
         ),
       ),
       child: Column(
@@ -437,7 +366,7 @@ class _MiniPrayerCell extends StatelessWidget {
             entry.marker.labelUrdu,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: _onSky(14, weight: active ? FontWeight.w800 : FontWeight.w700, height: 1.3),
+            style: _onSky(14, weight: lit ? FontWeight.w800 : FontWeight.w700, height: 1.3),
           ),
           FittedBox(
             fit: BoxFit.scaleDown,
@@ -447,11 +376,75 @@ class _MiniPrayerCell extends StatelessWidget {
                 16.5,
                 weight: FontWeight.w800,
                 digits: true,
-                color: upcoming && !active ? gold : Colors.white,
+                color: upcoming ? gold : Colors.white,
               ),
             ),
           ),
+          const SizedBox(height: 3),
+          SizedBox(
+            height: 17,
+            child: Center(
+              child: active
+                  ? const _NowTag()
+                  : (left != null ? _CountdownTag(remaining: left) : const SizedBox.shrink()),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// The small gold **Now** badge on the prayer that is running.
+class _NowTag extends StatelessWidget {
+  const _NowTag();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFE1A1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Text(
+        'Now',
+        maxLines: 1,
+        style: TextStyle(
+          fontFamily: kDigitFont,
+          fontSize: 10.5,
+          height: 1.25,
+          fontWeight: FontWeight.w800,
+          color: Color(0xFF1B1B1B),
+        ),
+      ),
+    );
+  }
+}
+
+/// The time left until the next prayer, inside that prayer's box.
+class _CountdownTag extends StatelessWidget {
+  const _CountdownTag({required this.remaining});
+
+  final Duration remaining;
+
+  @override
+  Widget build(BuildContext context) {
+    const gold = Color(0xFFFFE1A1);
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.28),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: gold.withValues(alpha: 0.6)),
+        ),
+        child: Text(
+          formatCountdownClock(remaining),
+          maxLines: 1,
+          style: _onSky(11.5, weight: FontWeight.w800, color: gold, digits: true, height: 1.25),
+        ),
       ),
     );
   }
@@ -495,8 +488,8 @@ class _SkyButton extends StatelessWidget {
   }
 }
 
-/// The tasbeeh and the Qibla side by side, at a fixed height so the home list
-/// never jumps when the count changes.
+/// The circular mini tasbeeh, at a fixed height so the home list never jumps
+/// when the count changes. (The Qibla moved to the bottom panel.)
 class HomeUtilityRow extends StatelessWidget {
   const HomeUtilityRow({super.key});
 
@@ -508,14 +501,7 @@ class HomeUtilityRow extends StatelessWidget {
       maxScaleFactor: 1.1,
       child: const SizedBox(
         height: height,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Expanded(child: HomeTasbeehCard()),
-            SizedBox(width: 10),
-            Expanded(child: HomeQiblaCard()),
-          ],
-        ),
+        child: HomeTasbeehCard(),
       ),
     );
   }
@@ -829,170 +815,3 @@ class _TinyButton extends StatelessWidget {
   }
 }
 
-/// The Qibla at a glance: a small dial with the Kaaba needle drawn at the
-/// right angle from north, the bearing and the distance — an answer without
-/// opening the compass (and without a magnetometer).
-class HomeQiblaCard extends StatelessWidget {
-  const HomeQiblaCard({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = GlassPalette.of(context);
-    final controller = PrayerScope.of(context);
-    final bearing = controller.qiblaBearing;
-    return GlassPanel(
-      radius: 22,
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const QiblaScreen()),
-        ),
-        child: Column(
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Icon(Icons.explore, size: 18, color: palette.gold),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    'قبلہ نما',
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 15.5,
-                      height: 1.3,
-                      fontWeight: FontWeight.w800,
-                      color: palette.ink,
-                    ),
-                  ),
-                ),
-                Icon(Icons.chevron_left, size: 20, color: palette.accent),
-              ],
-            ),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final diameter = math.min(constraints.maxWidth, constraints.maxHeight).clamp(64.0, 126.0);
-                  return Center(
-                    child: SizedBox(
-                      width: diameter,
-                      height: diameter,
-                      child: CustomPaint(
-                        painter: _MiniDialPainter(bearing: bearing, palette: palette),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                formatBearingUrdu(bearing, compassPointUrdu(bearing)),
-                style: TextStyle(
-                  fontSize: 16.5,
-                  height: 1.35,
-                  fontWeight: FontWeight.w800,
-                  color: palette.ink,
-                ),
-              ),
-            ),
-            Text(
-              'کعبہ: ${formatKilometresUrdu(controller.distanceToKaabaKm)}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12.5, height: 1.35, color: palette.muted),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniDialPainter extends CustomPainter {
-  _MiniDialPainter({required this.bearing, required this.palette});
-
-  final double bearing;
-  final GlassPalette palette;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final centre = size.center(Offset.zero);
-    final radius = size.width / 2 - 3;
-    canvas.drawCircle(
-      centre,
-      radius,
-      Paint()
-        ..shader = RadialGradient(
-          colors: <Color>[
-            palette.gold.withValues(alpha: 0.10),
-            palette.accent.withValues(alpha: 0.05),
-          ],
-        ).createShader(Rect.fromCircle(center: centre, radius: radius)),
-    );
-    canvas.drawCircle(
-      centre,
-      radius,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6
-        ..color = palette.accent.withValues(alpha: 0.35),
-    );
-    for (var step = 0; step < 12; step++) {
-      final angle = step * math.pi / 6 - math.pi / 2;
-      final major = step % 3 == 0;
-      final outer = radius - 2;
-      final inner = outer - (major ? 8 : 4);
-      canvas.drawLine(
-        centre + Offset(math.cos(angle), math.sin(angle)) * inner,
-        centre + Offset(math.cos(angle), math.sin(angle)) * outer,
-        Paint()
-          ..strokeWidth = major ? 1.8 : 1
-          ..color = (step == 0 ? palette.gold : palette.accent).withValues(alpha: major ? 0.8 : 0.4),
-      );
-    }
-    // North, in Urdu, at the top.
-    final north = TextPainter(
-      text: TextSpan(
-        text: 'شمال',
-        style: TextStyle(
-          fontFamily: kUrduFont,
-          fontSize: size.width * 0.1,
-          fontWeight: FontWeight.w800,
-          color: palette.gold,
-        ),
-      ),
-      textDirection: TextDirection.rtl,
-    )..layout();
-    north.paint(canvas, Offset(centre.dx - north.width / 2, centre.dy - radius + 10));
-
-    // The needle at the bearing, with the Kaaba at its tip.
-    final theta = bearing * math.pi / 180 - math.pi / 2;
-    final direction = Offset(math.cos(theta), math.sin(theta));
-    final tip = centre + direction * (radius - 16);
-    final tail = centre - direction * (radius * 0.28);
-    canvas.drawLine(
-      tail,
-      tip,
-      Paint()
-        ..strokeWidth = 3.4
-        ..strokeCap = StrokeCap.round
-        ..color = palette.gold,
-    );
-    final cube = Rect.fromCenter(center: tip, width: 15, height: 15);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(cube, const Radius.circular(3.5)),
-      Paint()..color = const Color(0xFF1B1B1B),
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(cube.left, cube.top + 4.5, cube.width, 3),
-      Paint()..color = palette.gold,
-    );
-    canvas.drawCircle(centre, 4.5, Paint()..color = palette.accent);
-  }
-
-  @override
-  bool shouldRepaint(_MiniDialPainter old) =>
-      old.bearing != bearing || old.palette.ink != palette.ink;
-}

@@ -9,7 +9,6 @@ import '../models.dart';
 import '../reader_navigation.dart';
 import '../text_utils.dart' show arabicNumerals;
 import '../widgets/home_utilities.dart';
-import '../widgets/last_seen_bar.dart';
 import '../widgets/reader_kit.dart';
 import '../widgets/resume_card.dart';
 import 'balagha_screen.dart';
@@ -19,54 +18,24 @@ import 'fatawa_screen.dart';
 import 'quran_screen.dart';
 
 class LibraryHomeScreen extends StatefulWidget {
-  const LibraryHomeScreen({super.key, required this.library, this.onOpenData});
+  const LibraryHomeScreen({
+    super.key,
+    required this.library,
+    this.onOpenData,
+    this.onOpenSettings,
+  });
 
   final LibraryRepository library;
   final VoidCallback? onOpenData;
+
+  /// Opens the settings screen (the bottom panel has no room for it).
+  final VoidCallback? onOpenSettings;
 
   @override
   State<LibraryHomeScreen> createState() => _LibraryHomeScreenState();
 }
 
 class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
-  /// Every book's own saved position, newest first — what the slim
-  /// [LastSeenBar] at the top of the home screen scrolls through.
-  List<LastReadEntry> _lastSeen = const [];
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_loadLastSeen());
-  }
-
-  /// One pass over `SharedPreferences` for the whole strip.
-  ///
-  /// `getLastReads()` returns one entry per book; the global آخری مطالعہ is
-  /// folded in only when that book has no per-book entry (pre-1.5 installs),
-  /// so the newest position is never listed twice.
-  Future<void> _loadLastSeen() async {
-    final global = await widget.library.getLastRead();
-    final perBook = await widget.library.getLastReads();
-    final entries = <LastReadEntry>[];
-    final seen = <String>{};
-    for (final entry in perBook) {
-      final book = entry.book;
-      if (book == null || !widget.library.isInstalled(book)) continue;
-      entries.add(entry);
-      seen.add(entry.bookKey);
-    }
-    final latest = global;
-    final latestBook = latest?.book;
-    if (latest != null &&
-        latestBook != null &&
-        !seen.contains(latest.bookKey) &&
-        widget.library.isInstalled(latestBook)) {
-      entries.insert(0, latest);
-    }
-    if (!mounted) return;
-    setState(() => _lastSeen = entries);
-  }
-
   @override
   Widget build(BuildContext context) {
     // The library rebuilds as soon as a download lands (catalogVersion), so a
@@ -78,54 +47,28 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
   }
 
   Widget _buildHome(BuildContext context) {
+    // No top bar. Download, last seen, Qibla, search and the books tab live in
+    // the bottom panel; the page is the prayer card, the tasbeeh and the library.
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('ShiaVerse'),
-        actions: [
-          if (widget.onOpenData != null)
-            IconButton(
-              tooltip: 'ڈیٹا اور ڈاؤن لوڈ',
-              onPressed: widget.onOpenData,
-              icon: const Icon(Icons.download_outlined),
-            ),
-          IconButton(
-            tooltip: 'محفوظات',
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => SavedItemsScreen(library: widget.library),
-            )),
-            icon: const Icon(Icons.bookmark_outline),
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadLastSeen,
+      body: SafeArea(
+        bottom: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 4, 18, 28),
+          padding: const EdgeInsets.fromLTRB(18, 10, 18, 28),
           children: [
-            // The mini prayer card leads the home screen: place, both dates,
-            // the live clock, the running prayer and the five times, over a
-            // sky that follows the time of day. Its rows are one line each,
-            // so nothing below it moves while the clock ticks.
-            const SizedBox(height: 4),
+            // The prayer card leads: place, Hijri date, the live clock and the
+            // five times, over a sky that follows the time of day.
             const HomePrayerBanner(),
             const SizedBox(height: 12),
             _DownloadPrompt(library: widget.library, onOpenData: widget.onOpenData),
-            // The circular mini tasbeeh and the Qibla, at a fixed height.
+            // The circular mini tasbeeh, at a fixed height.
             const HomeUtilityRow(),
             _IndexingBanner(library: widget.library),
-            if (_lastSeen.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              LastSeenBar(
-                library: widget.library,
-                entries: _lastSeen,
-                onOpened: _loadLastSeen,
-              ),
-            ],
-            const SizedBox(height: 14),
-            _LibraryBanner(
+            const SizedBox(height: 12),
+            _ShelfActions(
               onOpenSaved: () => Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => SavedItemsScreen(library: widget.library),
               )),
+              onOpenSettings: widget.onOpenSettings,
             ),
             const SizedBox(height: 22),
             const _SectionHeader('قرآن، دعائیں، فتاویٰ اور نہج البلاغہ'),
@@ -251,11 +194,7 @@ class _CollectionsRow extends StatelessWidget {
             CorpusSource.balagha => Icons.auto_stories,
             _ => Icons.auto_stories,
           },
-          color: switch (book.source) {
-            CorpusSource.dua => kGold,
-            CorpusSource.balagha => const Color(0xFF7A4E2D),
-            _ => kForest,
-          },
+          color: bookAccent(book),
           installed: library.isInstalled(book),
           book: book,
         ),
@@ -317,7 +256,7 @@ class _CollectionsRow extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(entry.icon, color: entry.color, size: 22),
+                          _IconBadge(icon: entry.icon, color: entry.color),
                           const Spacer(),
                           if (!entry.installed)
                             Icon(Icons.download, size: 16, color: Theme.of(context).colorScheme.error),
@@ -397,10 +336,10 @@ class _DownloadPrompt extends StatelessWidget {
             const SizedBox(height: 8),
             JustifiedText(
               installed == 0
-                  ? 'کتب کا ڈیٹا ابھی ڈاؤن لوڈ نہیں ہوا۔ اوپر ڈاؤن لوڈ (⬇) کے نشان پر ٹیپ کریں، '
+                  ? 'کتب کا ڈیٹا ابھی ڈاؤن لوڈ نہیں ہوا۔ نیچے کے بار میں ڈاؤن لوڈ کے بٹن پر ٹیپ کریں، '
                     'یا نیچے دیے گئے بٹن کو دبائیں، اور پھر اپنی پسند کی کتب منتخب کریں۔'
-                  : '$installed / $total کتب موجود ہیں۔ باقی $missing کتب کے لیے اوپر ڈاؤن لوڈ (⬇) کے نشان '
-                    'یا نیچے دیے گئے بٹن پر ٹیپ کریں۔',
+                  : '$installed / $total کتب موجود ہیں۔ باقی $missing کتب کے لیے نیچے کے بار میں '
+                    'ڈاؤن لوڈ کے بٹن پر ٹیپ کریں۔',
               style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 12),
@@ -461,68 +400,103 @@ class _IndexingBanner extends StatelessWidget {
   }
 }
 
-class _LibraryBanner extends StatelessWidget {
-  const _LibraryBanner({required this.onOpenSaved});
+/// A coloured rounded tile with a white icon: the colour of a book or collection.
+class _IconBadge extends StatelessWidget {
+  const _IconBadge({required this.icon, required this.color, this.size = 42});
 
-  final VoidCallback onOpenSaved;
+  final IconData icon;
+  final Color color;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(18),
+      width: size,
+      height: size,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
-        gradient: const LinearGradient(
-          colors: [kForestDark, kForest],
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-        ),
-        boxShadow: [
-          BoxShadow(color: kForest.withValues(alpha: 0.16), blurRadius: 20, offset: const Offset(0, 8)),
+        color: color,
+        borderRadius: BorderRadius.circular(size * 0.34),
+        boxShadow: <BoxShadow>[
+          BoxShadow(color: color.withValues(alpha: 0.30), blurRadius: 10, offset: const Offset(0, 3)),
         ],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'ShiaVerse',
-                  style: TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'قرآن، دعائیں، نہج البلاغہ اور چودہ کتبِ احادیث',
-                  style: TextStyle(color: Color(0xFFE4D7B9), fontSize: 14),
-                ),
-                const SizedBox(height: 15),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Color(0x88FFFFFF)),
-                  ),
-                  onPressed: onOpenSaved,
-                  icon: const Icon(Icons.bookmark_border, size: 18),
-                  label: const Text('محفوظات اور نوٹس'),
-                ),
-              ],
-            ),
+      child: Icon(icon, color: Colors.white, size: size * 0.52),
+    );
+  }
+}
+
+/// Bookmarks and settings: the two things the bottom panel does not carry.
+class _ShelfActions extends StatelessWidget {
+  const _ShelfActions({required this.onOpenSaved, this.onOpenSettings});
+
+  final VoidCallback onOpenSaved;
+  final VoidCallback? onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    final openSettings = onOpenSettings;
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: _ShelfButton(
+            icon: Icons.bookmark_rounded,
+            label: 'محفوظات اور نوٹس',
+            color: const Color(0xFFD9466B),
+            onTap: onOpenSaved,
           ),
+        ),
+        if (openSettings != null) ...<Widget>[
           const SizedBox(width: 12),
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: scheme.surface.withValues(alpha: 0.13),
-              borderRadius: BorderRadius.circular(20),
+          Expanded(
+            child: _ShelfButton(
+              icon: Icons.settings_rounded,
+              label: 'ترتیبات',
+              color: const Color(0xFF5C6BC0),
+              onTap: openSettings,
             ),
-            clipBehavior: Clip.antiAlias,
-            child: Image.asset('assets/images/shiaverse_icon.png', fit: BoxFit.cover,
-              cacheWidth: 240, cacheHeight: 240),
           ),
         ],
+      ],
+    );
+  }
+}
+
+class _ShelfButton extends StatelessWidget {
+  const _ShelfButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Row(
+            children: <Widget>[
+              _IconBadge(icon: icon, color: color, size: 36),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -551,7 +525,7 @@ class _BookCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.menu_book_rounded, color: colors.primary, size: 22),
+                    _IconBadge(icon: Icons.menu_book_rounded, color: bookAccent(book)),
                     const Spacer(),
                     if (!installed) Icon(Icons.download, size: 16, color: colors.error),
                   ],

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'models.dart';
+
 const Color kForest = Color(0xFF145B45);
 const Color kForestDark = Color(0xFF0E3B34);
 const Color kGold = Color(0xFFC59A50);
@@ -11,20 +13,53 @@ const String kArabicFont = 'Amiri';
 /// Nastaliq face draws Latin numerals small, so numbers use the system sans.
 const String kDigitFont = 'sans-serif';
 
+/// One vivid colour per book. The home screen paints every book's icon in its
+/// own colour, and the same colour follows the book into the bottom panel.
+const List<Color> kBookPalette = <Color>[
+  Color(0xFF1B7F5B), // green
+  Color(0xFFD9466B), // rose
+  Color(0xFF2F6FD6), // blue
+  Color(0xFFE08A1E), // amber
+  Color(0xFF7B4FD0), // violet
+  Color(0xFF0E9AA7), // teal
+  Color(0xFFC2452D), // brick
+  Color(0xFF5B8C2A), // olive
+  Color(0xFF3D5AFE), // indigo
+  Color(0xFFB8860B), // dark gold
+  Color(0xFF00897B), // emerald
+  Color(0xFFAD1457), // plum
+  Color(0xFF6D4C41), // brown
+  Color(0xFF455A64), // slate
+  Color(0xFF8E24AA), // purple
+  Color(0xFF039BE5), // sky
+  Color(0xFF7CB342), // lime
+  Color(0xFFEF6C00), // orange
+  Color(0xFF546E7A), // steel
+  Color(0xFFC0CA33), // yellow-green
+];
+
+/// The icon colour of [book]: its position in the library, so neighbours in
+/// the grid never share a colour.
+Color bookAccent(BookDefinition book) {
+  final index = BookDefinition.all.indexWhere((item) => item.key == book.key);
+  return kBookPalette[(index < 0 ? 0 : index) % kBookPalette.length];
+}
+
 ThemeData buildLightTheme() {
   final scheme = ColorScheme.fromSeed(
     seedColor: kForest,
     primary: kForest,
     secondary: kGold,
-    surface: const Color(0xFFFFFCF6),
+    surface: Colors.white,
   );
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    scaffoldBackgroundColor: const Color(0xFFF7F5EF),
+    // Light is the default look: a plain white page with coloured icons.
+    scaffoldBackgroundColor: Colors.white,
     fontFamily: kUrduFont,
     appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xFFF7F5EF),
+      backgroundColor: Colors.white,
       foregroundColor: kInk,
       centerTitle: false,
       elevation: 0,

@@ -11,11 +11,17 @@ import 'models.dart';
 import 'reader_navigation.dart';
 import 'screens/data_screen.dart';
 import 'screens/library_screen.dart';
+import 'screens/qibla_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/settings_screen.dart';
 import 'services/prayer_controller.dart';
 import 'services/prayer_scope.dart';
 import 'services/tasbeeh_controller.dart';
+import 'widgets/last_seen_sheet.dart';
+import 'widgets/reading_hub.dart';
+
+/// Set once the 1.10 light-by-default rule has run on this phone.
+const String _kLightDefaultKey = 'light_default_applied';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,7 +52,11 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
   ReaderTarget? _pendingTarget;
   String? _lastHandledLink;
   DateTime? _lastHandledAt;
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode = ThemeMode.light;
+  // How many pages sit on top of the home screen, and the observer that counts
+  // them: the circular hub is shown while the count is above zero.
+  final ValueNotifier<int> _pageDepth = ValueNotifier<int>(0);
+  late final ReadingDepthObserver _depthObserver = ReadingDepthObserver(_pageDepth);
 
   @override
   void initState() {
@@ -62,13 +72,23 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
+    // Light is the default look. The first start of this version moves anyone
+    // still on the old "system" default to light, once; a choice made in the
+    // settings (light or dark) is always kept.
+    if (!prefs.containsKey(_kLightDefaultKey)) {
+      final previous = prefs.getString('theme_mode');
+      if (previous == null || previous == 'system') {
+        await prefs.setString('theme_mode', 'light');
+      }
+      await prefs.setBool(_kLightDefaultKey, true);
+    }
     final stored = prefs.getString('theme_mode');
     if (!mounted) return;
     setState(() {
       _themeMode = switch (stored) {
-        'light' => ThemeMode.light,
         'dark' => ThemeMode.dark,
-        _ => ThemeMode.system,
+        'system' => ThemeMode.system,
+        _ => ThemeMode.light,
       };
     });
   }
@@ -93,6 +113,7 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
     unawaited(_library.close());
     _prayer.dispose();
     _tasbeeh.dispose();
+    _pageDepth.dispose();
     super.dispose();
   }
 
@@ -147,11 +168,46 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
     });
   }
 
+  /// What the bottom panel and the radial menu do. A page opens on top of the
+  /// current one, so the book behind it stays exactly where it was.
+  void _runHubAction(HubDestination destination) {
+    final navigator = _navigatorKey.currentState;
+    final homeContext = _homeShellKey.currentContext;
+    if (navigator == null || homeContext == null) return;
+    switch (destination) {
+      case HubDestination.books:
+        navigator.popUntil((route) => route.isFirst);
+        _homeShellKey.currentState?.selectTab(0);
+      case HubDestination.search:
+        if (navigator.canPop()) {
+          unawaited(navigator.push(MaterialPageRoute<void>(
+            builder: (_) => SearchScreen(
+              library: _library,
+              onOpenData: () => _runHubAction(HubDestination.download),
+            ),
+          )));
+        } else {
+          _homeShellKey.currentState?.selectTab(1);
+        }
+      case HubDestination.lastSeen:
+        unawaited(showLastSeenSheet(homeContext, library: _library));
+      case HubDestination.qibla:
+        unawaited(navigator.push(MaterialPageRoute<void>(
+          builder: (_) => const QiblaScreen(),
+        )));
+      case HubDestination.download:
+        unawaited(navigator.push(MaterialPageRoute<void>(
+          builder: (_) => DataScreen(library: _library, installer: _installer),
+        )));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'ShiaVerse',
       navigatorKey: _navigatorKey,
+      navigatorObservers: <NavigatorObserver>[_depthObserver],
       debugShowCheckedModeBanner: false,
       theme: buildLightTheme(),
       darkTheme: buildDarkTheme(),
@@ -162,7 +218,11 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
           controller: _tasbeeh,
           child: Directionality(
             textDirection: TextDirection.rtl,
-            child: child ?? const SizedBox.shrink(),
+            child: ReadingHub(
+              depth: _pageDepth,
+              onAction: _runHubAction,
+              child: child ?? const SizedBox.shrink(),
+            ),
           ),
         ),
       ),
@@ -173,6 +233,7 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
         onThemeModeChanged: _setThemeMode,
         onReady: _openPendingReaderTarget,
         homeShellKey: _homeShellKey,
+        onAction: _runHubAction,
       ),
     );
   }
@@ -187,6 +248,7 @@ class LibraryBootstrap extends StatefulWidget {
     required this.onThemeModeChanged,
     required this.onReady,
     required this.homeShellKey,
+    required this.onAction,
   });
 
   final LibraryRepository library;
@@ -195,6 +257,7 @@ class LibraryBootstrap extends StatefulWidget {
   final ValueChanged<ThemeMode> onThemeModeChanged;
   final VoidCallback onReady;
   final GlobalKey<HomeShellState> homeShellKey;
+  final ValueChanged<HubDestination> onAction;
 
   @override
   State<LibraryBootstrap> createState() => _LibraryBootstrapState();
@@ -252,6 +315,7 @@ class _LibraryBootstrapState extends State<LibraryBootstrap> {
         installer: widget.installer,
         themeMode: widget.themeMode,
         onThemeModeChanged: widget.onThemeModeChanged,
+        onAction: widget.onAction,
       );
     }
     return Scaffold(
@@ -309,6 +373,7 @@ class HomeShell extends StatefulWidget {
     required this.installer,
     required this.themeMode,
     required this.onThemeModeChanged,
+    required this.onAction,
   });
 
   final LibraryRepository library;
@@ -316,17 +381,30 @@ class HomeShell extends StatefulWidget {
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
 
+  /// The bottom panel's actions that open something (everything but the tabs).
+  final ValueChanged<HubDestination> onAction;
+
   @override
   State<HomeShell> createState() => HomeShellState();
 }
 
 class HomeShellState extends State<HomeShell> {
+  // Two tabs live in the bottom panel: books and search. Bookmarks and
+  // settings open as pages from the home screen.
   int _selectedIndex = 0;
-  late final Widget _libraryPage =
-      LibraryHomeScreen(library: widget.library, onOpenData: openData);
+  late final Widget _libraryPage = LibraryHomeScreen(
+    library: widget.library,
+    onOpenData: openData,
+    onOpenSettings: openSettings,
+  );
   late final Widget _searchPage =
       SearchScreen(library: widget.library, onOpenData: openData);
-  late final Widget _savedPage = SavedItemsScreen(library: widget.library);
+
+  /// Shows the books (0) or the search (1) tab.
+  void selectTab(int index) {
+    if (!mounted || _selectedIndex == index) return;
+    setState(() => _selectedIndex = index);
+  }
 
   void openData() {
     if (!mounted) return;
@@ -337,6 +415,31 @@ class HomeShellState extends State<HomeShell> {
         .then((_) {
       if (mounted) setState(() {});
     }));
+  }
+
+  void openSettings() {
+    if (!mounted) return;
+    unawaited(Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => SettingsScreen(
+        library: widget.library,
+        installer: widget.installer,
+        themeMode: widget.themeMode,
+        onThemeModeChanged: widget.onThemeModeChanged,
+      ),
+    )));
+  }
+
+  void _onDockSelected(HubDestination destination) {
+    switch (destination) {
+      case HubDestination.books:
+        selectTab(0);
+      case HubDestination.search:
+        selectTab(1);
+      case HubDestination.lastSeen:
+      case HubDestination.qibla:
+      case HubDestination.download:
+        widget.onAction(destination);
+    }
   }
 
   @override
@@ -357,36 +460,11 @@ class HomeShellState extends State<HomeShell> {
           // The home page's animated sky stops while another tab is in front.
           TickerMode(enabled: _selectedIndex == 0, child: _libraryPage),
           _searchPage,
-          _savedPage,
-          SettingsScreen(
-            library: widget.library,
-            installer: widget.installer,
-            themeMode: widget.themeMode,
-            onThemeModeChanged: widget.onThemeModeChanged,
-          ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) => setState(() => _selectedIndex = index),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.menu_book_outlined),
-            selectedIcon: Icon(Icons.menu_book),
-            label: 'کتب',
-          ),
-          NavigationDestination(icon: Icon(Icons.search), label: 'تلاش'),
-          NavigationDestination(
-            icon: Icon(Icons.bookmark_outline),
-            selectedIcon: Icon(Icons.bookmark),
-            label: 'محفوظات',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'ترتیبات',
-          ),
-        ],
+      bottomNavigationBar: HomeDock(
+        selected: _selectedIndex == 1 ? HubDestination.search : HubDestination.books,
+        onSelected: _onDockSelected,
       ),
     );
   }

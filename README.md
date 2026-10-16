@@ -135,6 +135,31 @@ prayer, tasbeeh and location screens, `docs/previews/screens-1-9.jpg`, are
 rendered by `app/test/ui_layout_test.dart` with the app's own fonts on a
 360 dp phone (the test fails on any overflow).
 
+## Bottom panel, reading hub, and light home (1.10)
+
+- **One bottom panel, five buttons.** کتب, تلاش, آخری مطالعہ, قبلہ نما and
+  ڈاؤن لوڈ. The top bar is gone; the download button moved into the panel, and
+  the last-seen list, the Qibla compass and the search open from it.
+- **Home, tidied.** The prayer card keeps the place, the Hijri date, the clock
+  and the five times. The Gregorian date, the separate "next prayer" block, the
+  "now" line and the Qibla dial were removed from it. The running prayer carries
+  a **Now** tag; the next prayer is outlined in gold and shows its countdown
+  inside its own box. The green ShiaVerse card is gone; bookmarks and settings
+  are two plain buttons under the tasbeeh.
+- **Circular hub on every page.** Any page opened from the home screen (a book,
+  a chapter list, a reader, search, Qibla, the download screen) hides the panel
+  and shows a round ShiaVerse button at the bottom centre. Tapping it opens the
+  five buttons as a radial menu over the page. Choosing one opens it on top of
+  the page, so the book underneath keeps its position; tapping the centre again
+  (or the dimmed background) closes the menu and returns to the book as it was.
+- **Light by default**, on a white page, and each book's icon has its own
+  colour (`bookAccent` in `app/lib/app_theme.dart`). A phone that never chose a
+  theme moves to light once; a theme picked in settings is kept.
+
+The code lives in `app/lib/widgets/reading_hub.dart` (the panel, the hub and the
+page counter) and `app/lib/widgets/last_seen_sheet.dart` (the last-seen list).
+See [`docs/home-dock-1-10.md`](docs/home-dock-1-10.md).
+
 ## App name and icon
 
 The launcher label and the in-app title are **ShiaVerse**. The icon artwork is

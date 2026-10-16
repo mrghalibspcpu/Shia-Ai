@@ -28,6 +28,9 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  /// Local copy: the screen is pushed as a route, so it must show the choice
+  /// the reader just made without waiting for the app to rebuild it.
+  late ThemeMode _theme = widget.themeMode;
   double _fontScale = 1.0;
   String _script = 'both';
   bool _loading = true;
@@ -140,8 +143,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ButtonSegment(value: ThemeMode.dark, label: Text('تاریک'), icon: Icon(Icons.dark_mode)),
                     ButtonSegment(value: ThemeMode.system, label: Text('نظام'), icon: Icon(Icons.phone_android)),
                   ],
-                  selected: {widget.themeMode},
-                  onSelectionChanged: (selection) => widget.onThemeModeChanged(selection.first),
+                  selected: {_theme},
+                  onSelectionChanged: (selection) {
+                    setState(() => _theme = selection.first);
+                    widget.onThemeModeChanged(selection.first);
+                  },
                 ),
                 const SizedBox(height: 16),
                 JustifiedText('حروف کا سائز (${(_fontScale * 100).round()}٪)'),
