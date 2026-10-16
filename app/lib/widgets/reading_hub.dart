@@ -229,7 +229,6 @@ class _ReadingHubState extends State<ReadingHub> with SingleTickerProviderStateM
   @override
   void dispose() {
     widget.depth.removeListener(_onDepthChanged);
-    _curve.dispose();
     _controller.dispose();
     super.dispose();
   }
