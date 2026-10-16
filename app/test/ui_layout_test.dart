@@ -16,6 +16,7 @@ import 'package:shia_ai/screens/duas_screen.dart';
 import 'package:shia_ai/screens/balagha_screen.dart';
 import 'package:shia_ai/widgets/reader_chrome.dart';
 import 'package:shia_ai/widgets/reader_kit.dart';
+import 'package:shia_ai/widgets/mushaf_text.dart';
 import 'package:shia_ai/widgets/reading_hub.dart';
 import 'package:shia_ai/widgets/glass_panel.dart';
 import 'package:shia_ai/library_repository.dart';
@@ -391,6 +392,20 @@ void main() {
     });
   }
 
+  testWidgets('the continuous Mushaf page fits a phone with the real Arabic font', (tester) async {
+    phone(tester);
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(12, 10));
+    await tester.pumpWidget(host(prayer, tasbeeh, SurahReaderScreen(
+      library: _PreviewReaderLibrary(), surah: _previewSurah, startInMushaf: true,
+    )));
+    await settle(tester);
+    expect(find.byType(MushafText), findsWidgets);
+    expect(find.byType(PassageCard), findsNothing);
+    expect(tester.takeException(), isNull);
+    await shoot(tester, 'reader-mushaf');
+    await finish(tester, prayer, tasbeeh);
+  });
+
   testWidgets('reader appearance, bookmarks, notes and last position still work', (tester) async {
     phone(tester);
     final (prayer, tasbeeh) = await controllersAt(tester, localTime(12, 10));
@@ -501,6 +516,13 @@ void main() {
 
   testWidgets('the Qibla bearing carries the transparent Kaaba asset on a narrow phone', (tester) async {
     phone(tester, width: 320);
+    // The widget has a real compass subscription; stand in for its platform
+    // listen/cancel so a headless test does not leak a MissingPluginException
+    // into whichever suite runs next.
+    const channel = MethodChannel('hemanthraj/flutter_compass');
+    final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(channel, (_) async => null);
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
     final (prayer, tasbeeh) = await controllersAt(tester, localTime(15, 30));
     await tester.pumpWidget(host(prayer, tasbeeh, const QiblaScreen()));
     await settle(tester);

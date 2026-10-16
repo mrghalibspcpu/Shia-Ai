@@ -58,8 +58,20 @@ class _QiblaScreenState extends State<QiblaScreen> {
   @override
   void dispose() {
     _graceTimer?.cancel();
-    unawaited(_subscription?.cancel() ?? Future<void>.value());
+    unawaited(_cancelCompass());
     super.dispose();
+  }
+
+  Future<void> _cancelCompass() async {
+    final subscription = _subscription;
+    _subscription = null;
+    if (subscription == null) return;
+    try {
+      await subscription.cancel();
+    } catch (_) {
+      // A platform stream may disappear while Android is closing the page;
+      // cancellation must never surface as an unhandled UI exception.
+    }
   }
 
   /// Subscribes to the magnetometer (and, on iOS, makes sure the location
@@ -72,7 +84,8 @@ class _QiblaScreenState extends State<QiblaScreen> {
         unawaited(controller.refreshLocation());
       }
     }
-    await _subscription?.cancel();
+    await _cancelCompass();
+    if (!mounted) return;
     final events = FlutterCompass.events;
     if (events == null) {
       setState(() => _status = _CompassStatus.unavailable);

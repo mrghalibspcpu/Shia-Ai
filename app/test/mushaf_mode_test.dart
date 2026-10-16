@@ -95,7 +95,7 @@ void main() {
       body: ChapterWallpaperCard(child: ListTile(title: const Text('باب اوّل'), onTap: () {})),
     )));
     final ink = tester.widget<Ink>(find.descendant(
-      of: find.byType(ChapterWallpaperCard), matching: find.byType(Ink)));
+      of: find.byType(ChapterWallpaperCard), matching: find.byType(Ink)).first);
     final decoration = ink.decoration! as BoxDecoration;
     expect((decoration.image!.image as AssetImage).assetName, ChapterWallpaperCard.asset);
     expect(find.text('باب اوّل'), findsOneWidget);
