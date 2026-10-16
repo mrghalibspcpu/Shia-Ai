@@ -9,6 +9,7 @@ import '../library_repository.dart';
 import '../models.dart';
 import '../widgets/reader_kit.dart';
 import '../widgets/reader_chrome.dart';
+import '../widgets/chapter_wallpaper.dart';
 import '../widgets/resume_card.dart';
 import '../widgets/highlighted_text.dart';
 import '../text_utils.dart' show searchMatchRanges;
@@ -56,7 +57,7 @@ class _DuasHomeScreenState extends State<DuasHomeScreen> {
               _FeaturedDuas(library: library),
               const SizedBox(height: 16),
               for (final category in categories) ...[
-                Card(
+                ChapterWallpaperCard(
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundColor: Theme.of(context).colorScheme.primaryContainer,
@@ -119,8 +120,7 @@ class _FeaturedDuas extends StatelessWidget {
                   final item = items[index];
                   return SizedBox(
                     width: 178,
-                    child: Card(
-                      clipBehavior: Clip.antiAlias,
+                    child: ChapterWallpaperCard(
                       child: InkWell(
                         onTap: () => Navigator.of(context).push(MaterialPageRoute(
                           builder: (_) => DuaReaderScreen(library: library, item: item),
@@ -193,7 +193,7 @@ class DuaCategoryScreen extends StatelessWidget {
                   ),
                 );
               }
-              return Card(
+              return ChapterWallpaperCard(
                 child: ListTile(
                   leading: const Icon(Icons.menu_book_outlined),
                   title: JustifiedText(item.name, style: const TextStyle(fontSize: 16), maxLines: 2),

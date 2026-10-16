@@ -13,8 +13,9 @@ app/assets/databases/*.db-wal
 # Compressed release assets produced by scripts/publish_databases.py.
 dist/
 
-# Local search indexes, Flutter/Android build outputs, and secrets.
+# Local search indexes, Python tool environments, Flutter/Android build outputs, and secrets.
 .cache/
+.venv/
 __pycache__/
 *.py[cod]
 .env

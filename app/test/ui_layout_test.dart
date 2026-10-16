@@ -21,6 +21,7 @@ import 'package:shia_ai/widgets/glass_panel.dart';
 import 'package:shia_ai/library_repository.dart';
 import 'package:shia_ai/models.dart';
 import 'package:shia_ai/screens/prayer_times_screen.dart';
+import 'package:shia_ai/screens/qibla_screen.dart';
 import 'package:shia_ai/screens/tasbeeh_screen.dart';
 import 'package:shia_ai/services/alerts.dart';
 import 'package:shia_ai/services/city_index.dart';
@@ -198,6 +199,12 @@ void main() {
       expect(find.text('احکام و فتاویٰ'), findsOneWidget);
       expect(find.text('پوری لائبریری میں تلاش کریں…'), findsOneWidget);
       expect(find.byType(HomeDockBar), findsOneWidget);
+      final prayerBottom = tester.getRect(find.byKey(const ValueKey<String>('home-prayer-card'))).bottom;
+      final prayerRowBottom = tester.getRect(find.byKey(const ValueKey<String>('home-prayer-row'))).bottom;
+      expect(prayerBottom - prayerRowBottom, lessThan(10), reason: 'prayers belong at the foot of the sky');
+      final momentBottom = tester.getRect(find.byKey(const ValueKey<String>('home-moment-card'))).bottom;
+      final dialTop = tester.getRect(find.byKey(const ValueKey<String>('home-tasbeeh'))).top;
+      expect(dialTop - momentBottom, lessThan(14), reason: 'moment card should meet the dial');
       for (final item in HomeDockItem.values) {
         expect(find.text(item.label), findsOneWidget, reason: item.label);
       }
@@ -289,6 +296,9 @@ void main() {
     final fatawa = tester.getRect(find.byKey(const ValueKey<String>('home-section-fatawa')));
     final first = tester.getRect(find.byKey(const ValueKey<String>('home-section-quran')));
     final dock = tester.getRect(find.byType(HomeDockBar));
+    final dockSurface = tester.widget<ColoredBox>(find.descendant(
+      of: find.byType(HomeDockBar), matching: find.byType(ColoredBox)).first);
+    expect(dockSurface.color, Colors.black, reason: 'the whole dock, not just its keys, is black');
     expect(canvas.top, closeTo(24, 0.1), reason: 'no centred-canvas gap under the status bar');
     expect(first.top - canvas.top, lessThan(7));
     expect(search.bottom, closeTo(fatawa.bottom, 0.1));
@@ -481,7 +491,23 @@ void main() {
     await tester.pumpWidget(host(prayer, tasbeeh, const PrayerTimesScreen()));
     await settle(tester);
     expect(find.text('نماز کے اوقات'), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('prayer-details-wallpaper')), findsOneWidget);
+    expect(find.textContaining('تاریخِ ہجری:'), findsOneWidget);
+    expect(find.textContaining('اکتوبر'), findsWidgets);
+    expect(find.text('تسبیح'), findsWidgets);
     await shoot(tester, 'prayer-screen');
+    await finish(tester, prayer, tasbeeh);
+  });
+
+  testWidgets('the Qibla bearing carries the transparent Kaaba asset on a narrow phone', (tester) async {
+    phone(tester, width: 320);
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(15, 30));
+    await tester.pumpWidget(host(prayer, tasbeeh, const QiblaScreen()));
+    await settle(tester);
+    final marker = tester.widget<Image>(find.byKey(const ValueKey<String>('qibla-kaaba-marker')));
+    expect((marker.image as AssetImage).assetName, 'assets/images/kaaba_icon.png');
+    expect(tester.takeException(), isNull);
+    await shoot(tester, 'qibla-3d');
     await finish(tester, prayer, tasbeeh);
   });
 

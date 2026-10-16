@@ -11,6 +11,7 @@ import '../text_utils.dart' show arabicNumerals;
 import '../widgets/home_dashboard.dart';
 import '../widgets/reader_kit.dart';
 import '../widgets/reader_chrome.dart';
+import '../widgets/chapter_wallpaper.dart';
 import '../widgets/resume_card.dart';
 import 'search_screen.dart';
 
@@ -378,7 +379,7 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
               final row = chapters[index - 1];
               final cid = _toInt(row['cid']) ?? 0;
               final title = (row['title'] ?? '').toString();
-              return Card(
+              return ChapterWallpaperCard(
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: Theme.of(context).colorScheme.primaryContainer,
@@ -434,30 +435,32 @@ class SectionListScreen extends StatelessWidget {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: sections.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
               final row = sections[index];
               final secid = _toInt(row['Secid']);
               final title = (row['title'] ?? '').toString();
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                leading: const Icon(Icons.article_outlined),
-                title: JustifiedText(title, style: const TextStyle(fontSize: 16)),
-                subtitle: JustifiedText(
-                  'فصل ${index + 1}',
-                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              return ChapterWallpaperCard(
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  leading: const Icon(Icons.article_outlined),
+                  title: JustifiedText(title, style: const TextStyle(fontSize: 16)),
+                  subtitle: JustifiedText(
+                    'فصل ${index + 1}',
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
+                  trailing: const Icon(Icons.chevron_left),
+                  onTap: secid == null
+                      ? null
+                      : () => Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => ReaderScreen(
+                              library: library,
+                              book: book,
+                              sectionId: secid,
+                              sectionTitle: title,
+                            ),
+                          )),
                 ),
-                trailing: const Icon(Icons.chevron_left),
-                onTap: secid == null
-                    ? null
-                    : () => Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => ReaderScreen(
-                            library: library,
-                            book: book,
-                            sectionId: secid,
-                            sectionTitle: title,
-                          ),
-                        )),
               );
             },
           );

@@ -145,7 +145,10 @@ void main() {
     });
 
     test('names every Nahj al-Balagha division', () {
-      expect(balaghaSectionTitles[1], 'خطب');
+      expect(balaghaSectionTitles[1], 'خطبات');
+      expect(polishBalaghaTitle('خطب، خطوط اور حکمت'), 'خطبات، خطوط اور حکمت');
+      expect(polishBalaghaTitle('خطبات'), 'خطبات');
+      expect(polishBalaghaTitle('خطبہ'), 'خطبہ');
       expect(balaghaSectionTitles[2], 'کتب و خطوط');
       expect(balaghaSectionTitles[3], 'حکمت و اقوالِ قصار');
       expect(balaghaSectionTitles[4], contains('احادیث'));

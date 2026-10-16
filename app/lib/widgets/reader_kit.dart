@@ -65,34 +65,51 @@ class ReaderControls extends StatelessWidget {
     required this.preferences,
     required this.onChanged,
     this.extra = const [],
+    this.showLabel = false,
   });
 
   final ReaderPreferences preferences;
   final ValueChanged<ReaderPreferences> onChanged;
   final List<Widget> extra;
+  final bool showLabel;
 
   @override
   Widget build(BuildContext context) {
+    void openAppearance() => showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          showDragHandle: false,
+          backgroundColor: Colors.transparent,
+          builder: (_) => _ReaderAppearanceSheet(preferences: preferences, onChanged: onChanged),
+        );
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         ...extra,
-        IconButton(
-          key: const ValueKey<String>('reader-appearance'),
-          tooltip: 'مطالعے کا انداز',
-          style: IconButton.styleFrom(
-            foregroundColor: preferences.palette.accent,
-            backgroundColor: preferences.palette.accent.withValues(alpha: 0.07),
+        if (showLabel)
+          TextButton.icon(
+            key: const ValueKey<String>('reader-appearance'),
+            onPressed: openAppearance,
+            style: TextButton.styleFrom(
+              foregroundColor: preferences.palette.accent,
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              minimumSize: const Size(0, 40),
+            ),
+            icon: const Icon(Icons.tune_rounded, size: 18),
+            label: const Text('ترتیبات', style: TextStyle(fontSize: 13)),
+          )
+        else
+          IconButton(
+            key: const ValueKey<String>('reader-appearance'),
+            tooltip: 'مطالعے کا انداز',
+            style: IconButton.styleFrom(
+              foregroundColor: preferences.palette.accent,
+              backgroundColor: preferences.palette.accent.withValues(alpha: 0.07),
+            ),
+            onPressed: openAppearance,
+            icon: const Icon(Icons.tune_rounded, size: 22),
           ),
-          onPressed: () => showModalBottomSheet<void>(
-            context: context,
-            isScrollControlled: true,
-            showDragHandle: false,
-            backgroundColor: Colors.transparent,
-            builder: (_) => _ReaderAppearanceSheet(preferences: preferences, onChanged: onChanged),
-          ),
-          icon: const Icon(Icons.tune_rounded, size: 22),
-        ),
       ],
     );
   }

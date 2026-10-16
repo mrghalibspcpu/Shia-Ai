@@ -1,7 +1,7 @@
 name: shia_ai
 publish_to: "none"
 description: Offline Shia library — Quran, Mafatih al-Jinan, Nahj al-Balagha, and 14 hadith books.
-version: 1.12.1+16
+version: 1.13.0+17
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -47,6 +47,12 @@ flutter:
     # The prayer banner's wallpaper and the three synthesised alert sounds.
     # ~30 kB and ~130 kB: no downloads, no third-party audio.
     - assets/images/prayer_hero.jpg
+    # The full prayer page has its own portrait mosque wallpaper; the mini
+    # card keeps the separate animated skies. Chapter art lives only in lists.
+    - assets/images/prayer_details.jpg
+    - assets/images/chapter_wallpaper.jpg
+    # Transparent, isolated Kaaba for the live compass's bearing marker.
+    - assets/images/kaaba_icon.png
     - assets/audio/
     # The four skies behind the prayer card (dawn, midday, evening, night),
     # ~370 kB together; the animation on top of them is drawn in code.

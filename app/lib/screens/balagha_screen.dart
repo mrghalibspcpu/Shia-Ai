@@ -8,6 +8,7 @@ import '../library_repository.dart';
 import '../models.dart';
 import '../widgets/reader_kit.dart';
 import '../widgets/reader_chrome.dart';
+import '../widgets/chapter_wallpaper.dart';
 import '../widgets/resume_card.dart';
 
 /// Nahj al-Balagha: khutbas, letters, wisdoms, prophetic traditions, and the
@@ -52,7 +53,7 @@ class _BalaghaHomeScreenState extends State<BalaghaHomeScreen> {
                 onOpened: _refresh,
               ),
               for (final section in sections) ...[
-                Card(
+                ChapterWallpaperCard(
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundColor: Theme.of(context).colorScheme.primaryContainer,
@@ -113,8 +114,7 @@ class BalaghaSectionScreen extends StatelessWidget {
             itemCount: entries.length + (section.hasIntroduction ? 1 : 0),
             itemBuilder: (context, index) {
               if (section.hasIntroduction && index == 0) {
-                return Card(
-                  color: kForest.withValues(alpha: 0.08),
+                return ChapterWallpaperCard(
                   child: ListTile(
                     leading: const Icon(Icons.import_contacts, color: kForest),
                     title: const JustifiedText('اس حصے کا مقدمہ', style: TextStyle(fontSize: 17)),
@@ -130,7 +130,7 @@ class BalaghaSectionScreen extends StatelessWidget {
                 );
               }
               final entry = entries[index - (section.hasIntroduction ? 1 : 0)];
-              return Card(
+              return ChapterWallpaperCard(
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: Theme.of(context).colorScheme.secondaryContainer,

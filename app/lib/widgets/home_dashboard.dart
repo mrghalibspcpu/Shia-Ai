@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app_theme.dart';
@@ -73,7 +74,7 @@ enum HomeSection {
   ),
   balagha(
     'نہج البلاغہ',
-    'خطب، خطوط اور حکمت',
+    'خطبات، خطوط اور حکمت',
     Icons.auto_stories,
     Color(0xFF23563F),
     Color(0xFF0E2E20),
@@ -150,8 +151,8 @@ enum HomeDockItem {
   final Color color;
 }
 
-/// Large, closely spaced icon containers, with their names OUTSIDE underneath.
-/// No black tray: the white page continues behind the dock and system bar.
+/// Large glass icon containers on one true-black dock. Their names remain
+/// outside the containers; the black surface also fills the system safe area.
 class HomeDockBar extends StatelessWidget {
   const HomeDockBar({super.key, required this.selected, required this.onSelected});
 
@@ -160,46 +161,55 @@ class HomeDockBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      child: SafeArea(
-        top: false,
-        child: MediaQuery.withClampedTextScaling(
-          maxScaleFactor: 1.1,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final width = math.min(constraints.maxWidth, _canvasWidth * _maxScale);
-              final scale = width / _canvasWidth;
-              final iconHeight = 76.0 * math.min(scale, 1.25);
-              return Align(
-                heightFactor: 1,
-                alignment: Alignment.topCenter,
-                child: SizedBox(
-                  width: width,
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(_pad * scale, 4, _pad * scale, 6),
-                    child: SizedBox(
-                      height: iconHeight + 24,
-                      child: Row(
-                        children: <Widget>[
-                          for (final item in HomeDockItem.values) ...<Widget>[
-                            if (item != HomeDockItem.values.first) const SizedBox(width: 4),
-                            Expanded(
-                              child: _DockSquare(
-                                item: item,
-                                iconHeight: iconHeight,
-                                selected: item == selected,
-                                onTap: () => onSelected(item),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark.copyWith(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: Colors.black,
+        systemNavigationBarDividerColor: Colors.black,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarContrastEnforced: false,
+      ),
+      child: ColoredBox(
+        color: Colors.black,
+        child: SafeArea(
+          top: false,
+          child: MediaQuery.withClampedTextScaling(
+            maxScaleFactor: 1.1,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final width = math.min(constraints.maxWidth, _canvasWidth * _maxScale);
+                final scale = width / _canvasWidth;
+                final iconHeight = 76.0 * math.min(scale, 1.25);
+                return Align(
+                  heightFactor: 1,
+                  alignment: Alignment.topCenter,
+                  child: SizedBox(
+                    width: width,
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(_pad * scale, 4, _pad * scale, 6),
+                      child: SizedBox(
+                        height: iconHeight + 24,
+                        child: Row(
+                          children: <Widget>[
+                            for (final item in HomeDockItem.values) ...<Widget>[
+                              if (item != HomeDockItem.values.first) const SizedBox(width: 4),
+                              Expanded(
+                                child: _DockSquare(
+                                  item: item,
+                                  iconHeight: iconHeight,
+                                  selected: item == selected,
+                                  onTap: () => onSelected(item),
+                                ),
                               ),
-                            ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -245,21 +255,26 @@ class _DockSquare extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
+                    stops: const <double>[0, 0.48, 1],
                     colors: <Color>[
-                      Color.lerp(item.color, Colors.white, selected ? 0.2 : 0.08)!,
-                      Color.lerp(item.color, Colors.black, 0.28)!,
+                      Color.lerp(item.color, Colors.white, selected ? 0.30 : 0.22)!,
+                      item.color.withValues(alpha: 0.96),
+                      Color.lerp(item.color, Colors.black, 0.46)!,
                     ],
                   ),
-                  border: Border.all(color: palette.gold, width: selected ? 1.6 : 1),
+                  border: Border.all(color: palette.goldSoft.withValues(alpha: 0.94), width: selected ? 1.8 : 1.2),
                   boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: item.color.withValues(alpha: 0.15),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
+                    BoxShadow(color: item.color.withValues(alpha: 0.30), blurRadius: 12, offset: const Offset(0, 5)),
+                    const BoxShadow(color: Color(0x65000000), blurRadius: 5, offset: Offset(0, -2)),
                   ],
                 ),
-                child: Icon(item.icon, size: 29, color: Colors.white),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    const _GlassSheen(radius: 20),
+                    Center(child: Icon(item.icon, size: 29, color: Colors.white)),
+                  ],
+                ),
               ),
               const SizedBox(height: 6),
               SizedBox(
@@ -276,7 +291,7 @@ class _DockSquare extends StatelessWidget {
                       fontSize: 11.5,
                       height: 1.1,
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                      color: palette.ink,
+                      color: selected ? palette.goldSoft : const Color(0xFFF3F3F3),
                     ),
                   ),
                 ),
@@ -287,6 +302,69 @@ class _DockSquare extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A quiet specular highlight, inside the rounded surface, makes the side
+/// rail, collection tiles and dock keys read as raised frosted glass instead
+/// of flat opaque colour. It never intercepts a tap or paints over the label.
+class _GlassSheen extends StatelessWidget {
+  const _GlassSheen({required this.radius});
+
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+        child: CustomPaint(painter: _GlassSheenPainter(radius)),
+      );
+}
+
+class _GlassSheenPainter extends CustomPainter {
+  const _GlassSheenPainter(this.radius);
+
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    final rect = Offset.zero & size;
+    final rounded = RRect.fromRectAndRadius(rect, Radius.circular(radius));
+    canvas.save();
+    canvas.clipRRect(rounded);
+    canvas.drawRect(
+      rect,
+      Paint()..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        stops: <double>[0, 0.38, 0.68, 1],
+        colors: <Color>[
+          Color(0x42FFFFFF), Color(0x16FFFFFF), Color(0x00FFFFFF), Color(0x38000000),
+        ],
+      ).createShader(rect),
+    );
+    canvas.drawLine(
+      Offset(radius * 0.7, 1.6),
+      Offset(size.width - radius * 0.7, 1.6),
+      Paint()
+        ..strokeWidth = 1.4
+        ..shader = const LinearGradient(
+          colors: <Color>[Color(0x00FFFFFF), Color(0xADFFFFFF), Color(0x00FFFFFF)],
+        ).createShader(Rect.fromLTWH(0, 0, size.width, 2)),
+    );
+    canvas.drawArc(
+      Rect.fromLTWH(1, 1, size.width - 2, size.height - 2),
+      -math.pi / 4,
+      math.pi * 0.9,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.7
+        ..color = const Color(0x55FFFFFF),
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_GlassSheenPainter old) => old.radius != radius;
 }
 
 /// The same fifteen containers, now filling the available height instead of
@@ -370,7 +448,13 @@ class HomeDashboard extends StatelessWidget {
       // Two cards and two gaps down is the duas card's top edge; the moment
       // card starts there, so the prayer/title row ends one row-gap above it.
       final prayerHeight = (2 * cardHeight + 2 * _gap - _rowGap).clamp(150.0, height - 180.0).toDouble();
-      final momentHeight = (height * 0.12).clamp(60.0, 78.0).toDouble();
+      // The dial is width-limited on tall phones. Give its otherwise-empty
+      // space to the moment card, so that card reaches almost to the dial's
+      // upper edge without pulling the dial away from the search bar.
+      final minimumMoment = (height * 0.12).clamp(60.0, 78.0).toDouble();
+      final roomForDial = height - prayerHeight - minimumMoment - 2 * _rowGap - _searchHeight;
+      final dialDiameter = math.min(constraints.maxWidth, roomForDial) * 0.99;
+      final momentHeight = height - prayerHeight - 2 * _rowGap - _searchHeight - dialDiameter;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -443,50 +527,56 @@ class _TitleRail extends StatelessWidget {
             BoxShadow(color: palette.plum.colors.last.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 4)),
           ],
         ),
-        child: Column(
+        child: Stack(
+          fit: StackFit.expand,
           children: <Widget>[
-            const SizedBox(height: 9),
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: palette.cream,
-                border: Border.all(color: palette.gold, width: 1.2),
-              ),
-              child: ClipOval(
-                child: Image.asset(
-                  'assets/images/shiaverse_icon.png',
-                  fit: BoxFit.cover,
-                  cacheWidth: 96,
-                  cacheHeight: 96,
+            const _GlassSheen(radius: 21),
+            Column(
+              children: <Widget>[
+                const SizedBox(height: 9),
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: palette.cream,
+                    border: Border.all(color: palette.gold, width: 1.2),
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/shiaverse_icon.png',
+                      fit: BoxFit.cover,
+                      cacheWidth: 96,
+                      cacheHeight: 96,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: RotatedBox(
-                quarterTurns: 3,
-                child: Center(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      'ShiaVerse',
-                      maxLines: 1,
-                      style: TextStyle(
-                        fontFamily: kDigitFont,
-                        fontSize: 34,
-                        height: 1.1,
-                        letterSpacing: 1.2,
-                        fontWeight: FontWeight.w800,
-                        color: palette.goldSoft,
+                const SizedBox(height: 8),
+                Expanded(
+                  child: RotatedBox(
+                    quarterTurns: 3,
+                    child: Center(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'ShiaVerse',
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontFamily: kDigitFont,
+                            fontSize: 34,
+                            height: 1.1,
+                            letterSpacing: 1.2,
+                            fontWeight: FontWeight.w800,
+                            color: palette.goldSoft,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 10),
+              ],
             ),
-            const SizedBox(height: 10),
           ],
         ),
       ),
@@ -598,12 +688,13 @@ class _MiniPrayerCard extends StatelessWidget {
                           ),
                         ),
                         SizedBox(height: compact ? 3 : 8),
-                        // All five prayers on ONE row: each cell scales its
-                        // own name and digits down to its slot, and the row
-                        // keeps a card-like height in the taller card.
+                        // The names and times sit against the wallpaper's
+                        // lower edge, not in the middle of the spare sky.
                         Expanded(
-                          child: Center(
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
                             child: SizedBox(
+                              key: const ValueKey<String>('home-prayer-row'),
                               height: compact ? 52.0 : 64.0,
                               child: prayerRow(prayers),
                             ),
@@ -832,6 +923,7 @@ class _MomentCardState extends State<_MomentCard> {
         borderRadius: BorderRadius.circular(18),
         onTap: () => unawaited(_open(line)),
         child: Ink(
+          key: const ValueKey<String>('home-moment-card'),
           padding: const EdgeInsets.fromLTRB(8, 7, 10, 7),
           decoration: BoxDecoration(
             gradient: palette.moment,
@@ -1541,16 +1633,22 @@ class _SectionCard extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: <Color>[section.start, section.end],
+                stops: const <double>[0, 0.48, 1],
+                colors: <Color>[
+                  Color.lerp(section.start, Colors.white, 0.18)!,
+                  section.start.withValues(alpha: 0.95),
+                  Color.lerp(section.end, Colors.black, 0.20)!,
+                ],
               ),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: palette.gold.withValues(alpha: 0.85), width: 1.2),
+              border: Border.all(color: palette.goldSoft.withValues(alpha: 0.9), width: 1.2),
               boxShadow: <BoxShadow>[
-                BoxShadow(color: section.end.withValues(alpha: 0.18), blurRadius: 8, offset: const Offset(0, 3)),
+                BoxShadow(color: section.end.withValues(alpha: 0.32), blurRadius: 12, offset: const Offset(0, 5)),
               ],
             ),
             child: Stack(
               children: <Widget>[
+                const Positioned.fill(child: _GlassSheen(radius: 18)),
                 if (!installed)
                   Positioned(
                     top: 7,

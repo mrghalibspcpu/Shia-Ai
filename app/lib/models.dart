@@ -143,7 +143,7 @@ class BookDefinition {
       fileName: 'nahjul_balagha.db',
       titleUrdu: 'نہج البلاغہ',
       titleLatin: 'Nahj al-Balagha',
-      description: 'خطب، خطوط، حکمت اور مقدمات اردو ترجمہ کے ساتھ',
+      description: 'خطبات، خطوط، حکمت اور مقدمات اردو ترجمہ کے ساتھ',
       source: CorpusSource.balagha,
       recordLabel: 'فقرا',
     ),
@@ -651,15 +651,15 @@ const Map<int, String> duaCategoryTitles = {
   6: 'شب و روز کے اعمال اور ملحقات',
 };
 
-/// Normalises a Nahj al-Balagha heading from the database: this app names the
-/// first division «خطب», so a stray «خطبات» in a stored title is rewritten
-/// wherever that title is shown. Body text is never touched.
+/// Older database headings use the truncated plural «خطب». Correct the
+/// *standalone* label to «خطبات» everywhere a title is presented, without
+/// altering body text or words such as «خطبہ» / already-correct «خطبات».
 String polishBalaghaTitle(String value) =>
-    value.contains('خطبات') ? value.replaceAll('خطبات', 'خطب') : value;
+    value.replaceAll(RegExp(r'خطب(?=\s|[،,:؛۔\-]|$)'), 'خطبات');
 
 /// Urdu titles of the Nahj al-Balagha divisions (`Type` / `TypeID`).
 const Map<int, String> balaghaSectionTitles = {
-  1: 'خطب',
+  1: 'خطبات',
   2: 'کتب و خطوط',
   3: 'حکمت و اقوالِ قصار',
   4: 'احادیثِ رسولِ خدا ﷺ',

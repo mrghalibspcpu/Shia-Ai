@@ -34,6 +34,8 @@ class ReaderScaffold extends StatelessWidget {
     required this.body,
     this.subtitle,
     this.actions = const <Widget>[],
+    this.headerAction,
+    this.showAppearanceLabel = false,
   });
 
   final BookDefinition book;
@@ -42,6 +44,8 @@ class ReaderScaffold extends StatelessWidget {
   final ReaderPreferences preferences;
   final ValueChanged<ReaderPreferences> onPreferencesChanged;
   final List<Widget> actions;
+  final Widget? headerAction;
+  final bool showAppearanceLabel;
   final Widget body;
 
   @override
@@ -67,20 +71,35 @@ class ReaderScaffold extends StatelessWidget {
           ),
           actions: <Widget>[
             ...actions,
-            ReaderControls(preferences: preferences, onChanged: onPreferencesChanged),
+            ReaderControls(
+              preferences: preferences,
+              onChanged: onPreferencesChanged,
+              showLabel: showAppearanceLabel,
+            ),
             const SizedBox(width: 6),
           ],
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(102),
+            preferredSize: Size.fromHeight(headerAction == null ? 102 : 146),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 760),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  child: _ReaderBanner(
-                    book: book,
-                    title: title,
-                    subtitle: subtitle ?? book.source.label,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      _ReaderBanner(
+                        book: book,
+                        title: title,
+                        subtitle: subtitle ?? book.source.label,
+                      ),
+                      if (headerAction != null)
+                        SizedBox(height: 44, child: Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: headerAction,
+                        )),
+                    ],
                   ),
                 ),
               ),

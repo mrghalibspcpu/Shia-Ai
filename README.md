@@ -1,5 +1,17 @@
 # ShiaVerse
 
+## New in 1.13 — reading and home polish
+
+The home has a black dock and raised glass keys, closer mini-prayer and
+ayah/tasbeeh spacing, and a separate full-screen prayer wallpaper. Quran adds
+labelled top actions and a reversible **مصحف موڈ** for continuous, justified
+Arabic-only text; ordinary translated/annotated reading is still available.
+Chapter names have their own parchment card wallpaper, Nahj al-Balagha shows
+**خطبات**, and the three-dimensional Qibla rose points with a Kaaba PNG.
+See [`docs/visual-mushaf-1-13.md`](docs/visual-mushaf-1-13.md) for behaviour,
+preservation and checks. The Android workflow builds and publishes the signed
+APK/ZIP as a pre-release (`app-v1.13.0`).
+
 An offline Shia study library for Android: the Quran with Urdu translation and
 tafseer notes, Mafatih al-Jinan, Nahj al-Balagha, and the 14-book Urdu/Arabic
 hadith corpus — with full-text search, bookmarks, notes, and reader themes that

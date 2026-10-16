@@ -250,52 +250,78 @@ class _CompassCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Center(
-            child: SizedBox(
-              width: dial,
-              height: dial + 18,
-              child: Stack(
-                alignment: Alignment.topCenter,
-                children: <Widget>[
-                  Positioned(
-                    top: 18,
-                    child: AnimatedRotation(
-                      turns: turns,
-                      duration: const Duration(milliseconds: 120),
-                      curve: Curves.linear,
-                      child: CustomPaint(
-                        size: const Size(dial, dial),
-                        painter: _CompassRosePainter(
-                          bearing: reading.qiblaBearing,
-                          palette: palette,
-                          aligned: aligned,
-                          live: live,
+          LayoutBuilder(builder: (context, constraints) {
+            final diameter = math.min(dial, constraints.maxWidth);
+            final bearingAngle = reading.qiblaBearing * math.pi / 180 - math.pi / 2;
+            final markerRadius = diameter / 2 - 36;
+            final marker = Offset(
+              diameter / 2 + math.cos(bearingAngle) * markerRadius,
+              diameter / 2 + math.sin(bearingAngle) * markerRadius,
+            );
+            return Center(
+              child: SizedBox(
+                width: diameter,
+                height: diameter + 18,
+                child: Stack(
+                  alignment: Alignment.topCenter,
+                  children: <Widget>[
+                    Positioned(
+                      top: 18,
+                      child: AnimatedRotation(
+                        turns: turns,
+                        duration: const Duration(milliseconds: 120),
+                        curve: Curves.linear,
+                        child: SizedBox.square(
+                          dimension: diameter,
+                          child: Stack(
+                            children: <Widget>[
+                              CustomPaint(
+                                size: Size.square(diameter),
+                                painter: _CompassRosePainter(
+                                  bearing: reading.qiblaBearing,
+                                  aligned: aligned,
+                                ),
+                              ),
+                              Positioned(
+                                left: marker.dx - 21,
+                                top: marker.dy - 21,
+                                child: AnimatedRotation(
+                                  // As the rose turns, the PNG stays upright.
+                                  turns: -turns,
+                                  duration: const Duration(milliseconds: 120),
+                                  child: Image.asset(
+                                    'assets/images/kaaba_icon.png',
+                                    key: const ValueKey<String>('qibla-kaaba-marker'),
+                                    width: 42,
+                                    height: 42,
+                                    cacheWidth: 144,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  // The fixed index: whatever sits under it is where the phone
-                  // is pointing.
-                  Positioned(
-                    top: 0,
-                    child: Column(
-                      children: <Widget>[
-                        Icon(
-                          Icons.arrow_drop_down,
-                          size: 22,
-                          color: aligned ? palette.accent : palette.gold,
-                        ),
-                      ],
+                    // The fixed index is the direction the PHONE faces.
+                    Positioned(
+                      top: 0,
+                      child: Icon(
+                        Icons.arrow_drop_down,
+                        size: 22,
+                        color: aligned ? palette.accent : palette.gold,
+                      ),
                     ),
-                  ),
-                  Positioned(
-                    top: 18 + dial / 2 - 44,
-                    child: _DialCentre(reading: reading, live: live, palette: palette),
-                  ),
-                ],
+                    Positioned(
+                      top: 18 + diameter / 2 - 44,
+                      child: _DialCentre(reading: reading, live: live),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
+            );
+          }),
           const SizedBox(height: 6),
           _AlignmentReadout(reading: reading, live: live, palette: palette),
         ],
@@ -348,40 +374,50 @@ class _StatusPill extends StatelessWidget {
 
 /// Inside the dial: the heading the phone currently points at.
 class _DialCentre extends StatelessWidget {
-  const _DialCentre({
-    required this.reading,
-    required this.live,
-    required this.palette,
-  });
+  const _DialCentre({required this.reading, required this.live});
 
   final CompassReading reading;
   final bool live;
-  final GlassPalette palette;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Text(
-          live ? 'رخ' : 'قبلہ',
-          style: TextStyle(fontSize: 12, color: palette.muted),
+    return Container(
+      width: 94,
+      height: 88,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const RadialGradient(
+          center: Alignment(-0.38, -0.55),
+          colors: <Color>[Color(0xFFFFF9E9), Color(0xFFE7D9B8), Color(0xFF9E8050)],
+          stops: <double>[0, 0.70, 1],
         ),
-        Text(
-          formatDegreesUrdu(live ? reading.heading : reading.qiblaBearing),
-          style: TextStyle(
-            fontFamily: kDigitFont,
-            fontSize: 28,
-            height: 1.15,
-            fontWeight: FontWeight.w800,
-            color: palette.ink,
+        border: Border.all(color: const Color(0xFFD6AE67), width: 2.5),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(color: Color(0xAA000000), blurRadius: 11, offset: Offset(2, 5)),
+          BoxShadow(color: Color(0xC0FFFFFF), blurRadius: 2, offset: Offset(-2, -2)),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Text(live ? 'رخ' : 'قبلہ',
+            style: const TextStyle(fontSize: 11, color: Color(0xFF405348))),
+          Text(
+            formatDegreesUrdu(live ? reading.heading : reading.qiblaBearing),
+            style: const TextStyle(
+              fontFamily: kDigitFont,
+              fontSize: 26,
+              height: 1.05,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF192B26),
+            ),
           ),
-        ),
-        Text(
-          compassPointUrdu(live ? reading.heading : reading.qiblaBearing),
-          style: TextStyle(fontSize: 13, color: palette.muted),
-        ),
-      ],
+          Text(
+            compassPointUrdu(live ? reading.heading : reading.qiblaBearing),
+            style: const TextStyle(fontSize: 11, height: 1.05, color: Color(0xFF405348)),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -450,53 +486,77 @@ class _AlignmentReadout extends StatelessWidget {
 
 /// The rose: ticks, the four directions in Urdu, and the Kaaba needle.
 class _CompassRosePainter extends CustomPainter {
-  _CompassRosePainter({
-    required this.bearing,
-    required this.palette,
-    required this.aligned,
-    required this.live,
-  });
+  _CompassRosePainter({required this.bearing, required this.aligned});
 
   final double bearing;
-  final GlassPalette palette;
   final bool aligned;
-  final bool live;
 
   @override
   void paint(Canvas canvas, Size size) {
     final centre = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 6;
 
-    canvas.drawCircle(
-      centre,
-      radius,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.4
-        ..color = palette.accent.withValues(alpha: 0.28),
-    );
-    canvas.drawCircle(
-      centre,
-      radius - 16,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.8
-        ..color = palette.track,
-    );
+    // Three engraved metal rings, a recessed charcoal dial, and a subtle
+    // embossed compass rose. These stay in the rose's sensor-driven rotation;
+    // only the furniture changed, never the Qibla bearing or heading math.
+    final outer = Rect.fromCircle(center: centre, radius: radius);
+    canvas.drawShadow(Path()..addOval(outer), const Color(0xA4000000), 12, true);
+    canvas.drawCircle(centre, radius, Paint()..shader = const RadialGradient(
+      center: Alignment(-0.6, -0.8),
+      radius: 1.3,
+      colors: <Color>[Color(0xFFFFE0A0), Color(0xFFB8904B), Color(0xFF5A431F)],
+      stops: <double>[0, 0.62, 1],
+    ).createShader(outer));
+    canvas.drawCircle(centre, radius - 3, Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.3
+      ..color = const Color(0xFFFDF4D4));
+    canvas.drawCircle(centre, radius - 9, Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 7
+      ..color = const Color(0xFF302B28));
+    final face = Rect.fromCircle(center: centre, radius: radius - 14);
+    canvas.drawCircle(centre, radius - 14, Paint()..shader = const RadialGradient(
+      center: Alignment(-0.38, -0.45),
+      radius: 1.25,
+      colors: <Color>[Color(0xFF364C4B), Color(0xFF1B302E), Color(0xFF0A1718)],
+      stops: <double>[0, 0.58, 1],
+    ).createShader(face));
+    canvas.drawCircle(centre, radius - 16, Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.3
+      ..color = const Color(0xFFAD8A4D));
+    canvas.drawCircle(centre, radius - 52, Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8
+      ..color = const Color(0x5589A99A));
+
+    for (var point = 0; point < 8; point++) {
+      final angle = point * math.pi / 4 - math.pi / 2;
+      final tip = centre + Offset(math.cos(angle), math.sin(angle)) * (radius - 56);
+      final left = centre + Offset(math.cos(angle + 0.65), math.sin(angle + 0.65)) * 24;
+      final right = centre + Offset(math.cos(angle - 0.65), math.sin(angle - 0.65)) * 24;
+      canvas.drawPath(
+        Path()..moveTo(tip.dx, tip.dy)..lineTo(left.dx, left.dy)
+          ..lineTo(right.dx, right.dy)..close(),
+        Paint()..color = (point.isEven ? const Color(0xFFCEAD72) : const Color(0xFFB5D2C3))
+            .withValues(alpha: point.isEven ? 0.12 : 0.06),
+      );
+    }
 
     // Ticks every 15°, longer every 45°.
     for (int step = 0; step < 24; step++) {
       final angle = step * 15 * math.pi / 180 - math.pi / 2;
       final major = step % 3 == 0;
-      final outer = radius - 3;
-      final inner = outer - (major ? 10 : 5.5);
+      final outer = radius - 19;
+      final inner = outer - (major ? 12 : 6);
       canvas.drawLine(
         centre + Offset(math.cos(angle) * inner, math.sin(angle) * inner),
         centre + Offset(math.cos(angle) * outer, math.sin(angle) * outer),
         Paint()
           ..strokeWidth = major ? 1.6 : 1
-          ..color = (step == 0 ? palette.gold : palette.accent)
-              .withValues(alpha: major ? 0.7 : 0.35),
+          ..color = (step == 0 ? const Color(0xFFF5DCA4) : const Color(0xFFB9D3C8))
+              .withValues(alpha: major ? 0.8 : 0.45),
       );
     }
 
@@ -504,12 +564,12 @@ class _CompassRosePainter extends CustomPainter {
     const labels = <String>['شم', 'مش', 'جن', 'مغ'];
     for (int index = 0; index < 4; index++) {
       final angle = index * 90 * math.pi / 180 - math.pi / 2;
-      final position = centre + Offset(math.cos(angle), math.sin(angle)) * (radius - 30);
+      final position = centre + Offset(math.cos(angle), math.sin(angle)) * (radius - 55);
       _paintText(
         canvas,
         labels[index],
         position,
-        index == 0 ? palette.gold : palette.ink,
+        index == 0 ? const Color(0xFFF3CB7E) : const Color(0xFFF1F3DD),
         fontSize: 12,
         fontWeight: FontWeight.w800,
       );
@@ -517,54 +577,31 @@ class _CompassRosePainter extends CustomPainter {
 
     // The Qibla needle, drawn inside the rose at the bearing from true north.
     final bearingRadians = bearing * math.pi / 180 - math.pi / 2;
-    final tip = centre + Offset(math.cos(bearingRadians), math.sin(bearingRadians)) * (radius - 30);
-    final base = centre + Offset(math.cos(bearingRadians), math.sin(bearingRadians)) * 30;
-    final needleColor = aligned ? palette.accent : (live ? palette.gold : palette.muted);
-
+    final tip = centre + Offset(math.cos(bearingRadians), math.sin(bearingRadians)) * (radius - 31);
+    final base = centre + Offset(math.cos(bearingRadians), math.sin(bearingRadians)) * 42;
+    final needleColor = aligned ? const Color(0xFF8EE2B9) : const Color(0xFFE4B96A);
+    final needleRect = Rect.fromPoints(base, tip).inflate(6);
     canvas.drawLine(
-      base,
-      tip,
+      base + const Offset(1.8, 2.5),
+      tip + const Offset(1.8, 2.5),
       Paint()
-        ..strokeWidth = aligned ? 4.5 : 3.6
+        ..strokeWidth = 9
         ..strokeCap = StrokeCap.round
-        ..color = needleColor,
+        ..color = const Color(0x99000000),
     );
-    // Arrowhead at the tip.
-    final headAngle = 12 * math.pi / 180;
-    for (final side in <double>[-1, 1]) {
-      canvas.drawLine(
-        tip,
-        tip -
-            Offset(
-              math.cos(bearingRadians + side * headAngle),
-              math.sin(bearingRadians + side * headAngle),
-            ) *
-                13,
-        Paint()
-          ..strokeWidth = 3
-          ..strokeCap = StrokeCap.round
-          ..color = needleColor,
-      );
-    }
-    // The Kaaba marker at the tip: a small dark cube with its gold band.
-    final cube = Rect.fromCenter(center: tip + Offset(0, 0), width: 20, height: 20);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(cube, const Radius.circular(5)),
-      Paint()..color = const Color(0xFF1B1B1B),
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(cube.left, cube.top + 6.5, cube.width, 4),
-      Paint()..color = palette.gold,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(cube, const Radius.circular(5)),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..color = needleColor,
-    );
-
-    canvas.drawCircle(centre, 4, Paint()..color = palette.accent.withValues(alpha: 0.8));
+    canvas.drawLine(base, tip, Paint()
+      ..strokeWidth = aligned ? 7 : 6
+      ..strokeCap = StrokeCap.round
+      ..shader = LinearGradient(
+        colors: <Color>[const Color(0xFFFFF4D3), needleColor, const Color(0xFF765624)],
+      ).createShader(needleRect));
+    canvas.drawLine(base, tip, Paint()
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round
+      ..color = const Color(0xD9FFFFFF));
+    // The realistic, isolated Kaaba PNG is placed over this tip by the widget
+    // above the painter (and counter-rotated so it always stays upright).
+    canvas.drawCircle(centre, 5, Paint()..color = const Color(0xFFF1D59B));
   }
 
   void _paintText(
@@ -596,10 +633,7 @@ class _CompassRosePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_CompassRosePainter old) =>
-      old.bearing != bearing ||
-      old.aligned != aligned ||
-      old.live != live ||
-      old.palette.ink != palette.ink;
+      old.bearing != bearing || old.aligned != aligned;
 }
 
 /// Shown when the magnetometer never reported: one tap to try again, and a

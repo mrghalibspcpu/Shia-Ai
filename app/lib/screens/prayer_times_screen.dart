@@ -7,14 +7,12 @@ import '../astro/compass_math.dart' show compassPointUrdu;
 import '../astro/hijri_calendar.dart' show autoHijriAdjustment;
 import '../astro/prayer_calculator.dart';
 import '../astro/prayer_format.dart';
-import '../astro/sky_phase.dart';
 import '../services/city_index.dart';
 import '../services/place_names.dart';
 import '../services/prayer_controller.dart';
 import '../services/prayer_locations.dart';
 import '../services/prayer_scope.dart';
 import '../widgets/glass_panel.dart';
-import '../widgets/sky_backdrop.dart';
 import 'qibla_screen.dart';
 import 'tasbeeh_screen.dart';
 
@@ -226,10 +224,9 @@ TextStyle _sky(double size, {FontWeight weight = FontWeight.w600, double alpha =
 
 const Color _skyGold = Color(0xFFFFE1A1);
 
-/// The hero: the sky of the hour (dawn, midday, evening or night, animated)
-/// as a PORTRAIT wallpaper, so the card holds more and breathes — the place
-/// and both dates up top, the live clock in the open sky, the next prayer
-/// beneath it, and the day's times resting along the bottom edge.
+/// The detailed prayer page has its own portrait mosque wallpaper. The mini
+/// prayer card on Home continues to use its animated time-of-day sky. All
+/// words, dates, times, and the tasbeeh action remain LIVE widgets over art.
 class _HeroHeader extends StatelessWidget {
   const _HeroHeader({required this.schedule, required this.controller});
 
@@ -246,26 +243,52 @@ class _HeroHeader extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 430),
           child: AspectRatio(
             aspectRatio: 0.72,
-            child: SkyBackdrop(
-              phase: skyPhaseFor(schedule, now),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    _HeroTitleRow(controller: controller),
-                    const SizedBox(height: 10),
-                    _HeroLocationRow(controller: controller, now: now),
-                    const Spacer(),
-                    // The clock floats in the open middle of the sky; it
-                    // scales itself down instead of ever overflowing.
-                    Flexible(flex: 4, child: _HeroClock(now: now)),
-                    const Spacer(),
-                    _HeroNextPrayer(controller: controller, now: now),
-                    const SizedBox(height: 12),
-                    _TimingGlassRow(schedule: schedule, now: now),
-                  ],
-                ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  Image.asset(
+                    'assets/images/prayer_details.jpg',
+                    key: const ValueKey<String>('prayer-details-wallpaper'),
+                    fit: BoxFit.cover,
+                    alignment: Alignment.bottomCenter,
+                  ),
+                  // A subtle sky-to-architecture scrim keeps the date, live
+                  // clock, location and prayer cells readable at every hour.
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        stops: <double>[0, 0.45, 0.75, 1],
+                        colors: <Color>[
+                          Color(0x660B2330), Color(0x330B2330),
+                          Color(0x55201522), Color(0xB8000D13),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        _HeroTitleRow(controller: controller),
+                        const SizedBox(height: 10),
+                        _HeroLocationRow(controller: controller, now: now),
+                        const Spacer(),
+                        // The clock floats in the open middle of the sky; it
+                        // scales itself down instead of ever overflowing.
+                        Flexible(flex: 4, child: _HeroClock(now: now)),
+                        const Spacer(),
+                        _HeroNextPrayer(controller: controller, now: now),
+                        const SizedBox(height: 12),
+                        _TimingGlassRow(schedule: schedule, now: now),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -387,9 +410,16 @@ class _HeroLocationRow extends StatelessWidget {
             ),
           const SizedBox(height: 4),
           Text(
-            '${formatDateUrdu(now)}  •  ${hijri.labelUrdu}',
-            maxLines: 2,
+            '${weekdayUrdu(now)}  •  ${formatDayMonthYearUrdu(now)}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: _sky(14.5, weight: FontWeight.w700, height: 1.45),
+          ),
+          Text(
+            'تاریخِ ہجری: ${hijri.labelUrdu}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: _sky(14, weight: FontWeight.w700, color: _skyGold, height: 1.4),
           ),
           Text(
             formatCoordinatesUrdu(location.latitude, location.longitude),

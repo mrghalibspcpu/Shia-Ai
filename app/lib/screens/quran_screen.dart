@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app_theme.dart';
 import '../library_repository.dart';
@@ -9,7 +10,13 @@ import '../models.dart';
 import '../text_utils.dart' show arabicNumerals, parseReaderNumber;
 import '../widgets/reader_kit.dart';
 import '../widgets/reader_chrome.dart';
+import '../widgets/chapter_wallpaper.dart';
+import '../widgets/mushaf_text.dart';
 import '../widgets/resume_card.dart';
+
+/// Separate from reader palette/font keys, so the normal Quran cards and all
+/// other book readers keep their existing saved choices.
+const String kQuranMushafKey = 'quran_mushaf_mode_v1';
 
 /// Surah / juz / page browser for the Quran collection.
 class QuranHomeScreen extends StatefulWidget {
@@ -28,6 +35,31 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
   void dispose() {
     _jumpController.dispose();
     super.dispose();
+  }
+
+  Future<void> _openMushaf() async {
+    try {
+      final surahs = await widget.library.getSurahs();
+      if (!mounted) return;
+      if (surahs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('قرآنِ کریم کا متن ابھی دستیاب نہیں۔')),
+        );
+        return;
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(kQuranMushafKey, true);
+      if (!mounted) return;
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => SurahReaderScreen(
+          library: widget.library,
+          surah: surahs.first,
+          startInMushaf: true,
+        ),
+      ));
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error')));
+    }
   }
 
   Future<void> _openPage() async {
@@ -55,13 +87,19 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
             tabs: [Tab(text: 'سورتیں'), Tab(text: 'پارے')],
           ),
           actions: [
-            IconButton(tooltip: 'سورہ / آیت پر جائیں', icon: const Icon(Icons.my_location),
-              onPressed: () => showQuranJump(context, widget.library)),
-            IconButton(
-              tooltip: 'صفحہ پر جائیں',
-              onPressed: _openPage,
-              icon: const Icon(Icons.menu_book_outlined),
+            TextButton.icon(
+              onPressed: () => showQuranJump(context, widget.library),
+              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4)),
+              icon: const Icon(Icons.my_location, size: 17),
+              label: const Text('جائیں', style: TextStyle(fontSize: 13)),
             ),
+            TextButton.icon(
+              onPressed: _openPage,
+              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4)),
+              icon: const Icon(Icons.menu_book_outlined, size: 17),
+              label: const Text('صفحہ', style: TextStyle(fontSize: 13)),
+            ),
+            const SizedBox(width: 4),
           ],
         ),
         body: Column(
@@ -75,6 +113,15 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
                 onOpened: () {
                   if (mounted) setState(() {});
                 },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 2),
+              child: OutlinedButton.icon(
+                key: const ValueKey<String>('quran-open-mushaf'),
+                onPressed: _openMushaf,
+                icon: const Icon(Icons.auto_stories_rounded, size: 19),
+                label: const Text('مصحف موڈ — صرف عربی متن'),
               ),
             ),
             Padding(
@@ -130,7 +177,7 @@ class _SurahList extends StatelessWidget {
           separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final surah = surahs[index];
-            return Card(
+            return ChapterWallpaperCard(
               child: ListTile(
                 leading: CircleAvatar(
                   backgroundColor: Theme.of(context).colorScheme.primaryContainer,
@@ -183,7 +230,7 @@ class _JuzList extends StatelessWidget {
           separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final entry = entries[index];
-            return Card(
+            return ChapterWallpaperCard(
               child: ListTile(
                 leading: const Icon(Icons.layers_outlined),
                 title: JustifiedText(entry.title, maxLines: 1),
@@ -208,12 +255,14 @@ class SurahReaderScreen extends StatefulWidget {
     required this.surah,
     this.initialRecordId,
     this.searchQuery = '',
+    this.startInMushaf = false,
   });
 
   final LibraryRepository library;
   final QuranSurah surah;
   final int? initialRecordId;
   final String searchQuery;
+  final bool startInMushaf;
 
   @override
   State<SurahReaderScreen> createState() => _SurahReaderScreenState();
@@ -232,6 +281,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
       initialRecordId: widget.initialRecordId,
       searchQuery: widget.searchQuery,
       storageKey: 'quran-surah-${widget.surah.number}',
+      startInMushaf: widget.startInMushaf,
     );
   }
 }
@@ -282,6 +332,7 @@ class _QuranVerseList extends StatefulWidget {
     this.bismillah = false,
     this.initialRecordId,
     this.searchQuery = '',
+    this.startInMushaf = false,
   });
 
   final LibraryRepository library;
@@ -292,6 +343,7 @@ class _QuranVerseList extends StatefulWidget {
   final bool bismillah;
   final int? initialRecordId;
   final String searchQuery;
+  final bool startInMushaf;
 
   @override
   State<_QuranVerseList> createState() => _QuranVerseListState();
@@ -306,7 +358,9 @@ class _QuranVerseListState extends State<_QuranVerseList> {
   final BookDefinition _book = BookDefinition.bookFor(CorpusSource.quran)!;
 
   List<Passage> _verses = const [];
+  List<MushafGroup> _mushafGroups = const [];
   ReaderPreferences _preferences = const ReaderPreferences();
+  bool _mushafMode = false;
   bool _loading = true;
   String? _error;
 
@@ -319,13 +373,22 @@ class _QuranVerseListState extends State<_QuranVerseList> {
   Future<void> _load() async {
     try {
       final preferences = await ReaderPreferences.load();
+      final stored = await SharedPreferences.getInstance();
+      final mushaf = widget.searchQuery.isEmpty &&
+          (widget.startInMushaf || (stored.getBool(kQuranMushafKey) ?? false));
       final verses = await widget.loader();
       if (!mounted) return;
+      final groups = groupMushafVerses(verses, focusRecordId: widget.initialRecordId);
       setState(() {
         _preferences = preferences;
         _verses = verses;
+        _mushafGroups = groups;
+        _mushafMode = mushaf;
         final index = verses.indexWhere((v) => v.recordId == widget.initialRecordId);
-        _initialIndex = (index < 0 ? 0 : index) + (widget.bismillah ? 1 : 0);
+        final groupIndex = groups.indexWhere((g) => g.firstRecordId == widget.initialRecordId);
+        _initialIndex = mushaf
+            ? (groupIndex < 0 ? 0 : groupIndex)
+            : (index < 0 ? 0 : index) + (widget.bismillah ? 1 : 0);
         _loading = false;
       });
       final target = widget.initialRecordId;
@@ -346,17 +409,51 @@ class _QuranVerseListState extends State<_QuranVerseList> {
   }
 
   /// O(visible items), not a scan/layout of hundreds of offscreen verses.
-  void _saveLastRead() {
+  /// In mushaf mode the first visible *page group* is the saved anchor.
+  int? _visibleRecordId() {
     final visible = _positions.itemPositions.value
         .where((p) => p.itemTrailingEdge > 0 && p.itemLeadingEdge < 1)
         .toList()..sort((a, b) => a.index.compareTo(b.index));
-    if (visible.isEmpty) return;
-    final index = visible.first.index - (widget.bismillah ? 1 : 0);
-    if (index < 0 || index >= _verses.length) return;
-    final record = _verses[index].recordId;
-    if (record == _lastSavedRecord) return;
+    for (final item in visible) {
+      if (_mushafMode) {
+        if (item.index < _mushafGroups.length) return _mushafGroups[item.index].firstRecordId;
+      } else {
+        final index = item.index - (widget.bismillah ? 1 : 0);
+        if (index >= 0 && index < _verses.length) return _verses[index].recordId;
+      }
+    }
+    return null;
+  }
+
+  void _saveLastRead() {
+    final record = _visibleRecordId();
+    if (record == null || record == _lastSavedRecord) return;
     _lastSavedRecord = record;
     unawaited(_saveLast(_verses, record));
+  }
+
+  Future<void> _saveMushafMode(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(kQuranMushafKey, value);
+  }
+
+  void _toggleMushaf() {
+    if (_verses.isEmpty) return;
+    final focus = _visibleRecordId() ?? widget.initialRecordId ?? _verses.first.recordId;
+    final next = !_mushafMode;
+    setState(() {
+      _mushafMode = next;
+      if (next) {
+        _mushafGroups = groupMushafVerses(_verses, focusRecordId: focus);
+        _initialIndex = _mushafGroups.indexWhere((g) => g.firstRecordId == focus);
+      } else {
+        _initialIndex = _verses.indexWhere((v) => v.recordId == focus) + (widget.bismillah ? 1 : 0);
+      }
+      if (_initialIndex < 0) _initialIndex = 0;
+    });
+    _lastSavedRecord = focus;
+    unawaited(_saveLast(_verses, focus));
+    unawaited(_saveMushafMode(next));
   }
 
   /// Stores the surah and the verse number so the resume card can name them.
@@ -382,13 +479,31 @@ class _QuranVerseListState extends State<_QuranVerseList> {
       subtitle: widget.subtitle,
       preferences: _preferences,
       onPreferencesChanged: (value) => setState(() => _preferences = value),
+      showAppearanceLabel: true,
       actions: <Widget>[
-        IconButton(
-          tooltip: 'سورہ / آیت پر جائیں',
-          icon: const Icon(Icons.my_location),
+        TextButton.icon(
           onPressed: () => showQuranJump(context, widget.library),
+          style: TextButton.styleFrom(
+            foregroundColor: palette.accent,
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            minimumSize: const Size(0, 40),
+          ),
+          icon: const Icon(Icons.my_location, size: 18),
+          label: const Text('جائیں', style: TextStyle(fontSize: 13)),
         ),
       ],
+      headerAction: OutlinedButton.icon(
+        key: const ValueKey<String>('quran-mushaf-toggle'),
+        onPressed: _loading || _verses.isEmpty ? null : _toggleMushaf,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: palette.accent,
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          side: BorderSide(color: palette.border),
+        ),
+        icon: Icon(_mushafMode ? Icons.check_circle_rounded : Icons.auto_stories_rounded, size: 18),
+        label: Text(_mushafMode ? 'مصحف موڈ • صرف عربی متن' : 'مصحف موڈ', style: const TextStyle(fontSize: 13)),
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -401,7 +516,24 @@ class _QuranVerseListState extends State<_QuranVerseList> {
                         return false;
                       },
                       child: SelectionArea(
-                        child: ScrollablePositionedList.builder(
+                        child: _mushafMode
+                            ? ScrollablePositionedList.builder(
+                                key: PageStorageKey<String>('${widget.storageKey}-mushaf'),
+                                itemScrollController: _itemScrollController,
+                                itemPositionsListener: _positions,
+                                initialScrollIndex: _initialIndex,
+                                initialAlignment: 0.04,
+                                addAutomaticKeepAlives: false,
+                                minCacheExtent: 400,
+                                padding: const EdgeInsets.fromLTRB(14, 8, 14, 112),
+                                itemCount: _mushafGroups.length,
+                                itemBuilder: (context, index) => MushafText(
+                                  group: _mushafGroups[index],
+                                  palette: palette,
+                                  fontScale: _preferences.fontScale,
+                                ),
+                              )
+                            : ScrollablePositionedList.builder(
                           key: PageStorageKey(widget.storageKey),
                           itemScrollController: _itemScrollController,
                           itemPositionsListener: _positions,
