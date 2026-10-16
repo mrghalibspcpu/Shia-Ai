@@ -411,7 +411,6 @@ class HomeDashboard extends StatelessWidget {
       ],
     );
   }
-
 }
 
 /// 1 — the app title rail: the ShiaVerse mark, and the name written down the
@@ -678,40 +677,40 @@ class _MiniPrayerCell extends StatelessWidget {
       child: FittedBox(
         fit: BoxFit.scaleDown,
         child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Text(
-            entry.marker.labelUrdu,
-            maxLines: 1,
-            overflow: TextOverflow.clip,
-            style: _onSky(11, weight: lit ? FontWeight.w800 : FontWeight.w600, height: 1.2),
-          ),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              formatClockDigitsUrdu(entry.time),
-              textDirection: TextDirection.ltr,
-              style: _onSky(14, weight: FontWeight.w800, digits: true, height: 1, color: upcoming ? gold : Colors.white),
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(
+              entry.marker.labelUrdu,
+              maxLines: 1,
+              overflow: TextOverflow.clip,
+              style: _onSky(11, weight: lit ? FontWeight.w800 : FontWeight.w600, height: 1.2),
             ),
-          ),
-          const SizedBox(height: 1),
-          SizedBox(
-            height: 11,
-            child: Center(
-              child: active
-                  ? const _NowTag()
-                  : (left == null
-                      ? const SizedBox.shrink()
-                      : FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            formatCountdownClock(left),
-                            style: _onSky(9, weight: FontWeight.w700, color: gold, digits: true),
-                          ),
-                        )),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                formatClockDigitsUrdu(entry.time),
+                textDirection: TextDirection.ltr,
+                style: _onSky(14, weight: FontWeight.w800, digits: true, height: 1, color: upcoming ? gold : Colors.white),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 1),
+            SizedBox(
+              height: 11,
+              child: Center(
+                child: active
+                    ? const _NowTag()
+                    : (left == null
+                        ? const SizedBox.shrink()
+                        : FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              formatCountdownClock(left),
+                              style: _onSky(9, weight: FontWeight.w700, color: gold, digits: true),
+                            ),
+                          )),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1033,7 +1032,7 @@ class _TasbeehDialState extends State<_TasbeehDial> {
                 ),
                 // The wird, along the top of the dial. Tap it to change it.
                 Positioned(
-                  top: diameter * 0.085,
+                  top: diameter * 0.065,
                   left: diameter * 0.22,
                   right: diameter * 0.22,
                   child: Tooltip(
@@ -1102,21 +1101,32 @@ class _TasbeehDialState extends State<_TasbeehDial> {
                   ),
                 ),
                 Positioned(
-                  left: diameter * 0.16,
-                  right: diameter * 0.16,
-                  top: radius + bead / 2 + diameter * 0.045,
+                  left: diameter * 0.14,
+                  right: diameter * 0.14,
+                  top: diameter * 0.855,
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
-                    child: Text(
-                      'آج: ${formatCount(controller.dailyTotal)}  •  ${target == 0 ? 'لامحدود' : '/ ${formatCount(target)}'}',
-                      maxLines: 1,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       textDirection: TextDirection.rtl,
-                      style: TextStyle(
-                        fontFamily: kUrduFont,
-                        fontSize: 11.5,
-                        height: 1.3,
-                        color: palette.metalInk.withValues(alpha: 0.8),
-                      ),
+                      children: <Widget>[
+                        Text('آج', style: TextStyle(fontFamily: kUrduFont, fontSize: 11, height: 1.3, color: palette.metalInk)),
+                        const SizedBox(width: 4),
+                        Text(
+                          formatCount(controller.dailyTotal),
+                          textDirection: TextDirection.ltr,
+                          style: TextStyle(fontFamily: kDigitFont, fontSize: 11, height: 1.1, color: palette.metalInk),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 7),
+                          child: Container(width: 2, height: 2, decoration: BoxDecoration(color: palette.gold, shape: BoxShape.circle)),
+                        ),
+                        Text(
+                          target == 0 ? 'لامحدود' : '${formatCount(controller.count)} / ${formatCount(target)}',
+                          textDirection: target == 0 ? TextDirection.rtl : TextDirection.ltr,
+                          style: TextStyle(fontFamily: target == 0 ? kUrduFont : kDigitFont, fontSize: 11, height: 1.1, color: palette.metalInk),
+                        ),
+                      ],
                     ),
                   ),
                 ),
