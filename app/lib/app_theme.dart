@@ -189,6 +189,7 @@ class DashboardPalette {
     required this.onDarkMuted,
     required this.moment,
     required this.momentInk,
+    required this.search,
     required this.plum,
     required this.metal,
     required this.metalInk,
@@ -217,6 +218,10 @@ class DashboardPalette {
   /// The amber "moment" card.
   final Gradient moment;
   final Color momentInk;
+
+  /// The search bar: the emerald of the daily utilities, so the bar reads as
+  /// part of the same family as the prayer card and the tasbeeh.
+  final Gradient search;
 
   /// The rail and the dial's inner bead.
   final Gradient plum;
@@ -251,6 +256,11 @@ class DashboardPalette {
       colors: <Color>[Color(0xFFF3A93C), Color(0xFFD97E12)],
     ),
     momentInk: Color(0xFF4A2A05),
+    search: LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: <Color>[Color(0xFF1E7A5E), Color(0xFF0E3B34)],
+    ),
     plum: LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
@@ -284,6 +294,11 @@ class DashboardPalette {
       colors: <Color>[Color(0xFFD08A20), Color(0xFF9E5C08)],
     ),
     momentInk: Color(0xFF2A1703),
+    search: LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: <Color>[Color(0xFF17513F), Color(0xFF0A2B22)],
+    ),
     plum: LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,

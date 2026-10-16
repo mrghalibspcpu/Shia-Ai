@@ -36,7 +36,7 @@ import 'sky_backdrop.dart';
 /// The design canvas. All the numbers below are the approved design's
 /// measurements: the whole screen is one drawing, never a re-flow.
 const double _canvasWidth = 352;
-const double _canvasHeight = 594;
+const double _canvasHeight = 610;
 const double _pad = 6;
 const double _gap = 8;
 const double _rowGap = 10;
@@ -339,12 +339,16 @@ class HomeDashboard extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: <Widget>[
-                          Expanded(child: _leftColumn(context)),
-                          const SizedBox(width: _gap),
+                          // The row runs right to left (the app is RTL): the
+                          // design's right column first, then the wide column
+                          // that carries the rail, the prayer card, the dial
+                          // and the search bar.
                           SizedBox(
                             width: _rightWidth,
                             child: _sectionColumn(context),
                           ),
+                          const SizedBox(width: _gap),
+                          Expanded(child: _leftColumn(context)),
                         ],
                       ),
                     ),
@@ -368,9 +372,9 @@ class HomeDashboard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              const SizedBox(width: _railWidth, child: _TitleRail()),
-              const SizedBox(width: _gap),
               Expanded(child: _MiniPrayerCard()),
+              const SizedBox(width: _gap),
+              const SizedBox(width: _railWidth, child: _TitleRail()),
             ],
           ),
         ),
@@ -807,16 +811,22 @@ class _MomentCardState extends State<_MomentCard> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
-                    Text(
-                      line.arabic,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textDirection: TextDirection.rtl,
-                      style: TextStyle(
-                        fontFamily: kArabicFont,
-                        fontSize: 12.5,
-                        height: 1.35,
-                        color: palette.momentInk,
+                    // One line always: a short ayah is still longer than the
+                    // card on a small phone, so it scales down instead of
+                    // clipping half a word.
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(
+                        line.arabic,
+                        maxLines: 1,
+                        textDirection: TextDirection.rtl,
+                        style: TextStyle(
+                          fontFamily: kArabicFont,
+                          fontSize: 12.5,
+                          height: 1.35,
+                          color: palette.momentInk,
+                        ),
                       ),
                     ),
                     Text(
@@ -1349,7 +1359,7 @@ class _SearchPill extends StatelessWidget {
           onTap: onTap,
           child: Ink(
             decoration: BoxDecoration(
-              gradient: palette.plum,
+              gradient: palette.search,
               borderRadius: BorderRadius.circular(height / 2),
               border: Border.all(color: palette.gold, width: 1.2),
               boxShadow: <BoxShadow>[
@@ -1360,21 +1370,7 @@ class _SearchPill extends StatelessWidget {
               padding: const EdgeInsets.all(4),
               child: Row(
                 children: <Widget>[
-                  Container(
-                    width: height - 8,
-                    height: height - 8,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: <Color>[palette.goldSoft, palette.gold],
-                      ),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
-                    ),
-                    child: const Icon(Icons.search_rounded, size: 19, color: Color(0xFF3A2708)),
-                  ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Expanded(
                     child: Container(
                       height: height - 8,
@@ -1397,6 +1393,21 @@ class _SearchPill extends StatelessWidget {
                         ),
                       ),
                     ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    width: height - 8,
+                    height: height - 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: <Color>[palette.goldSoft, palette.gold],
+                      ),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
+                    ),
+                    child: const Icon(Icons.search_rounded, size: 19, color: Color(0xFF3A2708)),
                   ),
                 ],
               ),
