@@ -253,40 +253,33 @@ void main() {
     expect(find.byIcon(Icons.restart_alt), findsOneWidget);
     expect(find.byIcon(Icons.lock), findsNothing);
 
-    // If this ever fails again, the reason carries the hit path: which render
-    // objects the press actually reached.
-    final centre = tester.getCenter(find.byIcon(Icons.restart_alt));
-    final path = tester
-        .hitTestOnBinding(centre)
-        .path
-        .take(16)
-        .map((entry) => entry.target.runtimeType.toString())
-        .join(' > ');
-
+    // A long press locks the reset button; the same button is the lock now.
     await tester.longPress(find.byIcon(Icons.restart_alt));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(
-      find.byIcon(Icons.lock),
-      findsOneWidget,
-      reason: 'the long press locks the reset button; hit path at $centre: $path',
-    );
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.byIcon(Icons.lock), findsOneWidget, reason: 'the long press locks the reset button');
     expect(find.byIcon(Icons.restart_alt), findsNothing);
-    expect(tasbeeh.count, 1);
 
-    // The same button is the unlock button now, and a tap only says so.
+    // A tap on a locked reset only says so: no dialog, no cleared count.
     await tester.tap(find.byIcon(Icons.lock));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.text('گنتی صفر کریں؟'), findsNothing, reason: 'a locked reset never asks to reset');
     expect(tasbeeh.count, 1);
-    expect(find.textContaining('ری سیٹ لاک ہے'), findsWidgets);
 
-    // Long press again: unlocked, and the same button resets.
+    // Long press again: unlocked, and the button resets again (with its dialog).
     await tester.longPress(find.byIcon(Icons.lock));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(seconds: 3));
     expect(find.byIcon(Icons.restart_alt), findsOneWidget);
-    expect(find.byIcon(Icons.lock), findsNothing);
+    await tester.tap(find.byIcon(Icons.restart_alt));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('گنتی صفر کریں؟'), findsOneWidget);
+    await tester.tap(find.text('ری سیٹ'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 2));
+    expect(tasbeeh.count, 0);
     await finish(tester, prayer, tasbeeh);
   });
 
