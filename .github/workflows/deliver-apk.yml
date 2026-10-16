@@ -3,13 +3,16 @@ name: Deliver APK
 # Fetches the APK already published on the app-v* release, zips it, and
 # stores the zip as a git blob. Sandboxed tooling that can only reach
 # api.github.com can then download the exact bytes through the blobs API.
+#
+# Trigger: push a new tag name into .github/apk-delivery-request (the
+# workflow_dispatch route needs the file on the default branch, which the
+# working branch must not touch).
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: The app release tag whose APK to deliver
-        default: app-v1.12.1
-        required: true
+  push:
+    branches: ['arena/**']
+    paths:
+      - .github/workflows/deliver-apk.yml
+      - .github/apk-delivery-request
 
 permissions:
   contents: write
@@ -19,17 +22,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
       - name: Download, zip, and stage the APK as a git blob
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          mkdir -p work && cd work
+          TAG=$(tr -d ' \r\n' < .github/apk-delivery-request)
+          mkdir -p /tmp/work && cd /tmp/work
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.apk'
           apk=$(ls *.apk)
-          zip -9 "${apk%.apk}-apk.zip" "$apk"
           zipfile="${apk%.apk}-apk.zip"
+          zip -9 "$zipfile" "$apk"
           echo "apk sha256   : $(sha256sum "$apk" | cut -d' ' -f1)"
           echo "zip sha256   : $(sha256sum "$zipfile" | cut -d' ' -f1)"
           echo "zip size     : $(stat -c%s "$zipfile") bytes"
