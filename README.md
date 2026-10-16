@@ -10,7 +10,10 @@ Chapter names have their own parchment card wallpaper, Nahj al-Balagha shows
 **خطبات**, and the three-dimensional Qibla rose points with a Kaaba PNG.
 See [`docs/visual-mushaf-1-13.md`](docs/visual-mushaf-1-13.md) for behaviour,
 preservation and checks. The Android workflow builds and publishes the signed
-APK/ZIP as a pre-release (`app-v1.13.0`).
+APK/ZIP as a pre-release (`app-v1.13.1`). The 1.13.1 release is gated by
+APK signature verification plus a real Android emulator clean-install and
+launch test before the download is published. CI also checks that extracting
+the ZIP gives the exact same APK that passed the installation test.
 
 An offline Shia study library for Android: the Quran with Urdu translation and
 tafseer notes, Mafatih al-Jinan, Nahj al-Balagha, and the 14-book Urdu/Arabic
