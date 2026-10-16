@@ -187,19 +187,25 @@ class HomeDockBar extends StatelessWidget {
           maxScaleFactor: 1.1,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(6, 10, 6, 10),
-            child: Row(
-              children: <Widget>[
-                for (final item in HomeDockItem.values)
-                  Expanded(
-                    child: Center(
-                      child: _DockSquare(
-                        item: item,
-                        selected: item == selected,
-                        onTap: () => onSelected(item),
+            // The Row's height is the button's, spelled out: a Scaffold hands
+            // its bottom bar the whole screen as loose constraints, and a
+            // Center inside that would stretch the panel over the dashboard.
+            child: SizedBox(
+              height: squareSize,
+              child: Row(
+                children: <Widget>[
+                  for (final item in HomeDockItem.values)
+                    Expanded(
+                      child: Center(
+                        child: _DockSquare(
+                          item: item,
+                          selected: item == selected,
+                          onTap: () => onSelected(item),
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
