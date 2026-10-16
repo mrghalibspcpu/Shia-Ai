@@ -523,7 +523,7 @@ void main() {
     await settle(tester);
     final marker = tester.widget<Image>(find.byKey(const ValueKey<String>('qibla-kaaba-marker')));
     final resized = marker.image as ResizeImage;
-    expect((resized.image as AssetImage).assetName, 'assets/images/kaaba_icon.png');
+    expect((resized.imageProvider as AssetImage).assetName, 'assets/images/kaaba_icon.png');
     expect(tester.takeException(), isNull);
     await shoot(tester, 'qibla-3d');
     await finish(tester, prayer, tasbeeh);
