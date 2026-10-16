@@ -35,3 +35,6 @@ app/android/.gradle/
 app/android/local.properties
 app/android/app/key.properties
 app/android/app/owner-release-key.jks
+
+# Delivered APK zips (build outputs, never committed).
+ShiaVerse-*-apk.zip
