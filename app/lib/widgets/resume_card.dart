@@ -72,12 +72,21 @@ class LastReadTile extends StatelessWidget {
     this.margin = const EdgeInsets.only(bottom: 10),
     this.showBookName = true,
     this.onOpened,
+    this.onBeforeOpen,
+    this.openContext,
   });
 
   final LibraryRepository library;
   final LastReadEntry entry;
   final String title;
   final EdgeInsetsGeometry margin;
+
+  /// Runs first on tap, before the reader opens (a sheet closes here).
+  final VoidCallback? onBeforeOpen;
+
+  /// Where the reader is opened from. A sheet passes the page underneath, since
+  /// its own context is gone once the sheet has closed.
+  final BuildContext? openContext;
 
   /// False when the caller already prints the book name as the title.
   final bool showBookName;
@@ -103,7 +112,8 @@ class LastReadTile extends StatelessWidget {
         subtitle: JustifiedText(subtitle, maxLines: 2),
         trailing: const Icon(Icons.chevron_left),
         onTap: () async {
-          await openLastRead(context, library, entry);
+          onBeforeOpen?.call();
+          await openLastRead(openContext ?? context, library, entry);
           onOpened?.call();
         },
       ),

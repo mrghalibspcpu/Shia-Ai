@@ -136,6 +136,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
           : ListView(
               padding: const EdgeInsets.fromLTRB(18, 8, 18, 36),
               children: [
+                const _SectionTitle('ڈیٹا'),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.download_rounded),
+                    title: const JustifiedText(
+                      'ڈاؤن لوڈ اور انسٹال',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: const JustifiedText(
+                      'کتابیں ڈاؤن لوڈ اور انسٹال کریں، یا انسٹال شدہ ڈیٹا دیکھیں',
+                      maxLines: 2,
+                    ),
+                    trailing: const Icon(Icons.chevron_left),
+                    onTap: () {
+                      Navigator.of(context)
+                          .push(MaterialPageRoute<void>(
+                            builder: (_) => DataScreen(
+                              library: widget.library,
+                              installer: widget.installer,
+                            ),
+                          ))
+                          .then((_) {
+                        if (mounted) setState(() {});
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
                 const _SectionTitle('مطالعہ'),
                 SegmentedButton<ThemeMode>(
                   segments: const [

@@ -42,6 +42,9 @@ Future<void> showLastSeenSheet(
 }) async {
   final entries = await loadLastSeenEntries(library);
   if (!context.mounted) return;
+  // The page that opened the sheet stays mounted under it, so the reader can be
+  // opened from there once the sheet is gone.
+  final hostContext = context;
   await showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -77,12 +80,14 @@ Future<void> showLastSeenSheet(
                 entry: entry,
                 title: entry.book?.titleUrdu ?? 'آخری مطالعہ',
                 showBookName: false,
-                // The reader was opened from the sheet, so the sheet goes away
-                // with it and the stack stays tidy.
-                onOpened: () {
+                // The sheet closes first, then the reader opens from the page
+                // underneath. Opening it while the sheet was still up left the
+                // sheet on the stack and the reader blank after returning.
+                onBeforeOpen: () {
                   if (sheetContext.mounted) Navigator.of(sheetContext).pop();
-                  onOpened?.call();
                 },
+                openContext: hostContext,
+                onOpened: onOpened,
               ),
           ],
         ),

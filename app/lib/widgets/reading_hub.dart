@@ -8,11 +8,11 @@ import '../app_theme.dart';
 /// The five things the bottom panel can do. The order is the panel's order
 /// (right to left, as an Urdu reader starts), and the radial menu uses it too.
 enum HubDestination {
-  books('کتب', Icons.menu_book_rounded, Color(0xFF145B45)),
+  home('Home', Icons.home_rounded, Color(0xFF145B45)),
   search('تلاش', Icons.search_rounded, Color(0xFF2F6FD6)),
-  lastSeen('آخری مطالعہ', Icons.history_rounded, Color(0xFFE08A1E)),
-  qibla('قبلہ نما', Icons.explore_rounded, Color(0xFF00897B)),
-  download('ڈاؤن لوڈ', Icons.download_rounded, Color(0xFF7B4FD0));
+  bookmarks('محفوظات', Icons.bookmark_rounded, Color(0xFFD9466B)),
+  more('مزید خصوصیات', Icons.apps_rounded, Color(0xFFE08A1E)),
+  settings('ترتیبات', Icons.settings_rounded, Color(0xFF5C6BC0));
 
   const HubDestination(this.label, this.icon, this.color);
 
@@ -65,28 +65,19 @@ class ReadingDepthObserver extends NavigatorObserver {
   }
 }
 
-/// The bottom panel on the home screen: five buttons on a white bar.
+/// The bottom panel: five buttons on a pure black bar, each a rounded square.
+/// Home and تلاش are tabs; the other three open pages or a sheet.
 class HomeDock extends StatelessWidget {
   const HomeDock({super.key, required this.selected, required this.onSelected});
 
-  /// The tab in front (books or search); the other three are actions.
+  /// The tab in front (home or search).
   final HubDestination selected;
   final ValueChanged<HubDestination> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.10),
-            blurRadius: 18,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
+    return ColoredBox(
+      color: Colors.black,
       child: SafeArea(
         top: false,
         child: Padding(
@@ -108,6 +99,9 @@ class HomeDock extends StatelessWidget {
     );
   }
 }
+
+/// Icon size of a dock button: a 46px rounded square (radius 14).
+const double kDockIconSize = 46;
 
 class _DockButton extends StatelessWidget {
   const _DockButton({
@@ -137,15 +131,15 @@ class _DockButton extends StatelessWidget {
             children: <Widget>[
               AnimatedContainer(
                 duration: const Duration(milliseconds: 220),
-                width: 44,
-                height: 44,
+                width: kDockIconSize,
+                height: kDockIconSize,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: selected ? color : color.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(14),
+                  color: selected ? color : color.withValues(alpha: 0.22),
                 ),
                 child: Icon(
                   destination.icon,
-                  size: 22,
+                  size: 24,
                   color: selected ? Colors.white : color,
                 ),
               ),
@@ -158,7 +152,7 @@ class _DockButton extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                    color: selected ? color : Colors.black87,
+                    color: selected ? Colors.white : Colors.white70,
                   ),
                 ),
               ),
@@ -482,7 +476,8 @@ class _HubItem extends StatelessWidget {
                     destination.label,
                     maxLines: 1,
                     style: const TextStyle(
-                      fontSize: 12.5,
+                      fontFamily: kUrduFont,
+                      fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF1D2925),
                     ),

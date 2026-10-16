@@ -160,6 +160,33 @@ The code lives in `app/lib/widgets/reading_hub.dart` (the panel, the hub and the
 page counter) and `app/lib/widgets/last_seen_sheet.dart` (the last-seen list).
 See [`docs/home-dock-1-10.md`](docs/home-dock-1-10.md).
 
+## Dock, More Features, and the home sections (1.10.1)
+
+- **Bottom panel, five buttons on black.** Home (renamed from کتب), تلاش,
+  محفوظات, مزید خصوصیات and ترتیبات. The bar is pure black and every icon is a
+  rounded square. Home and تلاش are tabs; the other three open a page or a sheet.
+- **مزید خصوصیات** is a sheet of extra features. It holds قبلہ نما and آخری
+  مطالعہ now. A new extra is one more `MoreFeature` in `_moreFeatures` in
+  `app/lib/main.dart`; `app/lib/widgets/more_features.dart` does the rest.
+- **Download is in Settings.** ترتیبات opens with a ڈیٹا section that opens the
+  download screen.
+- **Home sections, in order:** قرآنِ کریم, احادیث, مفاتیح الجنان و صحیفہ سجادیہ,
+  نہج البلاغہ, دینی مسائل (احکام و فتاویٰ). Each is a full-width card. احادیث
+  opens `HadithBooksScreen`, which holds the hadith book grid.
+- **Last-seen fix.** Opening an entry from آخری مطالعہ now closes the sheet
+  first, then opens the reader from the page underneath. Before, the sheet stayed
+  on the stack under the reader, and returning through the radial menu left the
+  home screen blank until the app was reopened.
+- **Radial menu text** uses Jameel Noori Nastaleeq.
+- **Circular mini tasbeeh.** The card is a 290 px circle with the count ring at
+  its centre.
+- **Prayer card.** Centred layout. The place name and its detail fade out 10
+  seconds after the home opens; the pin stays.
+- **Icon** replaced with the new ShiaVerse artwork (`app/ShiaVerseIcon.png`).
+- **Marja portraits** in فتاویٰ have square corners.
+
+See [`docs/home-1-10-1.md`](docs/home-1-10-1.md).
+
 ## App name and icon
 
 The launcher label and the in-app title are **ShiaVerse**. The icon artwork is

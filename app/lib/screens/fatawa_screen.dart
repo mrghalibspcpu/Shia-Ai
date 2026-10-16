@@ -167,9 +167,8 @@ class _MarjaPortrait extends StatelessWidget {
       return Container(
         width: 84,
         height: 104,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          gradient: const LinearGradient(colors: [kForestDark, kForest]),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(colors: [kForestDark, kForest]),
         ),
         child: const Icon(Icons.menu_book, color: Colors.white, size: 34),
       );
@@ -178,7 +177,6 @@ class _MarjaPortrait extends StatelessWidget {
       width: 84,
       height: 104,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: kGold.withValues(alpha: 0.55), width: 1.2),
       ),
       clipBehavior: Clip.antiAlias,

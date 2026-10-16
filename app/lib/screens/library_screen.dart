@@ -13,7 +13,6 @@ import '../widgets/reader_kit.dart';
 import '../widgets/resume_card.dart';
 import 'balagha_screen.dart';
 import 'dua_collection_screen.dart';
-import 'duas_screen.dart';
 import 'fatawa_screen.dart';
 import 'quran_screen.dart';
 
@@ -22,14 +21,10 @@ class LibraryHomeScreen extends StatefulWidget {
     super.key,
     required this.library,
     this.onOpenData,
-    this.onOpenSettings,
   });
 
   final LibraryRepository library;
   final VoidCallback? onOpenData;
-
-  /// Opens the settings screen (the bottom panel has no room for it).
-  final VoidCallback? onOpenSettings;
 
   @override
   State<LibraryHomeScreen> createState() => _LibraryHomeScreenState();
@@ -47,8 +42,9 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
   }
 
   Widget _buildHome(BuildContext context) {
-    // No top bar. Download, last seen, Qibla, search and the books tab live in
-    // the bottom panel; the page is the prayer card, the tasbeeh and the library.
+    // No top bar. Home, search, bookmarks, more features and settings live in
+    // the bottom panel; the page is the prayer card, the tasbeeh and the five
+    // sections in order.
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -63,80 +59,108 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
             // The circular mini tasbeeh, at a fixed height.
             const HomeUtilityRow(),
             _IndexingBanner(library: widget.library),
-            const SizedBox(height: 12),
-            _ShelfActions(
-              onOpenSaved: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => SavedItemsScreen(library: widget.library),
-              )),
-              onOpenSettings: widget.onOpenSettings,
-            ),
-            const SizedBox(height: 22),
-            const _SectionHeader('قرآن، دعائیں، فتاویٰ اور نہج البلاغہ'),
-            const SizedBox(height: 10),
-            _CollectionsRow(library: widget.library, onOpenData: widget.onOpenData),
-            const SizedBox(height: 22),
-            const _SectionHeader('کتبِ احادیث'),
-            const SizedBox(height: 10),
-            GridView.builder(
-              key: const PageStorageKey('hadith-grid'),
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: BookDefinition.hadithBooks.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.94,
-              ),
-              itemBuilder: (context, index) {
-                final book = BookDefinition.hadithBooks[index];
-                final installed = widget.library.isInstalled(book);
-                return _BookCard(
-                  book: book,
-                  installed: installed,
-                  onTap: () {
-                    if (!installed) {
-                      widget.onOpenData?.call();
-                      return;
-                    }
-                    Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => ChapterListScreen(library: widget.library, book: book),
-                    ));
-                  },
-                );
-              },
-            ),
+            const SizedBox(height: 14),
+            ..._homeSections(context),
           ],
         ),
       ),
     );
   }
+
+  /// The five home sections, in reading order: قرآن، احادیث، دعائیں،
+  /// نہج البلاغہ، دینی مسائل. Each is one full-width card.
+  List<Widget> _homeSections(BuildContext context) {
+    final library = widget.library;
+    final onOpenData = widget.onOpenData;
+    final quran = BookDefinition.bookFor(CorpusSource.quran)!;
+    final nahj = BookDefinition.bookFor(CorpusSource.balagha)!;
+    final quranReady = library.isInstalled(quran);
+    final nahjReady = library.isInstalled(nahj);
+    final hadithReady = BookDefinition.hadithBooks.any(library.isInstalled);
+    final duaReady = duaCollectionBooks.any(library.isInstalled);
+    final fatawaReady = fatawaBooks.any(library.isInstalled);
+
+    void push(Widget page) {
+      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
+    }
+
+    final cards = <Widget>[
+      _HomeSectionCard(
+        title: quran.titleUrdu,
+        subtitle: quranReady ? quran.description : 'ابھی نصب نہیں — ڈاؤن لوڈ کریں',
+        icon: Icons.menu_book_rounded,
+        color: bookAccent(quran),
+        installed: quranReady,
+        onTap: () {
+          if (quranReady) {
+            push(QuranHomeScreen(library: library));
+          } else {
+            onOpenData?.call();
+          }
+        },
+      ),
+      _HomeSectionCard(
+        title: 'احادیث',
+        subtitle: hadithReady
+            ? 'کتبِ احادیث کا مجموعہ'
+            : 'ابھی نصب نہیں — ڈاؤن لوڈ کریں',
+        icon: Icons.format_quote_rounded,
+        color: const Color(0xFF2F6FD6),
+        installed: hadithReady,
+        onTap: () {
+          if (hadithReady) {
+            push(HadithBooksScreen(library: library, onOpenData: onOpenData));
+          } else {
+            onOpenData?.call();
+          }
+        },
+      ),
+      _HomeSectionCard(
+        title: kDuaCollectionTitle,
+        subtitle: duaReady ? kDuaCollectionSubtitle : 'ابھی نصب نہیں — ڈاؤن لوڈ کریں',
+        icon: Icons.mosque,
+        color: const Color(0xFFB8860B),
+        installed: duaReady,
+        onTap: () => push(DuaCollectionScreen(library: library, onOpenData: onOpenData)),
+      ),
+      _HomeSectionCard(
+        title: nahj.titleUrdu,
+        subtitle: nahjReady ? nahj.description : 'ابھی نصب نہیں — ڈاؤن لوڈ کریں',
+        icon: Icons.auto_stories,
+        color: const Color(0xFF6D4C41),
+        installed: nahjReady,
+        onTap: () {
+          if (nahjReady) {
+            push(BalaghaHomeScreen(library: library));
+          } else {
+            onOpenData?.call();
+          }
+        },
+      ),
+      _HomeSectionCard(
+        title: kFatawaCollectionTitle,
+        subtitle: fatawaReady ? kFatawaCollectionSubtitle : 'ابھی نصب نہیں — ڈاؤن لوڈ کریں',
+        icon: Icons.gavel_rounded,
+        color: const Color(0xFF6B4E9B),
+        installed: fatawaReady,
+        onTap: () => push(FatawaCollectionScreen(library: library, onOpenData: onOpenData)),
+      ),
+    ];
+    return <Widget>[
+      for (final card in cards) ...<Widget>[card, const SizedBox(height: 12)],
+    ];
+  }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.title);
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) => JustifiedText(
-        title,
-        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-      );
-}
-
-/// One card in the home row: a single collection, the combined دینی مسائل
-/// tile that opens the marja picker, or the combined Mafatih + Sahifa tile.
-class _CollectionEntry {
-  const _CollectionEntry({
+/// One home section: a full-width card with its icon, title and one line.
+class _HomeSectionCard extends StatelessWidget {
+  const _HomeSectionCard({
     required this.title,
     required this.subtitle,
     required this.icon,
     required this.color,
     required this.installed,
-    this.book,
-    this.combined = false,
-    this.duaCombined = false,
+    required this.onTap,
   });
 
   final String title;
@@ -144,146 +168,48 @@ class _CollectionEntry {
   final IconData icon;
   final Color color;
   final bool installed;
-  final BookDefinition? book;
-
-  /// True for the shared fatawa tile (two marjas behind one card).
-  final bool combined;
-
-  /// True for the shared دعائیں tile (Mafatih al-Jinan and Sahifa Sajjadiyya).
-  final bool duaCombined;
-}
-
-class _CollectionsRow extends StatelessWidget {
-  const _CollectionsRow({required this.library, this.onOpenData});
-
-  final LibraryRepository library;
-  final VoidCallback? onOpenData;
-
-  List<_CollectionEntry> _entries() {
-    final fatawa = fatawaBooks;
-    final ready = fatawa.where(library.isInstalled).length;
-    final duaReady = duaCollectionBooks.where(library.isInstalled).length;
-    return <_CollectionEntry>[
-      _CollectionEntry(
-        title: kFatawaCollectionTitle,
-        subtitle: ready == 0
-            ? 'فتاویٰ — ابھی نصب نہیں، ڈاؤن لوڈ کریں'
-            : kFatawaCollectionSubtitle,
-        icon: Icons.gavel_rounded,
-        color: const Color(0xFF6B4E9B),
-        installed: ready > 0,
-        combined: true,
-      ),
-      _CollectionEntry(
-        title: kDuaCollectionTitle,
-        subtitle: duaReady == 0
-            ? 'دعائیں — ابھی نصب نہیں، ڈاؤن لوڈ کریں'
-            : kDuaCollectionSubtitle,
-        icon: Icons.mosque,
-        color: kGold,
-        installed: duaReady > 0,
-        duaCombined: true,
-      ),
-      for (final book in featuredCollections)
-        _CollectionEntry(
-          title: book.titleUrdu,
-          subtitle: library.isInstalled(book) ? book.description : 'ابھی نصب نہیں — ڈاؤن لوڈ کریں',
-          icon: switch (book.source) {
-            CorpusSource.quran => Icons.menu_book,
-            CorpusSource.dua => Icons.mosque,
-            CorpusSource.balagha => Icons.auto_stories,
-            _ => Icons.auto_stories,
-          },
-          color: bookAccent(book),
-          installed: library.isInstalled(book),
-          book: book,
-        ),
-    ];
-  }
-
-  void _open(BuildContext context, _CollectionEntry entry) {
-    if (entry.combined) {
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => FatawaCollectionScreen(library: library, onOpenData: onOpenData),
-      ));
-      return;
-    }
-    if (entry.duaCombined) {
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => DuaCollectionScreen(library: library, onOpenData: onOpenData),
-      ));
-      return;
-    }
-    final book = entry.book;
-    if (book == null) return;
-    if (!library.isInstalled(book)) {
-      onOpenData?.call();
-      return;
-    }
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => switch (book.source) {
-        CorpusSource.quran => QuranHomeScreen(library: library),
-        CorpusSource.dua => DuasHomeScreen(library: library),
-        CorpusSource.balagha => BalaghaHomeScreen(library: library),
-        CorpusSource.sahifa || CorpusSource.fatwa || CorpusSource.hadith =>
-          ChapterListScreen(library: library, book: book),
-      },
-    ));
-  }
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final collections = _entries();
-    return SizedBox(
-      height: 158,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        reverse: true,
-        itemCount: collections.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final entry = collections[index];
-          return SizedBox(
-            width: 190,
-            child: Card(
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => _open(context, entry),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          _IconBadge(icon: entry.icon, color: entry.color),
-                          const Spacer(),
-                          if (!entry.installed)
-                            Icon(Icons.download, size: 16, color: Theme.of(context).colorScheme.error),
-                        ],
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: <Widget>[
+              _IconBadge(icon: icon, color: color, size: 52),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    JustifiedText(
+                      title,
+                      style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 4),
+                    JustifiedText(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
-                      const Spacer(),
-                      JustifiedText(
-                        entry.title,
-                        style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
-                        maxLines: 2,
-                      ),
-                      const SizedBox(height: 4),
-                      JustifiedText(
-                        entry.subtitle,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        maxLines: 2,
-                      ),
-                    ],
-                  ),
+                      maxLines: 2,
+                    ),
+                  ],
                 ),
               ),
-            ),
-          );
-        },
+              const SizedBox(width: 8),
+              installed
+                  ? const Icon(Icons.chevron_left)
+                  : Icon(Icons.download_rounded, color: Theme.of(context).colorScheme.error),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -426,82 +352,6 @@ class _IconBadge extends StatelessWidget {
 }
 
 /// Bookmarks and settings: the two things the bottom panel does not carry.
-class _ShelfActions extends StatelessWidget {
-  const _ShelfActions({required this.onOpenSaved, this.onOpenSettings});
-
-  final VoidCallback onOpenSaved;
-  final VoidCallback? onOpenSettings;
-
-  @override
-  Widget build(BuildContext context) {
-    final openSettings = onOpenSettings;
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: _ShelfButton(
-            icon: Icons.bookmark_rounded,
-            label: 'محفوظات اور نوٹس',
-            color: const Color(0xFFD9466B),
-            onTap: onOpenSaved,
-          ),
-        ),
-        if (openSettings != null) ...<Widget>[
-          const SizedBox(width: 12),
-          Expanded(
-            child: _ShelfButton(
-              icon: Icons.settings_rounded,
-              label: 'ترتیبات',
-              color: const Color(0xFF5C6BC0),
-              onTap: openSettings,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _ShelfButton extends StatelessWidget {
-  const _ShelfButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          child: Row(
-            children: <Widget>[
-              _IconBadge(icon: icon, color: color, size: 36),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _BookCard extends StatelessWidget {
   const _BookCard({required this.book, required this.onTap, this.installed = true});
 
@@ -559,6 +409,53 @@ class _BookCard extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The احادیث section: every hadith book as a card in a two-column grid.
+class HadithBooksScreen extends StatelessWidget {
+  const HadithBooksScreen({super.key, required this.library, this.onOpenData});
+
+  final LibraryRepository library;
+  final VoidCallback? onOpenData;
+
+  @override
+  Widget build(BuildContext context) {
+    final books = BookDefinition.hadithBooks;
+    return Scaffold(
+      appBar: AppBar(title: const JustifiedText('احادیث')),
+      body: ValueListenableBuilder<int>(
+        valueListenable: library.catalogVersion,
+        builder: (context, _, __) => GridView.builder(
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+          key: const PageStorageKey('hadith-grid'),
+          itemCount: books.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 0.94,
+          ),
+          itemBuilder: (context, index) {
+            final book = books[index];
+            final installed = library.isInstalled(book);
+            return _BookCard(
+              book: book,
+              installed: installed,
+              onTap: () {
+                if (!installed) {
+                  onOpenData?.call();
+                  return;
+                }
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => ChapterListScreen(library: library, book: book),
+                ));
+              },
+            );
+          },
         ),
       ),
     );

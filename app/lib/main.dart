@@ -18,6 +18,7 @@ import 'services/prayer_controller.dart';
 import 'services/prayer_scope.dart';
 import 'services/tasbeeh_controller.dart';
 import 'widgets/last_seen_sheet.dart';
+import 'widgets/more_features.dart';
 import 'widgets/reading_hub.dart';
 
 /// Set once the 1.10 light-by-default rule has run on this phone.
@@ -175,32 +176,54 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
     final homeContext = _homeShellKey.currentContext;
     if (navigator == null || homeContext == null) return;
     switch (destination) {
-      case HubDestination.books:
+      case HubDestination.home:
         navigator.popUntil((route) => route.isFirst);
-        _homeShellKey.currentState?.selectTab(0);
+        final shell = _homeShellKey.currentState;
+        shell?.selectTab(0);
+        shell?.refresh();
       case HubDestination.search:
         if (navigator.canPop()) {
           unawaited(navigator.push(MaterialPageRoute<void>(
             builder: (_) => SearchScreen(
               library: _library,
-              onOpenData: () => _runHubAction(HubDestination.download),
+              onOpenData: () => unawaited(navigator.push(MaterialPageRoute<void>(
+                builder: (_) => DataScreen(library: _library, installer: _installer),
+              ))),
             ),
           )));
         } else {
           _homeShellKey.currentState?.selectTab(1);
         }
-      case HubDestination.lastSeen:
-        unawaited(showLastSeenSheet(homeContext, library: _library));
-      case HubDestination.qibla:
+      case HubDestination.bookmarks:
         unawaited(navigator.push(MaterialPageRoute<void>(
-          builder: (_) => const QiblaScreen(),
+          builder: (_) => SavedItemsScreen(library: _library),
         )));
-      case HubDestination.download:
-        unawaited(navigator.push(MaterialPageRoute<void>(
-          builder: (_) => DataScreen(library: _library, installer: _installer),
-        )));
+      case HubDestination.more:
+        unawaited(showMoreFeaturesSheet(homeContext, features: _moreFeatures(homeContext)));
+      case HubDestination.settings:
+        _homeShellKey.currentState?.openSettings();
     }
   }
+
+  /// The items of مزید خصوصیات. New extras are added here.
+  List<MoreFeature> _moreFeatures(BuildContext homeContext) => <MoreFeature>[
+        MoreFeature(
+          title: 'قبلہ نما',
+          subtitle: 'قبلہ کی سمت معلوم کریں',
+          icon: Icons.explore_rounded,
+          color: const Color(0xFF00897B),
+          onOpen: () => unawaited(_navigatorKey.currentState?.push(MaterialPageRoute<void>(
+            builder: (_) => const QiblaScreen(),
+          ))),
+        ),
+        MoreFeature(
+          title: 'آخری مطالعہ',
+          subtitle: 'جہاں سے پڑھنا چھوڑا تھا وہیں سے دوبارہ شروع کریں',
+          icon: Icons.history_rounded,
+          color: const Color(0xFFE08A1E),
+          onOpen: () => unawaited(showLastSeenSheet(homeContext, library: _library)),
+        ),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -395,7 +418,6 @@ class HomeShellState extends State<HomeShell> {
   late final Widget _libraryPage = LibraryHomeScreen(
     library: widget.library,
     onOpenData: openData,
-    onOpenSettings: openSettings,
   );
   late final Widget _searchPage =
       SearchScreen(library: widget.library, onOpenData: openData);
@@ -429,15 +451,21 @@ class HomeShellState extends State<HomeShell> {
     )));
   }
 
+  /// Rebuilds the home page. Used after returning from a deep page, so the
+  /// home never stays on a stale frame.
+  void refresh() {
+    if (mounted) setState(() {});
+  }
+
   void _onDockSelected(HubDestination destination) {
     switch (destination) {
-      case HubDestination.books:
+      case HubDestination.home:
         selectTab(0);
       case HubDestination.search:
         selectTab(1);
-      case HubDestination.lastSeen:
-      case HubDestination.qibla:
-      case HubDestination.download:
+      case HubDestination.bookmarks:
+      case HubDestination.more:
+      case HubDestination.settings:
         widget.onAction(destination);
     }
   }
@@ -463,7 +491,7 @@ class HomeShellState extends State<HomeShell> {
         ],
       ),
       bottomNavigationBar: HomeDock(
-        selected: _selectedIndex == 1 ? HubDestination.search : HubDestination.books,
+        selected: _selectedIndex == 1 ? HubDestination.search : HubDestination.home,
         onSelected: _onDockSelected,
       ),
     );

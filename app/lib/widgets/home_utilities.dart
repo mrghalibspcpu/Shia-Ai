@@ -31,6 +31,26 @@ class HomePrayerBanner extends StatefulWidget {
 class _HomePrayerBannerState extends State<HomePrayerBanner> {
   bool _offered = false;
 
+  /// The place name and its detail show for 10 seconds after the home opens,
+  /// then fade out. The pin stays, so the card keeps its shape.
+  static const Duration _placeVisibleFor = Duration(seconds: 10);
+  Timer? _placeTimer;
+  bool _showPlace = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _placeTimer = Timer(_placeVisibleFor, () {
+      if (mounted) setState(() => _showPlace = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _placeTimer?.cancel();
+    super.dispose();
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -146,7 +166,12 @@ class _HomePrayerBannerState extends State<HomePrayerBanner> {
                 ),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                  child: _MiniPrayerContent(controller: controller, schedule: schedule, now: now),
+                  child: _MiniPrayerContent(
+                    controller: controller,
+                    schedule: schedule,
+                    now: now,
+                    showPlace: _showPlace,
+                  ),
                 ),
               ),
             ),
@@ -183,11 +208,15 @@ class _MiniPrayerContent extends StatelessWidget {
     required this.controller,
     required this.schedule,
     required this.now,
+    required this.showPlace,
   });
 
   final PrayerController controller;
   final PrayerSchedule schedule;
   final DateTime now;
+
+  /// False once the place name has faded out (10 seconds after home opens).
+  final bool showPlace;
 
   @override
   Widget build(BuildContext context) {
@@ -196,48 +225,72 @@ class _MiniPrayerContent extends StatelessWidget {
     final next = schedule.nextEntry(now);
     final hijri = controller.hijriFor(now);
     const gold = Color(0xFFFFE1A1);
+    const fade = Duration(milliseconds: 700);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Row(
+        // Place, centred. The refresh button sits in the top corner, out of the
+        // way of the centred text.
+        Stack(
           children: <Widget>[
-            const Icon(Icons.place, size: 20, color: Colors.white),
-            const SizedBox(width: 4),
-            Expanded(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 36),
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => unawaited(openLocationPicker(context)),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    Text(
-                      controller.loadingLocation ? 'مقام تلاش کیا جا رہا ہے…' : location.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _onSky(17.5, weight: FontWeight.w800, height: 1.35),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        const Icon(Icons.place, size: 20, color: Colors.white),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: AnimatedOpacity(
+                            opacity: showPlace ? 1 : 0,
+                            duration: fade,
+                            child: Text(
+                              controller.loadingLocation ? 'مقام تلاش کیا جا رہا ہے…' : location.label,
+                              maxLines: 1,
+                              textAlign: TextAlign.center,
+                              overflow: TextOverflow.ellipsis,
+                              style: _onSky(17.5, weight: FontWeight.w800, height: 1.35),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     if (location.detail.isNotEmpty && !controller.loadingLocation)
-                      Text(
-                        location.detail,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: _onSky(12.5, alpha: 0.85, height: 1.3),
+                      AnimatedOpacity(
+                        opacity: showPlace ? 1 : 0,
+                        duration: fade,
+                        child: Text(
+                          location.detail,
+                          maxLines: 1,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          style: _onSky(12.5, alpha: 0.85, height: 1.3),
+                        ),
                       ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(width: 6),
-            _SkyButton(
-              icon: controller.loadingLocation
-                  ? Icons.sync
-                  : (controller.locationProblem != null ? Icons.location_disabled : Icons.my_location),
-              tooltip: controller.locationProblem?.messageUrdu ?? 'میرا موجودہ مقام معلوم کریں',
-              warning: controller.locationProblem != null && !controller.loadingLocation,
-              onTap: controller.loadingLocation
-                  ? null
-                  : () => unawaited(refreshLocationWithFeedback(context)),
+            PositionedDirectional(
+              top: 0,
+              end: 0,
+              child: _SkyButton(
+                icon: controller.loadingLocation
+                    ? Icons.sync
+                    : (controller.locationProblem != null ? Icons.location_disabled : Icons.my_location),
+                tooltip: controller.locationProblem?.messageUrdu ?? 'میرا موجودہ مقام معلوم کریں',
+                warning: controller.locationProblem != null && !controller.loadingLocation,
+                onTap: controller.loadingLocation
+                    ? null
+                    : () => unawaited(refreshLocationWithFeedback(context)),
+              ),
             ),
           ],
         ),
@@ -246,13 +299,14 @@ class _MiniPrayerContent extends StatelessWidget {
         Text(
           hijri.labelUrdu,
           maxLines: 1,
+          textAlign: TextAlign.center,
           overflow: TextOverflow.ellipsis,
           style: _onSky(14, weight: FontWeight.w800, color: gold),
         ),
         const SizedBox(height: 10),
         FittedBox(
           fit: BoxFit.scaleDown,
-          alignment: AlignmentDirectional.centerStart,
+          alignment: Alignment.center,
           child: Text.rich(
             TextSpan(
               children: <InlineSpan>[
@@ -271,6 +325,7 @@ class _MiniPrayerContent extends StatelessWidget {
               ],
             ),
             maxLines: 1,
+            textAlign: TextAlign.center,
           ),
         ),
         const SizedBox(height: 12),
@@ -493,25 +548,31 @@ class _SkyButton extends StatelessWidget {
 class HomeUtilityRow extends StatelessWidget {
   const HomeUtilityRow({super.key});
 
-  static const double height = 256;
+  /// The tasbeeh is a circle, so the row is exactly as tall as it is wide.
+  static const double height = 290;
 
   @override
   Widget build(BuildContext context) {
     return MediaQuery.withClampedTextScaling(
       maxScaleFactor: 1.1,
-      child: const SizedBox(
-        height: height,
-        child: HomeTasbeehCard(),
+      child: const Center(
+        child: SizedBox.square(
+          dimension: height,
+          child: HomeTasbeehCard(),
+        ),
       ),
     );
   }
 }
 
-/// The circular mini tasbeeh: the count inside a progress ring (tap the ring
-/// or the + to count), the wird underneath, reset, and a switch to any other
-/// zikr or the reader's own wirds.
+/// The circular mini tasbeeh. Everything sits inside one circle: the title and
+/// the two small buttons along the top, the count ring in the middle, reset and
+/// + on either side, then the zikr and today's count at the bottom. Tap the
+/// ring or the + to count.
 class HomeTasbeehCard extends StatelessWidget {
   const HomeTasbeehCard({super.key});
+
+  static const double _ringDiameter = 146;
 
   @override
   Widget build(BuildContext context) {
@@ -519,16 +580,23 @@ class HomeTasbeehCard extends StatelessWidget {
     final controller = TasbeehScope.of(context);
     final arabic = !controller.preset.custom || looksArabic(controller.step.arabic);
     return GlassPanel(
-      radius: 22,
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-      child: Column(
+      radius: HomeUtilityRow.height / 2,
+      padding: EdgeInsets.zero,
+      child: Stack(
+        fit: StackFit.expand,
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              Icon(Icons.touch_app, size: 18, color: palette.accent),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
+          // Title, centred along the top of the circle.
+          Positioned(
+            top: 40,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(Icons.touch_app, size: 18, color: palette.accent),
+                const SizedBox(width: 4),
+                Text(
                   'تسبیح',
                   maxLines: 1,
                   style: TextStyle(
@@ -538,76 +606,93 @@ class HomeTasbeehCard extends StatelessWidget {
                     color: palette.ink,
                   ),
                 ),
-              ),
-              _TinyButton(
-                icon: Icons.swap_horiz,
-                tooltip: 'ذکر یا ورد بدلیں',
-                onTap: () => unawaited(showWirdPicker(context)),
-              ),
-              const SizedBox(width: 4),
-              _TinyButton(
-                icon: Icons.open_in_full,
-                tooltip: 'مکمل تسبیح کھولیں',
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const TasbeehScreen()),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final diameter = math.min(constraints.maxWidth, constraints.maxHeight).clamp(64.0, 126.0);
-                return Center(
-                  child: _MiniBead(controller: controller, diameter: diameter),
+          Positioned(
+            top: 36,
+            left: 72,
+            child: _TinyButton(
+              icon: Icons.swap_horiz,
+              tooltip: 'ذکر یا ورد بدلیں',
+              onTap: () => unawaited(showWirdPicker(context)),
+            ),
+          ),
+          Positioned(
+            top: 36,
+            right: 72,
+            child: _TinyButton(
+              icon: Icons.open_in_full,
+              tooltip: 'مکمل تسبیح کھولیں',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const TasbeehScreen()),
+              ),
+            ),
+          ),
+          // The count ring, centred.
+          Positioned(
+            top: (HomeUtilityRow.height - _ringDiameter) / 2,
+            left: (HomeUtilityRow.height - _ringDiameter) / 2,
+            child: _MiniBead(controller: controller, diameter: _ringDiameter),
+          ),
+          // Reset on the left, + on the right, both at the ring's height.
+          Positioned(
+            left: 22,
+            top: 126,
+            child: _RoundButton(
+              icon: Icons.refresh,
+              tooltip: 'ری سیٹ (دبا کر رکھیں: فوری)',
+              size: 38,
+              onTap: () => unawaited(confirmTasbeehReset(context, controller)),
+              onLongPress: () {
+                controller.reset(whole: true);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('گنتی صفر کر دی گئی'), duration: Duration(seconds: 2)),
                 );
               },
             ),
           ),
-          Text(
-            controller.step.arabic,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: arabic ? kArabicFont : null,
-              fontSize: arabic ? 16 : 15,
-              height: 1.45,
-              color: palette.isDark ? palette.accent : kForest,
+          Positioned(
+            right: 22,
+            top: 122,
+            child: _RoundButton(
+              icon: Icons.add,
+              tooltip: 'ایک دانہ (+1)',
+              size: 46,
+              filled: true,
+              onTap: controller.tap,
             ),
           ),
-          const SizedBox(height: 6),
-          Row(
-            children: <Widget>[
-              _RoundButton(
-                icon: Icons.add,
-                tooltip: 'ایک دانہ (+1)',
-                size: 46,
-                filled: true,
-                onTap: controller.tap,
+          // The zikr, under the ring.
+          Positioned(
+            top: 226,
+            left: 48,
+            right: 48,
+            child: Text(
+              controller.step.arabic,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: arabic ? kArabicFont : null,
+                fontSize: arabic ? 16 : 15,
+                height: 1.45,
+                color: palette.isDark ? palette.accent : kForest,
               ),
-              Expanded(
-                child: Text(
-                  'آج: ${formatCount(controller.dailyTotal)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12.5, height: 1.3, color: palette.muted),
-                ),
-              ),
-              _RoundButton(
-                icon: Icons.refresh,
-                tooltip: 'ری سیٹ (دبا کر رکھیں: فوری)',
-                size: 38,
-                onTap: () => unawaited(confirmTasbeehReset(context, controller)),
-                onLongPress: () {
-                  controller.reset(whole: true);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('گنتی صفر کر دی گئی'), duration: Duration(seconds: 2)),
-                  );
-                },
-              ),
-            ],
+            ),
+          ),
+          // Today's count, at the bottom of the circle.
+          Positioned(
+            top: 252,
+            left: 72,
+            right: 72,
+            child: Text(
+              'آج: ${formatCount(controller.dailyTotal)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12.5, height: 1.3, color: palette.muted),
+            ),
           ),
         ],
       ),
