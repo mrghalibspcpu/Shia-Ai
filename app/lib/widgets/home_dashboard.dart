@@ -1257,8 +1257,7 @@ class _DialRoundButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = DashboardPalette.of(context);
-    return Tooltip(
-      message: tooltip,
+    return _maybeTooltip(
       child: Semantics(
         button: true,
         label: tooltip,
@@ -1306,6 +1305,12 @@ class _DialRoundButton extends StatelessWidget {
       ),
     );
   }
+
+  /// The tooltip is wrapped around every button except the ones that own the
+  /// long press: a tooltip's own long-press recognizer would compete with the
+  /// button's (the reset button locks and unlocks with a long press).
+  Widget _maybeTooltip({required Widget child}) =>
+      onLongPress == null ? Tooltip(message: tooltip, child: child) : child;
 }
 
 /// 10 — the search bar, moved off the bottom panel. It opens the working

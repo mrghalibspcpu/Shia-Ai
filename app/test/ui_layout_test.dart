@@ -254,19 +254,25 @@ void main() {
     expect(find.byIcon(Icons.lock), findsNothing);
 
     await tester.longPress(find.byIcon(Icons.restart_alt));
-    await settle(tester);
-    // The same button is the unlock button now, and a tap on it only says so.
-    expect(find.byIcon(Icons.lock), findsOneWidget);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byIcon(Icons.lock), findsOneWidget, reason: 'the long press locks the reset button');
+    expect(find.byIcon(Icons.restart_alt), findsNothing);
     expect(tasbeeh.count, 1);
-    await tester.tap(find.byIcon(Icons.lock));
-    await settle(tester);
-    expect(tasbeeh.count, 1);
-    expect(find.textContaining('ری سیٹ لاک ہے'), findsOneWidget);
 
-    // Long press again: the button counts down the wird once more.
+    // The same button is the unlock button now, and a tap only says so.
+    await tester.tap(find.byIcon(Icons.lock));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(tasbeeh.count, 1);
+    expect(find.textContaining('ری سیٹ لاک ہے'), findsWidgets);
+
+    // Long press again: unlocked, and the same button resets.
     await tester.longPress(find.byIcon(Icons.lock));
-    await settle(tester);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.byIcon(Icons.restart_alt), findsOneWidget);
+    expect(find.byIcon(Icons.lock), findsNothing);
     await finish(tester, prayer, tasbeeh);
   });
 
