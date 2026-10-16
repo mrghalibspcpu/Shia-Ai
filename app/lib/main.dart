@@ -213,21 +213,9 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
 
   /// The items of **مزید** — every feature that is not one of the five
   /// buttons of the bottom panel, in one list. New extras are added here.
+  /// The collections (نہج البلاغہ، دینی مسائل…) are NOT repeated here: they
+  /// already live on the home screen's own cards.
   List<MoreFeature> _moreFeatures(BuildContext homeContext) => <MoreFeature>[
-        MoreFeature(
-          title: HomeSection.balagha.title,
-          subtitle: HomeSection.balagha.slogan,
-          icon: HomeSection.balagha.icon,
-          color: HomeSection.balagha.start,
-          onOpen: () => _openSection(homeContext, HomeSection.balagha),
-        ),
-        MoreFeature(
-          title: HomeSection.fatawa.title,
-          subtitle: HomeSection.fatawa.slogan,
-          icon: HomeSection.fatawa.icon,
-          color: HomeSection.fatawa.start,
-          onOpen: () => _openSection(homeContext, HomeSection.fatawa),
-        ),
         MoreFeature(
           title: 'نماز کے اوقات',
           subtitle: 'اہلِ تشیع (جعفری) اوقات، مقام اور قرات کا وقت',
@@ -286,17 +274,6 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
           onOpen: () => _homeShellKey.currentState?.openSettings(),
         ),
       ];
-
-  /// Opens a collection from the More sheet: its screen when the book is
-  /// installed, the download screen when it is not.
-  void _openSection(BuildContext context, HomeSection section) {
-    unawaited(openHomeSection(
-      context,
-      library: _library,
-      section: section,
-      onOpenData: () => _homeShellKey.currentState?.openData(),
-    ));
-  }
 
   @override
   Widget build(BuildContext context) {

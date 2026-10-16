@@ -552,6 +552,19 @@ class TasbeehController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Deletes a stored total on the reader's explicit request: today's total,
+  /// the lifetime total, or both. The running count is not touched — this is
+  /// the one deliberate way to zero what an ordinary reset always preserves.
+  void clearTotals({bool daily = false, bool lifetime = false}) {
+    if (!daily && !lifetime) return;
+    _state = _state.copyWith(
+      dailyTotal: daily ? 0 : _state.dailyTotal,
+      lifetimeTotal: lifetime ? 0 : _state.lifetimeTotal,
+    );
+    unawaited(_persist());
+    notifyListeners();
+  }
+
   /// Clears the current count. The sequence itself restarts when [whole] is
   /// true; the daily and lifetime totals are never touched by a reset.
   void reset({bool whole = false}) {

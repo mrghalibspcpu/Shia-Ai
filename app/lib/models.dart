@@ -651,6 +651,12 @@ const Map<int, String> duaCategoryTitles = {
   6: 'شب و روز کے اعمال اور ملحقات',
 };
 
+/// Normalises a Nahj al-Balagha heading from the database: this app names the
+/// first division «خطب», so a stray «خطبات» in a stored title is rewritten
+/// wherever that title is shown. Body text is never touched.
+String polishBalaghaTitle(String value) =>
+    value.contains('خطبات') ? value.replaceAll('خطبات', 'خطب') : value;
+
 /// Urdu titles of the Nahj al-Balagha divisions (`Type` / `TypeID`).
 const Map<int, String> balaghaSectionTitles = {
   1: 'خطب',

@@ -226,9 +226,10 @@ TextStyle _sky(double size, {FontWeight weight = FontWeight.w600, double alpha =
 
 const Color _skyGold = Color(0xFFFFE1A1);
 
-/// The hero: the sky of the hour (dawn, midday, evening or night, animated),
-/// the place and both dates, the next prayer, and the day's times along the
-/// bottom edge.
+/// The hero: the sky of the hour (dawn, midday, evening or night, animated)
+/// as a PORTRAIT wallpaper, so the card holds more and breathes — the place
+/// and both dates up top, the live clock in the open sky, the next prayer
+/// beneath it, and the day's times resting along the bottom edge.
 class _HeroHeader extends StatelessWidget {
   const _HeroHeader({required this.schedule, required this.controller});
 
@@ -239,22 +240,74 @@ class _HeroHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<DateTime>(
       valueListenable: controller.now,
-      builder: (context, now, _) => SkyBackdrop(
-        phase: skyPhaseFor(schedule, now),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              _HeroTitleRow(controller: controller),
-              const SizedBox(height: 10),
-              _HeroLocationRow(controller: controller, now: now),
-              const SizedBox(height: 12),
-              _HeroNextPrayer(controller: controller, now: now),
-              const SizedBox(height: 14),
-              _TimingGlassRow(schedule: schedule, now: now),
-            ],
+      builder: (context, now, _) => Center(
+        child: ConstrainedBox(
+          // Capped so a tablet gets a tall card, never a wall-sized one.
+          constraints: const BoxConstraints(maxWidth: 430),
+          child: AspectRatio(
+            aspectRatio: 0.72,
+            child: SkyBackdrop(
+              phase: skyPhaseFor(schedule, now),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    _HeroTitleRow(controller: controller),
+                    const SizedBox(height: 10),
+                    _HeroLocationRow(controller: controller, now: now),
+                    const Spacer(),
+                    // The clock floats in the open middle of the sky; it
+                    // scales itself down instead of ever overflowing.
+                    Flexible(flex: 4, child: _HeroClock(now: now)),
+                    const Spacer(),
+                    _HeroNextPrayer(controller: controller, now: now),
+                    const SizedBox(height: 12),
+                    _TimingGlassRow(schedule: schedule, now: now),
+                  ],
+                ),
+              ),
+            ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The live clock in the middle of the portrait sky.
+class _HeroClock extends StatelessWidget {
+  const _HeroClock({required this.now});
+
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text.rich(
+              TextSpan(children: <InlineSpan>[
+                TextSpan(
+                  text: formatClockDigitsUrdu(now),
+                  style: _sky(54, weight: FontWeight.w800, digits: true, height: 1),
+                ),
+                TextSpan(
+                  text: ' ${formatClockSeconds(now)}',
+                  style: _sky(18, weight: FontWeight.w600, digits: true),
+                ),
+              ]),
+              textDirection: TextDirection.ltr,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              dayPartUrdu(now.hour),
+              style: _sky(14, weight: FontWeight.w700, color: _skyGold, height: 1.4),
+            ),
+          ],
         ),
       ),
     );

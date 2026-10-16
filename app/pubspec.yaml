@@ -1,7 +1,7 @@
 name: shia_ai
 publish_to: "none"
 description: Offline Shia library — Quran, Mafatih al-Jinan, Nahj al-Balagha, and 14 hadith books.
-version: 1.12.0+15
+version: 1.12.1+16
 
 environment:
   sdk: ">=3.4.0 <4.0.0"

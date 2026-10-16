@@ -1332,11 +1332,51 @@ class _TargetSelector extends StatelessWidget {
   }
 }
 
-/// Today and lifetime totals — the part the reader must never lose.
+/// Today and lifetime totals — kept safe from every ordinary reset, but each
+/// one carries its own delete button for the reader who wants a clean slate.
 class _Totals extends StatelessWidget {
   const _Totals({required this.controller});
 
   final TasbeehController controller;
+
+  /// "Delete this total?" — deliberate, with its own confirmation.
+  Future<void> _confirmClear(BuildContext context, {required bool daily}) async {
+    final palette = GlassPalette.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: palette.solid,
+        title: Text(
+          daily ? 'آج کا کل حذف کریں؟' : 'مجموعی گنتی حذف کریں؟',
+          style: const TextStyle(fontSize: 18),
+        ),
+        content: Text(
+          daily
+              ? 'آج کی کل گنتی صفر ہو جائے گی۔ موجودہ گنتی اور مجموعی گنتی محفوظ رہے گی۔'
+              : 'اب تک کی مجموعی گنتی ہمیشہ کے لیے صفر ہو جائے گی۔ یہ واپس نہیں آ سکتی۔',
+          style: const TextStyle(fontSize: 14, height: 1.6),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('نہیں'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('حذف کریں'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    controller.clearTotals(daily: daily, lifetime: !daily);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(daily ? 'آج کا کل صفر کر دیا گیا' : 'مجموعی گنتی صفر کر دی گئی'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1348,6 +1388,7 @@ class _Totals extends StatelessWidget {
           value: formatCount(controller.dailyTotal),
           icon: Icons.today_outlined,
           palette: palette,
+          onClear: controller.dailyTotal > 0 ? () => unawaited(_confirmClear(context, daily: true)) : null,
         ),
         const SizedBox(width: 10),
         _TotalTile(
@@ -1355,6 +1396,7 @@ class _Totals extends StatelessWidget {
           value: formatCount(controller.lifetimeTotal),
           icon: Icons.all_inclusive,
           palette: palette,
+          onClear: controller.lifetimeTotal > 0 ? () => unawaited(_confirmClear(context, daily: false)) : null,
         ),
       ],
     );
@@ -1367,12 +1409,16 @@ class _TotalTile extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.palette,
+    this.onClear,
   });
 
   final String label;
   final String value;
   final IconData icon;
   final GlassPalette palette;
+
+  /// Deletes this total (after its confirmation); null when already zero.
+  final VoidCallback? onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -1406,6 +1452,17 @@ class _TotalTile extends StatelessWidget {
                 ],
               ),
             ),
+            if (onClear != null) ...<Widget>[
+              const SizedBox(width: 4),
+              IconButton(
+                tooltip: '$label حذف کریں',
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                padding: EdgeInsets.zero,
+                onPressed: onClear,
+                icon: Icon(Icons.delete_outline, size: 18, color: palette.muted),
+              ),
+            ],
           ],
         ),
       ),

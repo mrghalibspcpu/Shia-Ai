@@ -570,7 +570,7 @@ class LibraryRepository {
         final type = _asInt(row['container_type']) ?? 1;
         return (
           chapter: balaghaSectionTitles[type] ?? 'نہج البلاغہ',
-          section: (row['section_title'] ?? '').toString(),
+          section: polishBalaghaTitle((row['section_title'] ?? '').toString()),
         );
       case CorpusSource.sahifa:
       case CorpusSource.fatwa:
@@ -1120,7 +1120,7 @@ class LibraryRepository {
     ''', [type]);
     return rows.map((row) => BalaghaEntry(
           typeNo: _asInt(row['type_no']) ?? 0,
-          title: _compact((row['title'] ?? '').toString()),
+          title: polishBalaghaTitle(_compact((row['title'] ?? '').toString())),
           paragraphCount: _asInt(row['paragraphs']) ?? 0,
         )).toList();
   }
@@ -1456,7 +1456,7 @@ class LibraryRepository {
           containerType: type,
           containerId: _asInt(row['container_id']),
           chapterTitle: balaghaSectionTitles[type] ?? 'نہج البلاغہ',
-          sectionTitle: _compact((row['section_title'] ?? '').toString()),
+          sectionTitle: polishBalaghaTitle(_compact((row['section_title'] ?? '').toString())),
         );
     }
   }

@@ -66,6 +66,21 @@ class _SearchScreenState extends State<SearchScreen> {
     if (mounted) setState(() => _history = next);
   }
 
+  /// Removes ONE remembered search (the × on its chip).
+  Future<void> _forget(String query) async {
+    final next = _history.where((item) => item != query).toList();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('search_history', next);
+    if (mounted) setState(() => _history = next);
+  }
+
+  /// Clears the whole history ("سب حذف کریں").
+  Future<void> _clearHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('search_history', const <String>[]);
+    if (mounted) setState(() => _history = const <String>[]);
+  }
+
   @override
   void dispose() {
     _debounce?.cancel();
@@ -380,15 +395,29 @@ class _SearchScreenState extends State<SearchScreen> {
           ],
           if (_history.isNotEmpty) ...[
             const SizedBox(height: 22),
-            const JustifiedText('حالیہ تلاشیں', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Row(
+              children: [
+                const Expanded(
+                  child: JustifiedText('حالیہ تلاشیں', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+                TextButton.icon(
+                  onPressed: () => unawaited(_clearHistory()),
+                  icon: const Icon(Icons.delete_sweep_outlined, size: 18),
+                  label: const Text('سب حذف کریں', style: TextStyle(fontSize: 13)),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 for (final item in _history)
-                  ActionChip(
+                  InputChip(
                     label: Text(item),
+                    deleteIconColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                    deleteButtonTooltipMessage: 'یہ تلاش حذف کریں',
+                    onDeleted: () => unawaited(_forget(item)),
                     onPressed: () {
                       _controller.text = item;
                       _controller.selection = TextSelection.collapsed(offset: item.length);

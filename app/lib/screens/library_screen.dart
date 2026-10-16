@@ -220,40 +220,54 @@ class _BookCard extends StatelessWidget {
           opacity: installed ? 1 : 0.55,
           child: Padding(
             padding: const EdgeInsets.all(15),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            // Everything on the card is centred: the badge, the Urdu title,
+            // the Latin title and the footer line all share one axis.
+            child: Stack(
               children: [
-                Row(
+                if (!installed)
+                  PositionedDirectional(
+                    top: 0,
+                    start: 0,
+                    child: Icon(Icons.download, size: 16, color: colors.error),
+                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    _IconBadge(icon: Icons.menu_book_rounded, color: bookAccent(book)),
+                    Center(child: _IconBadge(icon: Icons.menu_book_rounded, color: bookAccent(book))),
                     const Spacer(),
-                    if (!installed) Icon(Icons.download, size: 16, color: colors.error),
-                  ],
-                ),
-                const Spacer(),
-                JustifiedText(
-                  book.titleUrdu,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  book.titleLatin,
-                  textAlign: TextAlign.left,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontFamily: 'sans-serif', color: colors.onSurfaceVariant, fontSize: 11),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        installed ? 'ابواب دیکھیں' : 'ڈاؤن لوڈ درکار',
-                        style: const TextStyle(fontSize: 12),
+                    Text(
+                      book.titleUrdu,
+                      textAlign: TextAlign.center,
+                      textDirection: TextDirection.rtl,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: kUrduFont,
+                        height: 1.55,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    Icon(Icons.arrow_back_ios_new_rounded, color: colors.primary, size: 16),
+                    const SizedBox(height: 7),
+                    Text(
+                      book.titleLatin,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontFamily: 'sans-serif', color: colors.onSurfaceVariant, fontSize: 11),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          installed ? 'ابواب دیکھیں' : 'ڈاؤن لوڈ درکار',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        const SizedBox(width: 5),
+                        Icon(Icons.arrow_back_ios_new_rounded, color: colors.primary, size: 14),
+                      ],
+                    ),
                   ],
                 ),
               ],

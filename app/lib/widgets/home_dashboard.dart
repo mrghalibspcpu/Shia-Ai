@@ -356,10 +356,20 @@ class HomeDashboard extends StatelessWidget {
   }
 
   /// Containers 1, 2, 8, 9 and 10.
+  ///
+  /// The rows line up with the five collection cards of the right column: the
+  /// title rail and the mini prayer card run down to just above the moment
+  /// card, whose TOP edge sits level with the TOP edge of the third card
+  /// (مفاتیح الجنان و صحیفہ سجادیہ); the tasbeeh dial then sits low in what is
+  /// left, resting on the search bar's upper edge.
   Widget _leftColumn(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
       final height = constraints.maxHeight;
-      final prayerHeight = (height * 0.34).clamp(178.0, 230.0).toDouble();
+      // The right column's five cards share this height with four gaps.
+      final cardHeight = (height - 4 * _gap) / 5;
+      // Two cards and two gaps down is the duas card's top edge; the moment
+      // card starts there, so the prayer/title row ends one row-gap above it.
+      final prayerHeight = (2 * cardHeight + 2 * _gap - _rowGap).clamp(150.0, height - 180.0).toDouble();
       final momentHeight = (height * 0.12).clamp(60.0, 78.0).toDouble();
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -378,8 +388,9 @@ class HomeDashboard extends StatelessWidget {
           const SizedBox(height: _rowGap),
           SizedBox(height: momentHeight, child: _MomentCard(library: library)),
           const SizedBox(height: _rowGap),
+          // The dial hugs the bottom of its box, so its lower edge meets the
+          // search bar's upper edge instead of floating in the middle.
           const Expanded(child: _TasbeehDial()),
-          const SizedBox(height: _rowGap),
           SizedBox(
             key: const ValueKey<String>('home-search'),
             height: _searchHeight,
@@ -464,9 +475,9 @@ class _TitleRail extends StatelessWidget {
                       maxLines: 1,
                       style: TextStyle(
                         fontFamily: kDigitFont,
-                        fontSize: 24,
+                        fontSize: 34,
                         height: 1.1,
-                        letterSpacing: 1.1,
+                        letterSpacing: 1.2,
                         fontWeight: FontWeight.w800,
                         color: palette.goldSoft,
                       ),
@@ -555,14 +566,14 @@ class _MiniPrayerCard extends StatelessWidget {
                       children: <Widget>[
                         SizedBox(height: 22, child: _placeRow(context, controller)),
                         SizedBox(
-                          height: compact ? 32 : 39,
+                          height: compact ? 32 : 46,
                           child: FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text.rich(
                               TextSpan(children: <InlineSpan>[
                                 TextSpan(
                                   text: formatClockDigitsUrdu(now),
-                                  style: _onSky(34, weight: FontWeight.w800, digits: true, height: 1),
+                                  style: _onSky(40, weight: FontWeight.w800, digits: true, height: 1),
                                 ),
                                 TextSpan(
                                   text: ' ${formatClockSeconds(now)}',
@@ -587,11 +598,17 @@ class _MiniPrayerCard extends StatelessWidget {
                           ),
                         ),
                         SizedBox(height: compact ? 3 : 8),
-                        // Three above, two below: prayer names and digits no
-                        // longer compete for five tiny slots across one row.
-                        Expanded(child: prayerRow(prayers.take(3))),
-                        const SizedBox(height: 4),
-                        Expanded(child: prayerRow(prayers.skip(3))),
+                        // All five prayers on ONE row: each cell scales its
+                        // own name and digits down to its slot, and the row
+                        // keeps a card-like height in the taller card.
+                        Expanded(
+                          child: Center(
+                            child: SizedBox(
+                              height: compact ? 52.0 : 64.0,
+                              child: prayerRow(prayers),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -1019,7 +1036,10 @@ class _TasbeehDialState extends State<_TasbeehDial> {
         final radius = diameter / 2;
         final bead = diameter * 0.50;
         final sideButton = diameter * 0.19;
-        return Center(
+        // Bottom-aligned: the dial sits down against the search bar's top
+        // edge, leaving any spare room above it instead of around it.
+        return Align(
+          alignment: Alignment.bottomCenter,
           child: SizedBox.square(
             key: const ValueKey<String>('home-tasbeeh'),
             dimension: diameter,
