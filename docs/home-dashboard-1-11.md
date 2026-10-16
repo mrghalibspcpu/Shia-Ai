@@ -11,8 +11,8 @@ shapes, sizes and positions.
 ## One canvas, scaled as a piece
 
 `HomeDashboard` (`app/lib/widgets/home_dashboard.dart`) draws everything on a
-fixed **352 × 594** design canvas and scales that canvas to whatever the phone
-offers: `scale = min(width / 352, height / 594)`, never above `1.45` so a tablet
+fixed **352 × 610** design canvas and scales that canvas to whatever the phone
+offers: `scale = min(width / 352, height / 610)`, never above `1.45` so a tablet
 shows the same dashboard centred instead of stretching it. A 360 dp phone gets
 scale ≈ 1 (the design's own measurements); a 640 dp-tall phone gets ≈ 0.94 and
 still shows the whole dashboard, because the whole screen shrinks together
@@ -23,7 +23,7 @@ The design units are the constants at the top of that file:
 
 | Piece | Size |
 |---|---|
-| Canvas (with its 6 px padding) | 352 × 594 |
+| Canvas (with its 6 px padding) | 352 × 610 |
 | Right column (containers 3–7) | 90 wide, 110 tall each, 8 between |
 | Left column | 242 wide |
 | Rail (1) | 42 × 190 |
@@ -32,6 +32,14 @@ The design units are the constants at the top of that file:
 | Dial (9) | `min(width, height) × 0.9` of whatever is left, ≈ 212 |
 | Search bar (10) | 242 × 46 |
 
+The two columns are laid out as the design draws them for an Urdu reader: the
+**ShiaVerse rail down the right edge** (the near side) with the wide column —
+prayer card, moment card, dial, search bar — to its left, and the five collection
+cards down the left edge.
+
+`scripts/render_home_preview.py` draws the same dashboard with the app's fonts
+and the same measurements; `docs/previews/home-1-11.png` is its output.
+
 ## The containers
 
 | # | Widget | What it does |
@@ -39,7 +47,7 @@ The design units are the constants at the top of that file:
 | 1 | `_TitleRail` | The ShiaVerse mark and the name down the spine (`RotatedBox`, quarter turn 1). |
 | 2 | `_MiniPrayerCard` | `SkyBackdrop` (animated: dawn, day, evening, night), the place, the live clock, the Hijri date, and the five prayers in one strip — the running one lit and tagged **Now**, the next one outlined in gold with its countdown. Tapping opens the timings screen; the button at the end of the place row re-detects the location. |
 | 3–7 | `_SectionCard` | One `HomeSection` each: قرآنِ کریم, احادیث, مفاتیح الجنان و صحیفہ سجادیہ, نہج البلاغہ, دینی مسائل. Title, one small slogan, and the collection's mark. Not installed → the download mark and the data screen. |
-| 8 | `_MomentCard` | آیت / حدیثِ وقت, see below. |
+| 8 | `_MomentCard` | آیت / حدیثِ وقت, see below. The `آیت` / `حدیث` tag is a pill on the card's edge, with its word rotated a quarter turn; the row it sits in lays its members out top-to-bottom, because a turned box reads its constraints bottom-up. |
 | 9 | `_TasbeehDial` | See below. |
 | 10 | `_SearchPill` | Opens `SearchScreen(autofocus: true)` — the search itself is unchanged. |
 | 11–15 | `HomeDockBar` | گھر, قرآن, احادیث, دعائیں, مزید. |

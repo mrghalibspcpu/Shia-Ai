@@ -218,7 +218,9 @@ A collection whose books are not installed shows the download mark and opens the
 data screen; the download notice and the search-index progress are one slim strip
 above the dashboard, and both disappear on their own.
 
-See [`docs/home-dashboard-1-11.md`](docs/home-dashboard-1-11.md).
+See [`docs/home-dashboard-1-11.md`](docs/home-dashboard-1-11.md), and
+`docs/previews/home-1-11.png` for the layout re-drawn at the app's own
+measurements (`scripts/render_home_preview.py`).
 
 ## App name and icon
 

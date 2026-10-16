@@ -31,6 +31,7 @@ OUTPUT = ROOT / "docs" / "previews" / "home-1-11.png"
 
 S = 3  # supersampling
 W, H = 360, 800
+CANVAS_H = 610  # the dashboard's own canvas; it is centred in what is left
 PAD = 6
 GAP = 8
 ROW_GAP = 10
@@ -144,9 +145,14 @@ def main() -> None:
     canvas.paste(vgradient((W * S, H * S), BG_TOP, BG_BOTTOM).convert("RGBA"), (0, 0))
 
     dock_h = DOCK_PAD * 2 + DOCK_SQUARE
-    top = PAD
-    left_w = W - 2 * PAD - RIGHT_W - GAP
-    block_h = RIGHT_CARD_H * 5 + GAP * 4
+    # The dashboard is one canvas, scaled as a piece and centred in the space
+    # the phone has left above the panel (360 x 800 here: scale 1).
+    top = round((H - dock_h - CANVAS_H) / 2)
+    left_w = W - 2 * PAD - RIGHT_W - GAP      # 242
+    left_x = PAD + RIGHT_W + GAP             # 104
+    rail_x = left_x + left_w - RAIL_W        # 304
+    card_w = left_w - RAIL_W - GAP           # 192
+    block_h = CANVAS_H - 2 * PAD
 
     # ---- 1: the ShiaVerse rail
     rail = card((RAIL_W, PRAYER_H), 21, PLUM, PLUM_DARK)
@@ -160,10 +166,10 @@ def main() -> None:
     spine = Image.new("RGBA", (RAIL_W * S, (PRAYER_H - 60) * S), (0, 0, 0, 0))
     left(ImageDraw.Draw(spine), RAIL_W / 2, (PRAYER_H - 60) / 2, "ShiaVerse", latin(14, True), GOLD_SOFT, anchor="mm")
     rail.alpha_composite(spine.rotate(-90, expand=True), (0, round(50 * S)))
-    canvas.alpha_composite(rail, (PAD * S, top * S))
+    canvas.alpha_composite(rail, (rail_x * S, top * S))
 
     # ---- 2: the mini prayer card
-    pw = left_w - RAIL_W - GAP
+    pw = card_w
     sky = Image.new("RGBA", (round(pw * S), round(PRAYER_H * S)), (0, 0, 0, 0))
     mask = Image.new("L", sky.size, 0)
     ImageDraw.Draw(mask).rounded_rectangle((0, 0, sky.size[0] - 1, sky.size[1] - 1), radius=round(20 * S), fill=255)
@@ -197,7 +203,7 @@ def main() -> None:
                 fill=(255, 225, 161),
             )
             left(sd, x + cell / 2, 175, "Now", latin(7.5, True), (74, 42, 5), anchor="mm")
-    canvas.alpha_composite(sky, ((PAD + RAIL_W + GAP) * S, top * S))
+    canvas.alpha_composite(sky, (left_x * S, top * S))
 
     # ---- 8: ayah / hadith of the moment
     moment = card((left_w, MOMENT_H), 18, AMBER, AMBER_DARK, bias=-0.1)
@@ -208,14 +214,19 @@ def main() -> None:
     ):
         right(md, left_w - 46, 26 + index * 15, line, urdu(11), MOMENT_INK)
     right(md, left_w - 46, 60, "سورہ الرعد، آیت ۲۸", urdu(9), MOMENT_INK)
-    md.rounded_rectangle(
-        (round((left_w - 38) * S), round(8 * S), round((left_w - 8) * S), round((MOMENT_H - 8) * S)),
-        radius=round(12 * S),
-        fill=(255, 255, 255, 90),
+    tag = Image.new("RGBA", (34 * S, (MOMENT_H - 14) * S), (0, 0, 0, 0))
+    td = ImageDraw.Draw(tag)
+    td.rounded_rectangle(
+        (0, 0, tag.size[0] - 1, tag.size[1] - 1),
+        radius=round(13 * S),
+        fill=(255, 255, 255, 92),
         outline=GOLD,
         width=round(1 * S),
     )
-    right(md, left_w - 23, MOMENT_H / 2 - 6, "آیت", urdu(11), MOMENT_INK, anchor="ma")
+    word = Image.new("RGBA", tag.size, (0, 0, 0, 0))
+    right(ImageDraw.Draw(word), 17, (MOMENT_H - 14) / 2, "آیت", urdu(11.5), MOMENT_INK, anchor="mm")
+    tag.alpha_composite(word.rotate(-90, expand=True))
+    moment.alpha_composite(tag, (round((left_w - 42) * S), round(7 * S)))
     md.rounded_rectangle(
         (round(8 * S), round((MOMENT_H / 2 - 17) * S), round(34 * S), round((MOMENT_H / 2 + 17) * S)),
         radius=round(12 * S),
@@ -224,7 +235,7 @@ def main() -> None:
         width=round(1 * S),
     )
     left(md, 21, MOMENT_H / 2, "‹", latin(20, True), MOMENT_INK, anchor="mm")
-    canvas.alpha_composite(moment, (PAD * S, (top + PRAYER_H + ROW_GAP) * S))
+    canvas.alpha_composite(moment, (left_x * S, (top + PRAYER_H + ROW_GAP) * S))
 
     # ---- 9: the tasbeeh dial
     dial_top = top + PRAYER_H + ROW_GAP + MOMENT_H + ROW_GAP
@@ -303,11 +314,11 @@ def main() -> None:
             anchor="mm",
         )
     right(dd, diameter / 2, radius + bead / 2 + 9, "آج: 140  •  / 33", urdu(10.5), (78, 86, 90), anchor="ma")
-    canvas.alpha_composite(dial, (round((PAD + left_w / 2) * S - radius * S), round(dial_top * S + dial_box * S / 2 - radius * S)))
+    canvas.alpha_composite(dial, (round((left_x + left_w / 2) * S - radius * S), round(dial_top * S + dial_box * S / 2 - radius * S)))
 
     # ---- 10: the search bar
     search_top = top + block_h - SEARCH_H
-    search = card((left_w, SEARCH_H), SEARCH_H / 2, PLUM, PLUM_DARK)
+    search = card((left_w, SEARCH_H), SEARCH_H / 2, (30, 122, 94), (14, 59, 52))
     sl = ImageDraw.Draw(search)
     sl.rounded_rectangle(
         (round(4 * S), round(4 * S), round((left_w - 4) * S), round((SEARCH_H - 4) * S)),
@@ -315,17 +326,17 @@ def main() -> None:
         fill=PAPER,
     )
     sl.ellipse(
-        (round(5 * S), round(5 * S), round((SEARCH_H - 5) * S), round((SEARCH_H - 5) * S)),
+        (round((left_w - SEARCH_H + 5) * S), round(5 * S), round((left_w - 5) * S), round((SEARCH_H - 5) * S)),
         fill=GOLD,
         outline=(255, 255, 255, 200),
         width=round(1 * S),
     )
-    left(sl, SEARCH_H / 2, SEARCH_H / 2, "⌕", latin(17, True), (58, 39, 8), anchor="mm")
+    left(sl, left_w - SEARCH_H / 2, SEARCH_H / 2, "⌕", latin(17, True), (58, 39, 8), anchor="mm")
     right(sl, left_w - 14, SEARCH_H / 2 + 1, "پوری لائبریری میں تلاش کریں…", urdu(11.5), (110, 106, 92), anchor="rm")
-    canvas.alpha_composite(search, (PAD * S, search_top * S))
+    canvas.alpha_composite(search, (left_x * S, search_top * S))
 
     # ---- 3-7: the five collections
-    x0 = PAD + left_w + GAP
+    x0 = PAD
     for index, (title, slogan, glyph, start, end) in enumerate(SECTIONS):
         y = top + index * (RIGHT_CARD_H + GAP)
         section = card((RIGHT_W, RIGHT_CARD_H), 18, start, end, bias=-0.05)

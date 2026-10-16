@@ -802,6 +802,10 @@ class _MomentCardState extends State<_MomentCard> {
             ],
           ),
           child: Row(
+            // The tag is written along the card's edge (rotated a quarter
+            // turn), and a turned box reads its constraints bottom-up: the
+            // row's boxes are laid out from the top.
+            verticalDirection: VerticalDirection.up,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               _MomentTag(kind: line.kind),
@@ -895,11 +899,12 @@ class _MomentTag extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = DashboardPalette.of(context);
     return Container(
-      width: 30,
+      width: 34,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.34),
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white.withValues(alpha: 0.36),
+        borderRadius: BorderRadius.circular(13),
         border: Border.all(color: palette.gold.withValues(alpha: 0.55)),
       ),
       child: RotatedBox(
@@ -911,7 +916,8 @@ class _MomentTag extends StatelessWidget {
             maxLines: 1,
             style: TextStyle(
               fontFamily: kUrduFont,
-              fontSize: 11,
+              fontSize: 11.5,
+              height: 1.1,
               fontWeight: FontWeight.w800,
               color: palette.momentInk,
             ),
