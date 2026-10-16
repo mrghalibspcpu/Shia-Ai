@@ -127,6 +127,9 @@ each asset in this repository:
 
 **Blockers before an APKPure upload (owner action, in order):**
 
+0. **Merge this work to `main`.** The `Production release` workflow is
+   `workflow_dispatch` and GitHub only dispatches workflows that exist on the
+   default branch (and the privacy-policy URL points at `main` too).
 1. **Production key + secrets** (Steps 0–1 of the migration plan), then a
    `publish_release: false` dry run whose signer fingerprint matches your key.
 2. **Corpus redistribution rights** — especially the 14-book database set from

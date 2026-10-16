@@ -21,6 +21,11 @@ Nothing here has been submitted anywhere — this file is the map.
 
 ## Phase 1 — production signing key (never in Git/chat)
 
+- [ ] **[OWNER] Merge this work to `main`.** GitHub only allows dispatching a
+  `workflow_dispatch` workflow that exists on the default branch, so
+  `Production release` appears and runs after the merge (the arena branch holds
+  the same file meanwhile). Merging changes no app data; it only publishes the
+  code that is already reviewed here.
 - [ ] **[OWNER] Generate the private key** (Step 0 of
   `docs/signing-and-migration-plan.md`); store two offline copies of the key
   and passwords. `keytool` fingerprints recorded.

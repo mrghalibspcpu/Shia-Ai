@@ -59,6 +59,12 @@ keytool -list -v -storetype PKCS12 -keystore shiaverse-production.p12 \
 
 ## Step 1 — put the key in GitHub Actions secrets (owner, once)
 
+> **Note:** the `Production release` workflow is manual
+> (`workflow_dispatch`), and GitHub only makes such workflows dispatchable
+> once the file is on the repository's **default branch**. After this work is
+> merged to `main`, the workflow appears under the Actions tab. Until then it
+> is ready and reviewed, but not yet dispatchable.
+
 Repository → **Settings → Secrets and variables → Actions → New repository secret**:
 
 | Secret | Value |
