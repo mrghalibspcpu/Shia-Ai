@@ -8,13 +8,10 @@ import '../library_repository.dart';
 import '../models.dart';
 import '../reader_navigation.dart';
 import '../text_utils.dart' show arabicNumerals;
-import '../widgets/home_utilities.dart';
+import '../widgets/home_dashboard.dart';
 import '../widgets/reader_kit.dart';
 import '../widgets/resume_card.dart';
-import 'balagha_screen.dart';
-import 'dua_collection_screen.dart';
-import 'fatawa_screen.dart';
-import 'quran_screen.dart';
+import 'search_screen.dart';
 
 class LibraryHomeScreen extends StatefulWidget {
   const LibraryHomeScreen({
@@ -34,7 +31,8 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
   @override
   Widget build(BuildContext context) {
     // The library rebuilds as soon as a download lands (catalogVersion), so a
-    // freshly installed book appears without pulling to refresh.
+    // freshly installed book appears in its container without pulling to
+    // refresh.
     return ValueListenableBuilder<int>(
       valueListenable: widget.library.catalogVersion,
       builder: (context, _, __) => _buildHome(context),
@@ -42,171 +40,132 @@ class _LibraryHomeScreenState extends State<LibraryHomeScreen> {
   }
 
   Widget _buildHome(BuildContext context) {
-    // No top bar. Home, search, bookmarks, more features and settings live in
-    // the bottom panel; the page is the prayer card, the tasbeeh and the five
-    // sections in order.
+    // No top bar: the dashboard is the fifteen containers of the design — the
+    // ShiaVerse rail, the prayer card, the five collections, آیت / حدیثِ وقت,
+    // the tasbeeh dial and the search bar. The download notice and the search
+    // index progress sit above it as one slim strip, and both disappear on
+    // their own once they are done.
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 10, 18, 28),
-          children: [
-            // The prayer card leads: place, Hijri date, the live clock and the
-            // five times, over a sky that follows the time of day.
-            const HomePrayerBanner(),
-            const SizedBox(height: 12),
-            _DownloadPrompt(library: widget.library, onOpenData: widget.onOpenData),
-            // The circular mini tasbeeh, at a fixed height.
-            const HomeUtilityRow(),
-            _IndexingBanner(library: widget.library),
-            const SizedBox(height: 14),
-            ..._homeSections(context),
+        child: Column(
+          children: <Widget>[
+            _HomeNoticeStrip(library: widget.library, onOpenData: widget.onOpenData),
+            Expanded(
+              child: HomeDashboard(
+                library: widget.library,
+                onOpenData: widget.onOpenData,
+                onSearch: _openSearch,
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  /// The five home sections, in reading order: قرآن، احادیث، دعائیں،
-  /// نہج البلاغہ، دینی مسائل. Each is one full-width card.
-  List<Widget> _homeSections(BuildContext context) {
-    final library = widget.library;
-    final onOpenData = widget.onOpenData;
-    final quran = BookDefinition.bookFor(CorpusSource.quran)!;
-    final nahj = BookDefinition.bookFor(CorpusSource.balagha)!;
-    final quranReady = library.isInstalled(quran);
-    final nahjReady = library.isInstalled(nahj);
-    final hadithReady = BookDefinition.hadithBooks.any(library.isInstalled);
-    final duaReady = duaCollectionBooks.any(library.isInstalled);
-    final fatawaReady = fatawaBooks.any(library.isInstalled);
-
-    void push(Widget page) {
-      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
-    }
-
-    final cards = <Widget>[
-      _HomeSectionCard(
-        title: quran.titleUrdu,
-        subtitle: quranReady ? quran.description : 'ابھی نصب نہیں — ڈاؤن لوڈ کریں',
-        icon: Icons.menu_book_rounded,
-        color: bookAccent(quran),
-        installed: quranReady,
-        onTap: () {
-          if (quranReady) {
-            push(QuranHomeScreen(library: library));
-          } else {
-            onOpenData?.call();
-          }
-        },
+  /// The search bar on the dashboard opens the working search screen, with the
+  /// keyboard already up: the bar is a door, the search screen is the room.
+  void _openSearch() {
+    unawaited(Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SearchScreen(
+          library: widget.library,
+          onOpenData: widget.onOpenData,
+          autofocus: true,
+        ),
       ),
-      _HomeSectionCard(
-        title: 'احادیث',
-        subtitle: hadithReady
-            ? 'کتبِ احادیث کا مجموعہ'
-            : 'ابھی نصب نہیں — ڈاؤن لوڈ کریں',
-        icon: Icons.format_quote_rounded,
-        color: const Color(0xFF2F6FD6),
-        installed: hadithReady,
-        onTap: () {
-          if (hadithReady) {
-            push(HadithBooksScreen(library: library, onOpenData: onOpenData));
-          } else {
-            onOpenData?.call();
-          }
-        },
-      ),
-      _HomeSectionCard(
-        title: kDuaCollectionTitle,
-        subtitle: duaReady ? kDuaCollectionSubtitle : 'ابھی نصب نہیں — ڈاؤن لوڈ کریں',
-        icon: Icons.mosque,
-        color: const Color(0xFFB8860B),
-        installed: duaReady,
-        onTap: () => push(DuaCollectionScreen(library: library, onOpenData: onOpenData)),
-      ),
-      _HomeSectionCard(
-        title: nahj.titleUrdu,
-        subtitle: nahjReady ? nahj.description : 'ابھی نصب نہیں — ڈاؤن لوڈ کریں',
-        icon: Icons.auto_stories,
-        color: const Color(0xFF6D4C41),
-        installed: nahjReady,
-        onTap: () {
-          if (nahjReady) {
-            push(BalaghaHomeScreen(library: library));
-          } else {
-            onOpenData?.call();
-          }
-        },
-      ),
-      _HomeSectionCard(
-        title: kFatawaCollectionTitle,
-        subtitle: fatawaReady ? kFatawaCollectionSubtitle : 'ابھی نصب نہیں — ڈاؤن لوڈ کریں',
-        icon: Icons.gavel_rounded,
-        color: const Color(0xFF6B4E9B),
-        installed: fatawaReady,
-        onTap: () => push(FatawaCollectionScreen(library: library, onOpenData: onOpenData)),
-      ),
-    ];
-    return <Widget>[
-      for (final card in cards) ...<Widget>[card, const SizedBox(height: 12)],
-    ];
+    ));
   }
 }
 
-/// One home section: a full-width card with its icon, title and one line.
-class _HomeSectionCard extends StatelessWidget {
-  const _HomeSectionCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.installed,
-    required this.onTap,
-  });
+/// The one-line strip above the dashboard: what is not on the phone yet, and
+/// how far the background search index has come. Nothing to say, no strip.
+class _HomeNoticeStrip extends StatelessWidget {
+  const _HomeNoticeStrip({required this.library, this.onOpenData});
 
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final bool installed;
-  final VoidCallback onTap;
+  final LibraryRepository library;
+  final VoidCallback? onOpenData;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+    return ValueListenableBuilder<IndexBuildState>(
+      valueListenable: library.indexProgress,
+      builder: (context, state, _) {
+        final total = BookDefinition.all.length;
+        final installed = library.installedBooks.length;
+        final missing = total - installed;
+        if (missing <= 0 && !state.active) return const SizedBox.shrink();
+        final scheme = Theme.of(context).colorScheme;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
           child: Row(
             children: <Widget>[
-              _IconBadge(icon: icon, color: color, size: 52),
-              const SizedBox(width: 14),
+              if (missing > 0)
+                Expanded(
+                  child: _NoticeChip(
+                    icon: Icons.download_rounded,
+                    label: installed == 0 ? 'ڈیٹا ڈاؤن لوڈ کریں' : '$missing کتب ابھی باقی ہیں',
+                    onTap: onOpenData,
+                    color: kGold,
+                    ink: kForest,
+                  ),
+                ),
+              if (missing > 0 && state.active) const SizedBox(width: 8),
+              if (state.active)
+                Expanded(
+                  child: _NoticeChip(
+                    icon: Icons.search_rounded,
+                    label: 'تلاش کی فہرست بن رہی ہے ${(state.progress * 100).round()}%',
+                    color: scheme.primary,
+                    ink: scheme.primary,
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// One small pill of the notice strip: an icon and one line of text.
+class _NoticeChip extends StatelessWidget {
+  const _NoticeChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.ink,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color ink;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withValues(alpha: 0.16),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          child: Row(
+            children: <Widget>[
+              Icon(icon, size: 16, color: ink),
+              const SizedBox(width: 6),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    JustifiedText(
-                      title,
-                      style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
-                      maxLines: 2,
-                    ),
-                    const SizedBox(height: 4),
-                    JustifiedText(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      maxLines: 2,
-                    ),
-                  ],
+                child: JustifiedText(
+                  label,
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: ink),
+                  maxLines: 1,
                 ),
               ),
-              const SizedBox(width: 8),
-              installed
-                  ? const Icon(Icons.chevron_left)
-                  : Icon(Icons.download_rounded, color: Theme.of(context).colorScheme.error),
             ],
           ),
         ),
@@ -215,118 +174,6 @@ class _HomeSectionCard extends StatelessWidget {
   }
 }
 
-/// The download nudge at the top of the home screen.
-///
-/// A fresh install has no corpus: instead of blocking the library behind a
-/// splash screen, the home screen opens immediately and asks for the download
-/// here (and with the download icon in the app bar).
-class _DownloadPrompt extends StatelessWidget {
-  const _DownloadPrompt({required this.library, this.onOpenData});
-
-  final LibraryRepository library;
-  final VoidCallback? onOpenData;
-
-  @override
-  Widget build(BuildContext context) {
-    final total = BookDefinition.all.length;
-    final installed = library.installedBooks.length;
-    final missing = total - installed;
-    final scheme = Theme.of(context).colorScheme;
-    if (missing <= 0) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: _downloadCard(context, installed, total, missing, scheme),
-    );
-  }
-
-  Widget _downloadCard(BuildContext context, int installed, int total, int missing, ColorScheme scheme) {
-    return Card(
-      color: kGold.withValues(alpha: 0.16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.download_rounded, color: kForest, size: 22),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: JustifiedText(
-                    installed == 0 ? 'ڈیٹا ڈاؤن لوڈ کریں' : '$missing کتب ابھی باقی ہیں',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            JustifiedText(
-              installed == 0
-                  ? 'کتب کا ڈیٹا ابھی ڈاؤن لوڈ نہیں ہوا۔ نیچے کے بار میں ڈاؤن لوڈ کے بٹن پر ٹیپ کریں، '
-                    'یا نیچے دیے گئے بٹن کو دبائیں، اور پھر اپنی پسند کی کتب منتخب کریں۔'
-                  : '$installed / $total کتب موجود ہیں۔ باقی $missing کتب کے لیے نیچے کے بار میں '
-                    'ڈاؤن لوڈ کے بٹن پر ٹیپ کریں۔',
-              style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: onOpenData,
-              icon: const Icon(Icons.download_outlined, size: 18),
-              label: const Text('ڈاؤن لوڈ کریں'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Progress of the background search-index build.
-///
-/// The index used to block the first screen; now the library opens straight
-/// away and this strip only appears while the index is still catching up.
-class _IndexingBanner extends StatelessWidget {
-  const _IndexingBanner({required this.library});
-
-  final LibraryRepository library;
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<IndexBuildState>(
-      valueListenable: library.indexProgress,
-      builder: (context, state, _) {
-        if (!state.active) return const SizedBox.shrink();
-        return Padding(
-          padding: const EdgeInsets.only(top: 12),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  JustifiedText(state.message, style: const TextStyle(fontSize: 13)),
-                  const SizedBox(height: 10),
-                  LinearProgressIndicator(value: state.progress <= 0 ? null : state.progress),
-                  const SizedBox(height: 6),
-                  Text(
-                    'کتب پڑھی جا سکتی ہیں؛ تلاش کی فہرست تیار ہو رہی ہے۔',
-                    textDirection: TextDirection.rtl,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// A coloured rounded tile with a white icon: the colour of a book or collection.
 class _IconBadge extends StatelessWidget {
   const _IconBadge({required this.icon, required this.color, this.size = 42});
 

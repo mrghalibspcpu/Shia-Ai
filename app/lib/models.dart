@@ -414,6 +414,71 @@ class SearchHit {
   final String citation;
 }
 
+/// One line for the home screen's **آیت / حدیثِ وقت** card: a short Quran verse
+/// with its Urdu translation, or a short narration from Mizan al-Hikmah.
+///
+/// [book] is null for the built-in fallbacks, which are shown before any book
+/// has been downloaded — the card is never empty, and a line from an installed
+/// book always wins.
+class MomentPassage {
+  const MomentPassage({
+    required this.kind,
+    required this.arabic,
+    required this.urdu,
+    required this.source,
+    this.book,
+    this.recordId = 0,
+    this.sectionId,
+  });
+
+  /// `آیت` or `حدیث` — the little tag on the card.
+  final String kind;
+
+  /// The verse or narration itself.
+  final String arabic;
+
+  /// Its Urdu translation.
+  final String urdu;
+
+  /// Where it comes from, e.g. `سورہ البقرہ، آیت ۲۵۵` or `میزان الحکمہ`.
+  final String source;
+
+  final BookDefinition? book;
+  final int recordId;
+  final int? sectionId;
+
+  /// True when tapping the card can open the passage in its own reader.
+  bool get isOpenable => book != null && recordId != 0;
+}
+
+/// The three lines the moment card falls back to while nothing is downloaded.
+const List<MomentPassage> kFallbackMoments = <MomentPassage>[
+  MomentPassage(
+    kind: 'آیت',
+    arabic: 'أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ',
+    urdu: 'یاد رکھو! اللہ کے ذکر ہی سے دلوں کو سکون ملتا ہے۔',
+    source: 'سورہ الرعد، آیت ۲۸',
+  ),
+  MomentPassage(
+    kind: 'حدیث',
+    arabic: 'قَالَ عَلِيٌّ عَلَيْهِ السَّلَامُ: الْعِلْمُ وِرَاثَةٌ كَرِيمَةٌ',
+    urdu: 'علم ایک باعزت وراثت ہے۔',
+    source: 'میزان الحکمہ',
+  ),
+  MomentPassage(
+    kind: 'آیت',
+    arabic: 'وَمَن يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ',
+    urdu: 'اور جو اللہ پر بھروسہ کرے تو وہ اس کے لیے کافی ہے۔',
+    source: 'سورہ الطلاق، آیت ۳',
+  ),
+  MomentPassage(
+    kind: 'حدیث',
+    arabic: 'قَالَ رَسُولُ اللَّهِ ﷺ: أَفْضَلُ الْعِبَادَةِ أَخْفَاهَا',
+    urdu: 'بہترین عبادت وہ ہے جو چھپ کر کی جائے۔',
+    source: 'میزان الحکمہ',
+  ),
+];
+
 /// One surah row from `ChapterProperty`.
 class QuranSurah {
   const QuranSurah({

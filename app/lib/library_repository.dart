@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -1254,6 +1255,102 @@ class LibraryRepository {
   }
 
   // --------------------------------------------------------------- lookups
+
+  /// A handful of short lines for the home screen's **آیت / حدیثِ وقت** card.
+  ///
+  /// A short Quran verse (with its Urdu translation) and a short narration from
+  /// Mizan al-Hikmah per slot while the two books are installed — the card's
+  /// next button walks this list, so a tap never waits on the database. The
+  /// caller picks one at random; the list comes back shuffled.
+  ///
+  /// Returns an empty list when neither book is installed (the card then shows
+  /// its built-in lines) or when a book cannot be opened.
+  Future<List<MomentPassage>> momentPassages({int limit = 6, math.Random? random}) async {
+    if (!_initialized || limit <= 0) return const <MomentPassage>[];
+    final lines = <MomentPassage>[];
+    final quran = BookDefinition.bookFor(CorpusSource.quran);
+    final mizan = BookDefinition.byKey('mezan');
+    if (quran != null && isInstalled(quran)) lines.addAll(await _quranMoments(quran, limit));
+    if (mizan != null && isInstalled(mizan)) lines.addAll(await _hadithMoments(mizan, limit));
+    lines.shuffle(random ?? math.Random());
+    return lines;
+  }
+
+  /// Short ayahs: a translation of 40–130 characters, so the card holds it in
+  /// two lines. `ORDER BY RANDOM()` over the 6,236 rows is instant.
+  Future<List<MomentPassage>> _quranMoments(BookDefinition book, int limit) async {
+    final lines = <MomentPassage>[];
+    try {
+      final db = await _openBook(book);
+      final rows = await db.rawQuery('''
+        SELECT q.ID AS record_id, q.Arabic AS arabic, q.tr AS urdu, q.talighe AS commentary,
+               q.chapter AS container_type, q.chapter AS container_id, q.page AS page_no,
+               q.juz AS juz, q.verse AS verse, COALESCE(cp.Name, '') AS surah_name
+        FROM Quran AS q LEFT JOIN ChapterProperty AS cp ON cp.Id = q.chapter
+        WHERE LENGTH(COALESCE(q.tr, '')) BETWEEN 40 AND 130
+          AND LENGTH(COALESCE(q.Arabic, '')) BETWEEN 10 AND 110
+        ORDER BY RANDOM() LIMIT ?
+      ''', [limit]);
+      for (final row in rows) {
+        final passage = _quranPassage(row);
+        if (passage.arabic.isEmpty || passage.urdu.isEmpty) continue;
+        final chapter = _asInt(row['chapter']) ?? 0;
+        final name = chapter >= 1 && chapter <= urduSurahNames.length
+            ? urduSurahNames[chapter - 1]
+            : (row['surah_name'] ?? '').toString();
+        final verse = _asInt(row['verse']) ?? 0;
+        lines.add(MomentPassage(
+          kind: 'آیت',
+          arabic: passage.arabic,
+          urdu: passage.urdu,
+          source: name.isEmpty
+              ? book.titleUrdu
+              : 'سورہ $name، آیت $verse',
+          book: book,
+          recordId: passage.recordId,
+          sectionId: passage.sectionId,
+        ));
+      }
+    } catch (_) {
+      return const <MomentPassage>[];
+    }
+    return lines;
+  }
+
+  /// Short narrations of Mizan al-Hikmah: `Parags.mean` is the Urdu line,
+  /// `Parags.txt` the Arabic. The length filter keeps only what fits the card.
+  Future<List<MomentPassage>> _hadithMoments(BookDefinition book, int limit) async {
+    final lines = <MomentPassage>[];
+    try {
+      final db = await _openBook(book);
+      final rows = await db.rawQuery('''
+        SELECT COALESCE(NULLIF(p.ID, ''), -p.rowid) AS record_id, p.txt AS arabic, p.mean AS urdu,
+               p.Secid AS section_id, p.paganum AS page_no,
+               COALESCE(s.title, '') AS section_title
+        FROM Parags AS p
+        LEFT JOIN Sections AS s ON s.Secid = p.Secid
+        WHERE LENGTH(COALESCE(p.mean, '')) BETWEEN 30 AND 130
+          AND LENGTH(COALESCE(p.txt, '')) BETWEEN 10 AND 190
+        ORDER BY RANDOM() LIMIT ?
+      ''', [limit]);
+      for (final row in rows) {
+        final passage = Passage.fromMap(row);
+        if (passage.arabic.isEmpty || passage.urdu.isEmpty) continue;
+        lines.add(MomentPassage(
+          kind: 'حدیث',
+          arabic: passage.arabic,
+          urdu: passage.urdu,
+          source: book.titleUrdu,
+          book: book,
+          recordId: passage.recordId,
+          sectionId: passage.sectionId,
+        ));
+      }
+    } catch (_) {
+      return const <MomentPassage>[];
+    }
+    return lines;
+  }
 
   Future<Passage?> getPassageById(BookDefinition book, int recordId) async {
     final db = await _openBook(book);

@@ -171,6 +171,134 @@ class ReaderPalette {
       };
 }
 
+/// The colours of the home dashboard (the fifteen containers of the approved
+/// design): a light page, dark emerald glass cards, a plum rail and dial, an
+/// amber "آیت / حدیثِ وقت" card, and gold hairlines on everything.
+///
+/// One place, both themes, so the dashboard, the prayer card over its sky and
+/// the bottom panel always read as one screen.
+class DashboardPalette {
+  const DashboardPalette({
+    required this.backdrop,
+    required this.gold,
+    required this.goldSoft,
+    required this.cream,
+    required this.creamInk,
+    required this.ink,
+    required this.onDark,
+    required this.onDarkMuted,
+    required this.moment,
+    required this.momentInk,
+    required this.plum,
+    required this.metal,
+    required this.metalInk,
+    required this.bead,
+    required this.sunken,
+  });
+
+  /// Page behind the containers, top to bottom.
+  final Gradient backdrop;
+
+  /// The hairline around every container and the accent of the panels.
+  final Color gold;
+  final Color goldSoft;
+
+  /// Paper fills: the search field, the round buttons on the dial.
+  final Color cream;
+  final Color creamInk;
+
+  /// Text on the light page.
+  final Color ink;
+
+  /// Text on the dark glass containers.
+  final Color onDark;
+  final Color onDarkMuted;
+
+  /// The amber "moment" card.
+  final Gradient moment;
+  final Color momentInk;
+
+  /// The rail and the dial's inner bead.
+  final Gradient plum;
+
+  /// The dial's brushed face and the ink of its labels.
+  final Gradient metal;
+  final Color metalInk;
+
+  /// The dial's glowing count and the unfilled ring around it.
+  final Color bead;
+  final Color sunken;
+
+  static DashboardPalette of(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? _dark : _light;
+
+  static const DashboardPalette _light = DashboardPalette(
+    backdrop: LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: <Color>[Color(0xFFF2F5F3), Color(0xFFDFE7E3)],
+    ),
+    gold: kGold,
+    goldSoft: Color(0xFFEBD5A8),
+    cream: Color(0xFFF8F4EA),
+    creamInk: Color(0xFF6E6A5C),
+    ink: kInk,
+    onDark: Color(0xFFF6FBF7),
+    onDarkMuted: Color(0xFFB9D5C6),
+    moment: LinearGradient(
+      begin: Alignment.topRight,
+      end: Alignment.bottomLeft,
+      colors: <Color>[Color(0xFFF3A93C), Color(0xFFD97E12)],
+    ),
+    momentInk: Color(0xFF4A2A05),
+    plum: LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: <Color>[Color(0xFF45225C), Color(0xFF26103A)],
+    ),
+    metal: RadialGradient(
+      colors: <Color>[Color(0xFFF3F6F7), Color(0xFFD8DEE1), Color(0xFFB9C2C6)],
+      stops: <double>[0, 0.62, 1],
+    ),
+    metalInk: Color(0xFF3C4448),
+    bead: Color(0xFF31204E),
+    sunken: Color(0x221C2B27),
+  );
+
+  static const DashboardPalette _dark = DashboardPalette(
+    backdrop: LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: <Color>[Color(0xFF0B1211), Color(0xFF16211F)],
+    ),
+    gold: Color(0xFFE4BC70),
+    goldSoft: Color(0xFFF0D9A8),
+    cream: Color(0xFF1E2A27),
+    creamInk: Color(0xFFB9C6C0),
+    ink: Color(0xFFE8EEE8),
+    onDark: Color(0xFFF2FAF4),
+    onDarkMuted: Color(0xFFA9C9B8),
+    moment: LinearGradient(
+      begin: Alignment.topRight,
+      end: Alignment.bottomLeft,
+      colors: <Color>[Color(0xFFD08A20), Color(0xFF9E5C08)],
+    ),
+    momentInk: Color(0xFF2A1703),
+    plum: LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: <Color>[Color(0xFF4A2563), Color(0xFF241038)],
+    ),
+    metal: RadialGradient(
+      colors: <Color>[Color(0xFF5A6367), Color(0xFF3C4448), Color(0xFF282F32)],
+      stops: <double>[0, 0.62, 1],
+    ),
+    metalInk: Color(0xFFE6EDEE),
+    bead: Color(0xFF2B1B45),
+    sunken: Color(0x33FFFFFF),
+  );
+}
+
 class JustifiedText extends StatelessWidget {
   const JustifiedText(
     this.text, {

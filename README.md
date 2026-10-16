@@ -187,6 +187,39 @@ See [`docs/home-dock-1-10.md`](docs/home-dock-1-10.md).
 
 See [`docs/home-1-10-1.md`](docs/home-1-10-1.md).
 
+## The home dashboard (1.11)
+
+The home screen is now the fifteen containers of the approved design, drawn on
+one fixed canvas and scaled as a single piece, so the shapes and the positions
+hold on a 360 dp phone, on a tall phone and on a tablet alike:
+
+1. the **ShiaVerse** rail down the left edge, the name written on the spine;
+2. the mini prayer card — place, live clock, Hijri date, the five times with the
+   running prayer tagged **Now** and the next one counting down — over the
+   animated sky of the hour;
+3. **قرآنِ کریم** — «ترجمہ و تفسیر کے ساتھ»;
+4. **احادیث** — «ایک لاکھ کے قریب احادیث»;
+5. **مفاتیح الجنان و صحیفہ سجادیہ** — «مکمل»;
+6. **نہج البلاغہ** — «خطب، خطوط اور حکمت»;
+7. **دینی مسائل** — «احکام و فتاویٰ»;
+8. **آیت / حدیثِ وقت** — a short verse with its Urdu translation, or a short
+   narration from Mizan al-Hikmah, rolled once per app start and changed by the
+   button at its end; tapping it opens the passage in its own reader;
+9. the circular tasbeeh — the wird in the Arabic face, the count glowing in the
+   middle, **+** on one side, reset on the other (long press locks it, and the
+   same button unlocks), and the expand button for the full counter;
+10. the search bar, moved off the bottom panel: it opens the working search with
+    the keyboard already up;
+11–15. the bottom panel: گھر, قرآن, احادیث, دعائیں and مزید. Everything else —
+    نہج البلاغہ, دینی مسائل, نماز کے اوقات, تسبیح, قبلہ نما, محفوظات, آخری مطالعہ,
+    ڈیٹا ڈاؤن لوڈ and ترتیبات — lives under **مزید**.
+
+A collection whose books are not installed shows the download mark and opens the
+data screen; the download notice and the search-index progress are one slim strip
+above the dashboard, and both disappear on their own.
+
+See [`docs/home-dashboard-1-11.md`](docs/home-dashboard-1-11.md).
+
 ## App name and icon
 
 The launcher label and the in-app title are **ShiaVerse**. The icon artwork is

@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shia_ai/app_theme.dart';
+import 'package:shia_ai/library_repository.dart';
+import 'package:shia_ai/models.dart';
 import 'package:shia_ai/screens/prayer_times_screen.dart';
 import 'package:shia_ai/screens/tasbeeh_screen.dart';
 import 'package:shia_ai/services/alerts.dart';
@@ -15,12 +17,12 @@ import 'package:shia_ai/services/prayer_controller.dart';
 import 'package:shia_ai/services/prayer_locations.dart';
 import 'package:shia_ai/services/prayer_scope.dart';
 import 'package:shia_ai/services/tasbeeh_controller.dart';
-import 'package:shia_ai/widgets/home_utilities.dart';
+import 'package:shia_ai/widgets/home_dashboard.dart';
 
-/// Layout checks for the 1.9 screens on a small (360 dp) phone, with the
-/// app's real fonts: any overflow fails the test. When
-/// `SHIAVERSE_PREVIEW_DIR` is set (CI does), each screen is also saved as a
-/// PNG so the layout can be looked at without a device.
+/// Layout checks for the 1.9 home dashboard and the screens around it on a
+/// small (360 dp) phone, with the app's real fonts: any overflow fails the
+/// test. When `SHIAVERSE_PREVIEW_DIR` is set (CI does), each screen is also
+/// saved as a PNG so the layout can be looked at without a device.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -126,18 +128,29 @@ void main() {
     });
   }
 
-  Widget homeScreen() => Scaffold(
-        appBar: AppBar(title: const Text('ShiaVerse')),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 4, 18, 28),
-          children: const <Widget>[
-            SizedBox(height: 4),
-            HomePrayerBanner(),
-            SizedBox(height: 12),
-            HomeUtilityRow(),
-          ],
+  /// The dashboard exactly as the app mounts it: the fifteen containers, the
+  /// slim notice strip above them and the bottom panel below.
+  ///
+  /// Nothing is installed in a test, which is the honest worst case for the
+  /// layout: every section card shows its download mark and the moment card
+  /// falls back to its built-in lines.
+  Widget homeScreen({LibraryRepository? library}) {
+    final repository = library ?? LibraryRepository();
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: HomeDashboard(
+          library: repository,
+          onSearch: () {},
+          onOpenData: () {},
         ),
-      );
+      ),
+      bottomNavigationBar: HomeDockBar(
+        selected: HomeDockItem.home,
+        onSelected: (_) {},
+      ),
+    );
+  }
 
   for (final (name, hour, minute) in <(String, int, int)>[
     ('dawn', 5, 40),
@@ -145,7 +158,7 @@ void main() {
     ('evening', 16, 45),
     ('night', 21, 5),
   ]) {
-    testWidgets('home prayer card and utility row fit a 360 dp phone ($name)', (tester) async {
+    testWidgets('the home dashboard fits a 360 dp phone ($name)', (tester) async {
       phone(tester);
       final (prayer, tasbeeh) = await controllersAt(tester, localTime(hour, minute));
       for (var index = 0; index < 27; index++) {
@@ -153,14 +166,30 @@ void main() {
       }
       await tester.pumpWidget(host(prayer, tasbeeh, homeScreen()));
       await settle(tester);
-      expect(find.byType(HomePrayerBanner), findsOneWidget);
+      // The fifteen containers of the design.
+      expect(find.byType(HomeDashboard), findsOneWidget);
+      expect(find.text('ShiaVerse'), findsOneWidget);
       expect(find.text('G-11، اسلام آباد'), findsOneWidget);
+      expect(find.text('قرآنِ کریم'), findsOneWidget);
+      expect(find.text('ترجمہ و تفسیر کے ساتھ'), findsOneWidget);
+      expect(find.text('ایک لاکھ کے قریب احادیث'), findsOneWidget);
+      expect(find.text('مفاتیح الجنان و صحیفہ سجادیہ'), findsOneWidget);
+      expect(find.text('مکمل'), findsOneWidget);
+      expect(find.text('نہج البلاغہ'), findsOneWidget);
+      expect(find.text('دینی مسائل'), findsOneWidget);
+      expect(find.text('احکام و فتاویٰ'), findsOneWidget);
+      expect(find.text('پوری لائبریری میں تلاش کریں…'), findsOneWidget);
+      expect(find.byType(HomeDockBar), findsOneWidget);
+      for (final item in HomeDockItem.values) {
+        // احادیث names both the collection card and its dock button.
+        expect(find.text(item.label), findsAtLeastNWidgets(1), reason: item.label);
+      }
       await shoot(tester, 'home-$name');
       await finish(tester, prayer, tasbeeh);
     });
   }
 
-  testWidgets('home cards survive a large system font', (tester) async {
+  testWidgets('the dashboard keeps its shape with a large system font', (tester) async {
     phone(tester);
     final (prayer, tasbeeh) = await controllersAt(tester, localTime(13, 30));
     tasbeeh.saveWird(text: 'اللّٰهُمَّ صَلِّ عَلَىٰ مُحَمَّدٍ وَآلِ مُحَمَّدٍ وَعَجِّلْ فَرَجَهُمْ', target: 14000);
@@ -169,7 +198,75 @@ void main() {
     }
     await tester.pumpWidget(host(prayer, tasbeeh, homeScreen(), textScale: 1.35));
     await settle(tester);
+    expect(find.byType(HomeDashboard), findsOneWidget);
+    expect(find.text('قرآنِ کریم'), findsOneWidget);
     await shoot(tester, 'home-large-font');
+    await finish(tester, prayer, tasbeeh);
+  });
+
+  testWidgets('the dashboard fits a short phone without scrolling', (tester) async {
+    // 640 dp tall: the whole design still fits, scaled as one piece.
+    phone(tester, height: 640);
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(18, 20));
+    await tester.pumpWidget(host(prayer, tasbeeh, homeScreen()));
+    await settle(tester);
+    expect(find.byType(HomeDashboard), findsOneWidget);
+    expect(find.text('دینی مسائل'), findsOneWidget);
+    await shoot(tester, 'home-short');
+    await finish(tester, prayer, tasbeeh);
+  });
+
+  testWidgets('the bottom panel runs the features behind its five buttons', (tester) async {
+    phone(tester);
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(10, 0));
+    final tapped = <HomeDockItem>[];
+    await tester.pumpWidget(host(
+      prayer,
+      tasbeeh,
+      Scaffold(
+        bottomNavigationBar: HomeDockBar(
+          selected: HomeDockItem.home,
+          onSelected: tapped.add,
+        ),
+      ),
+    ));
+    await tester.pump();
+    for (final item in <HomeDockItem>[HomeDockItem.quran, HomeDockItem.hadith, HomeDockItem.duas, HomeDockItem.more]) {
+      await tester.tap(find.text(item.label));
+      await tester.pump();
+    }
+    expect(tapped, <HomeDockItem>[
+      HomeDockItem.quran,
+      HomeDockItem.hadith,
+      HomeDockItem.duas,
+      HomeDockItem.more,
+    ]);
+    await finish(tester, prayer, tasbeeh);
+  });
+
+  testWidgets('the tasbeeh dial locks its reset button on a long press', (tester) async {
+    phone(tester);
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(10, 0));
+    tasbeeh.tap();
+    await tester.pumpWidget(host(prayer, tasbeeh, homeScreen()));
+    await settle(tester);
+    expect(find.byIcon(Icons.restart_alt), findsOneWidget);
+    expect(find.byIcon(Icons.lock), findsNothing);
+
+    await tester.longPress(find.byIcon(Icons.restart_alt));
+    await settle(tester);
+    // The same button is the unlock button now, and a tap on it only says so.
+    expect(find.byIcon(Icons.lock), findsOneWidget);
+    expect(tasbeeh.count, 1);
+    await tester.tap(find.byIcon(Icons.lock));
+    await settle(tester);
+    expect(tasbeeh.count, 1);
+    expect(find.textContaining('ری سیٹ لاک ہے'), findsOneWidget);
+
+    // Long press again: the button counts down the wird once more.
+    await tester.longPress(find.byIcon(Icons.lock));
+    await settle(tester);
+    expect(find.byIcon(Icons.restart_alt), findsOneWidget);
     await finish(tester, prayer, tasbeeh);
   });
 
@@ -225,5 +322,16 @@ void main() {
     expect(find.text('Chak Jhumra'), findsWidgets);
     await shoot(tester, 'location-picker');
     await finish(tester, prayer, tasbeeh);
+  });
+
+  test('the moment card has built-in lines for a phone with no books', () {
+    expect(kFallbackMoments.length, greaterThanOrEqualTo(3));
+    for (final line in kFallbackMoments) {
+      expect(line.kind, anyOf('آیت', 'حدیث'));
+      expect(line.arabic.trim(), isNotEmpty);
+      expect(line.urdu.trim(), isNotEmpty);
+      expect(line.source.trim(), isNotEmpty);
+      expect(line.isOpenable, isFalse);
+    }
   });
 }

@@ -12,10 +12,19 @@ import '../widgets/reader_kit.dart';
 import '../widgets/highlighted_text.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key, required this.library, this.onOpenData});
+  const SearchScreen({
+    super.key,
+    required this.library,
+    this.onOpenData,
+    this.autofocus = false,
+  });
 
   final LibraryRepository library;
   final VoidCallback? onOpenData;
+
+  /// True when the screen was opened from the dashboard's search bar: the
+  /// reader is already reaching for the keyboard, so the field takes focus.
+  final bool autofocus;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -191,7 +200,7 @@ class _SearchScreenState extends State<SearchScreen> {
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
             child: TextField(
               controller: _controller,
-              autofocus: false,
+              autofocus: widget.autofocus,
               onChanged: _scheduleSearch,
               onSubmitted: _runSearch,
               textDirection: TextDirection.rtl,

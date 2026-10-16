@@ -11,12 +11,15 @@ import 'models.dart';
 import 'reader_navigation.dart';
 import 'screens/data_screen.dart';
 import 'screens/library_screen.dart';
+import 'screens/prayer_times_screen.dart';
 import 'screens/qibla_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/tasbeeh_screen.dart';
 import 'services/prayer_controller.dart';
 import 'services/prayer_scope.dart';
 import 'services/tasbeeh_controller.dart';
+import 'widgets/home_dashboard.dart';
 import 'widgets/last_seen_sheet.dart';
 import 'widgets/more_features.dart';
 import 'widgets/reading_hub.dart';
@@ -178,22 +181,18 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
     switch (destination) {
       case HubDestination.home:
         navigator.popUntil((route) => route.isFirst);
-        final shell = _homeShellKey.currentState;
-        shell?.selectTab(0);
-        shell?.refresh();
+        _homeShellKey.currentState?.refresh();
       case HubDestination.search:
-        if (navigator.canPop()) {
-          unawaited(navigator.push(MaterialPageRoute<void>(
-            builder: (_) => SearchScreen(
-              library: _library,
-              onOpenData: () => unawaited(navigator.push(MaterialPageRoute<void>(
-                builder: (_) => DataScreen(library: _library, installer: _installer),
-              ))),
-            ),
-          )));
-        } else {
-          _homeShellKey.currentState?.selectTab(1);
-        }
+        // Search is the bar on the dashboard now, and it is a page: over a
+        // page, the hub opens it on top of that page.
+        unawaited(navigator.push(MaterialPageRoute<void>(
+          builder: (_) => SearchScreen(
+            library: _library,
+            onOpenData: () => unawaited(navigator.push(MaterialPageRoute<void>(
+              builder: (_) => DataScreen(library: _library, installer: _installer),
+            ))),
+          ),
+        )));
       case HubDestination.bookmarks:
         unawaited(navigator.push(MaterialPageRoute<void>(
           builder: (_) => SavedItemsScreen(library: _library),
@@ -205,8 +204,41 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
     }
   }
 
-  /// The items of مزید خصوصیات. New extras are added here.
+  /// The items of **مزید** — every feature that is not one of the five
+  /// buttons of the bottom panel, in one list. New extras are added here.
   List<MoreFeature> _moreFeatures(BuildContext homeContext) => <MoreFeature>[
+        MoreFeature(
+          title: HomeSection.balagha.title,
+          subtitle: HomeSection.balagha.slogan,
+          icon: HomeSection.balagha.icon,
+          color: HomeSection.balagha.start,
+          onOpen: () => _openSection(homeContext, HomeSection.balagha),
+        ),
+        MoreFeature(
+          title: HomeSection.fatawa.title,
+          subtitle: HomeSection.fatawa.slogan,
+          icon: HomeSection.fatawa.icon,
+          color: HomeSection.fatawa.start,
+          onOpen: () => _openSection(homeContext, HomeSection.fatawa),
+        ),
+        MoreFeature(
+          title: 'نماز کے اوقات',
+          subtitle: 'اہلِ تشیع (جعفری) اوقات، مقام اور قرات کا وقت',
+          icon: Icons.schedule,
+          color: kForest,
+          onOpen: () => unawaited(_navigatorKey.currentState?.push(MaterialPageRoute<void>(
+            builder: (_) => const PrayerTimesScreen(),
+          ))),
+        ),
+        MoreFeature(
+          title: 'تسبیح و ذکر',
+          subtitle: 'تسبیحِ زہرا (س) اور اپنے ورد کا مکمل کاؤنٹر',
+          icon: Icons.touch_app,
+          color: const Color(0xFF6B4E9B),
+          onOpen: () => unawaited(_navigatorKey.currentState?.push(MaterialPageRoute<void>(
+            builder: (_) => const TasbeehScreen(),
+          ))),
+        ),
         MoreFeature(
           title: 'قبلہ نما',
           subtitle: 'قبلہ کی سمت معلوم کریں',
@@ -217,13 +249,47 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
           ))),
         ),
         MoreFeature(
+          title: 'محفوظات',
+          subtitle: 'نشان زدہ مقامات اور نوٹ، ہر کتاب کے',
+          icon: Icons.bookmark_rounded,
+          color: const Color(0xFFD9466B),
+          onOpen: () => unawaited(_navigatorKey.currentState?.push(MaterialPageRoute<void>(
+            builder: (_) => SavedItemsScreen(library: _library),
+          ))),
+        ),
+        MoreFeature(
           title: 'آخری مطالعہ',
           subtitle: 'جہاں سے پڑھنا چھوڑا تھا وہیں سے دوبارہ شروع کریں',
           icon: Icons.history_rounded,
           color: const Color(0xFFE08A1E),
           onOpen: () => unawaited(showLastSeenSheet(homeContext, library: _library)),
         ),
+        MoreFeature(
+          title: 'ڈیٹا ڈاؤن لوڈ',
+          subtitle: 'کتب اور ڈیٹا پیکج کا انتظام',
+          icon: Icons.download_rounded,
+          color: const Color(0xFF2F6FD6),
+          onOpen: () => _homeShellKey.currentState?.openData(),
+        ),
+        MoreFeature(
+          title: 'ترتیبات',
+          subtitle: 'تھیم، قرات اور اطلاع کی ترتیبات',
+          icon: Icons.settings_rounded,
+          color: const Color(0xFF5C6BC0),
+          onOpen: () => _homeShellKey.currentState?.openSettings(),
+        ),
       ];
+
+  /// Opens a collection from the More sheet: its screen when the book is
+  /// installed, the download screen when it is not.
+  void _openSection(BuildContext context, HomeSection section) {
+    unawaited(openHomeSection(
+      context,
+      library: _library,
+      section: section,
+      onOpenData: () => _homeShellKey.currentState?.openData(),
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -404,7 +470,9 @@ class HomeShell extends StatefulWidget {
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
 
-  /// The bottom panel's actions that open something (everything but the tabs).
+  /// What the panel's **مزید** button opens: the sheet with every feature
+  /// that is not a panel button. The three collection buttons are handled
+  /// inside the shell, because the shell already holds the library.
   final ValueChanged<HubDestination> onAction;
 
   @override
@@ -412,21 +480,13 @@ class HomeShell extends StatefulWidget {
 }
 
 class HomeShellState extends State<HomeShell> {
-  // Two tabs live in the bottom panel: books and search. Bookmarks and
-  // settings open as pages from the home screen.
-  int _selectedIndex = 0;
-  late final Widget _libraryPage = LibraryHomeScreen(
+  // One page, and the five buttons of the bottom panel: گھر, قرآن, احادیث,
+  // دعائیں and مزید. Search is the bar on the dashboard, so the panel keeps
+  // the collections themselves.
+  late final Widget _homePage = LibraryHomeScreen(
     library: widget.library,
     onOpenData: openData,
   );
-  late final Widget _searchPage =
-      SearchScreen(library: widget.library, onOpenData: openData);
-
-  /// Shows the books (0) or the search (1) tab.
-  void selectTab(int index) {
-    if (!mounted || _selectedIndex == index) return;
-    setState(() => _selectedIndex = index);
-  }
 
   void openData() {
     if (!mounted) return;
@@ -457,42 +517,40 @@ class HomeShellState extends State<HomeShell> {
     if (mounted) setState(() {});
   }
 
-  void _onDockSelected(HubDestination destination) {
-    switch (destination) {
-      case HubDestination.home:
-        selectTab(0);
-      case HubDestination.search:
-        selectTab(1);
-      case HubDestination.bookmarks:
-      case HubDestination.more:
-      case HubDestination.settings:
-        widget.onAction(destination);
+  void _onDockSelected(HomeDockItem item) {
+    final section = item.section;
+    if (section != null) {
+      unawaited(openHomeSection(
+        context,
+        library: widget.library,
+        section: section,
+        onOpenData: openData,
+      ));
+      return;
+    }
+    switch (item) {
+      case HomeDockItem.home:
+        refresh();
+      case HomeDockItem.more:
+        widget.onAction(HubDestination.more);
+      case HomeDockItem.quran || HomeDockItem.hadith || HomeDockItem.duas:
+        // Handled by the section branch above.
+        break;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Rebuild the tabs when a download finishes so every page sees the new
-    // book immediately instead of after a manual refresh.
+    // Rebuild when a download finishes, so the dashboard's containers show the
+    // new book immediately instead of after a manual refresh.
     return ValueListenableBuilder<int>(
       valueListenable: widget.library.catalogVersion,
-      builder: (context, _, __) => _buildShell(context),
-    );
-  }
-
-  Widget _buildShell(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: [
-          // The home page's animated sky stops while another tab is in front.
-          TickerMode(enabled: _selectedIndex == 0, child: _libraryPage),
-          _searchPage,
-        ],
-      ),
-      bottomNavigationBar: HomeDock(
-        selected: _selectedIndex == 1 ? HubDestination.search : HubDestination.home,
-        onSelected: _onDockSelected,
+      builder: (context, _, __) => Scaffold(
+        body: TickerMode(enabled: true, child: _homePage),
+        bottomNavigationBar: HomeDockBar(
+          selected: HomeDockItem.home,
+          onSelected: _onDockSelected,
+        ),
       ),
     );
   }
