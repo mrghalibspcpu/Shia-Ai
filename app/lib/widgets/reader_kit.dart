@@ -811,6 +811,8 @@ class ReaderPrevNextBar extends StatelessWidget {
     required this.onPrevious,
     required this.onNext,
     this.label = '',
+    this.previousLabel = 'پچھلا',
+    this.nextLabel = 'اگلا',
   });
 
   final bool hasPrevious;
@@ -818,6 +820,8 @@ class ReaderPrevNextBar extends StatelessWidget {
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
   final String label;
+  final String previousLabel;
+  final String nextLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -836,7 +840,7 @@ class ReaderPrevNextBar extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: hasPrevious ? onPrevious : null,
                   icon: const Icon(Icons.arrow_forward_rounded),
-                  label: const Text('پچھلا'),
+                  label: Text(previousLabel),
                 ),
               ),
               const SizedBox(width: 10),
@@ -844,7 +848,7 @@ class ReaderPrevNextBar extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: hasNext ? onNext : null,
                   icon: const Icon(Icons.arrow_back_rounded),
-                  label: const Text('اگلا'),
+                  label: Text(nextLabel),
                 ),
               ),
             ],

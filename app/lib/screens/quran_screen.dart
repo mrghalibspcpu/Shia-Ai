@@ -256,6 +256,9 @@ class SurahReaderScreen extends StatefulWidget {
     this.initialRecordId,
     this.searchQuery = '',
     this.startInMushaf = false,
+    this.onNextSection,
+    this.onPreviousSection,
+    this.sectionNavLabel = '',
   });
 
   final LibraryRepository library;
@@ -263,15 +266,31 @@ class SurahReaderScreen extends StatefulWidget {
   final int? initialRecordId;
   final String searchQuery;
   final bool startInMushaf;
+  final VoidCallback? onNextSection;
+  final VoidCallback? onPreviousSection;
+  final String sectionNavLabel;
 
   @override
   State<SurahReaderScreen> createState() => _SurahReaderScreenState();
 }
 
 class _SurahReaderScreenState extends State<SurahReaderScreen> {
+  Future<void> _openSurah(BuildContext context, int delta) async {
+    final navigator = Navigator.of(context);
+    final surahs = await widget.library.getSurahs();
+    final next = surahs.where((s) => s.number == widget.surah.number + delta).toList();
+    if (next.isEmpty || !context.mounted) return;
+    navigator.pushReplacement(MaterialPageRoute<void>(
+      builder: (_) => SurahReaderScreen(library: widget.library, surah: next.first),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return _QuranVerseList(
+      onNextSection: () => unawaited(_openSurah(context, 1)),
+      onPreviousSection: () => unawaited(_openSurah(context, -1)),
+      sectionNavLabel: 'سورة ${widget.surah.number} از 114 — اگلی / پچھلی سورة',
       library: widget.library,
       title: widget.surah.displayTitle,
       subtitle: widget.surah.verseCount > 0
@@ -300,6 +319,15 @@ class JuzReaderScreen extends StatelessWidget {
       subtitle: 'مکمل پارہ',
       loader: () => library.getJuzVerses(juz),
       storageKey: 'quran-juz-$juz',
+      onNextSection: juz < 30
+          ? () => Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
+                builder: (_) => JuzReaderScreen(library: library, juz: juz + 1)))
+          : null,
+      onPreviousSection: juz > 1
+          ? () => Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
+                builder: (_) => JuzReaderScreen(library: library, juz: juz - 1)))
+          : null,
+      sectionNavLabel: 'پارہ $juz از 30 — اگلا / پچھلا پارہ',
     );
   }
 }
@@ -333,6 +361,9 @@ class _QuranVerseList extends StatefulWidget {
     this.initialRecordId,
     this.searchQuery = '',
     this.startInMushaf = false,
+    this.onNextSection,
+    this.onPreviousSection,
+    this.sectionNavLabel = '',
   });
 
   final LibraryRepository library;
@@ -344,6 +375,9 @@ class _QuranVerseList extends StatefulWidget {
   final int? initialRecordId;
   final String searchQuery;
   final bool startInMushaf;
+  final VoidCallback? onNextSection;
+  final VoidCallback? onPreviousSection;
+  final String sectionNavLabel;
 
   @override
   State<_QuranVerseList> createState() => _QuranVerseListState();
@@ -529,13 +563,7 @@ class _QuranVerseListState extends State<_QuranVerseList> {
                                 itemCount: _mushafGroups.length + 1,
                                 itemBuilder: (context, index) {
                                   if (index >= _mushafGroups.length) {
-                                    return ReaderPrevNextBar(
-                                      hasPrevious: _visibleVerseIndex > 0,
-                                      hasNext: _visibleVerseIndex < _verses.length - 1,
-                                      onPrevious: () => _goToVerse(_visibleVerseIndex - 1),
-                                      onNext: () => _goToVerse(_visibleVerseIndex + 1),
-                                      label: 'آیت ${_visibleVerseIndex + 1} از ${_verses.length}',
-                                    );
+                                    return _verseFooter();
                                   }
                                   return MushafText(
                                     group: _mushafGroups[index],
@@ -557,13 +585,7 @@ class _QuranVerseListState extends State<_QuranVerseList> {
                           itemBuilder: (context, index) {
                             if (widget.bismillah && index == 0) return _Bismillah(scale: _preferences.fontScale, color: palette.accent);
                             if (index - (widget.bismillah ? 1 : 0) >= _verses.length) {
-                              return ReaderPrevNextBar(
-                                hasPrevious: _visibleVerseIndex > 0,
-                                hasNext: _visibleVerseIndex < _verses.length - 1,
-                                onPrevious: () => _goToVerse(_visibleVerseIndex - 1),
-                                onNext: () => _goToVerse(_visibleVerseIndex + 1),
-                                label: 'آیت ${_visibleVerseIndex + 1} از ${_verses.length}',
-                              );
+                                    return _verseFooter();
                             }
                             final verse = _verses[index - (widget.bismillah ? 1 : 0)];
                             return PassageCard(
@@ -604,6 +626,36 @@ class _QuranVerseListState extends State<_QuranVerseList> {
     if (record == null) return 0;
     final index = _verses.indexWhere((v) => v.recordId == record);
     return index < 0 ? 0 : index;
+  }
+
+  Widget _verseFooter() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ReaderPrevNextBar(
+          hasPrevious: _visibleVerseIndex > 0,
+          hasNext: _visibleVerseIndex < _verses.length - 1,
+          onPrevious: () => _goToVerse(_visibleVerseIndex - 1),
+          onNext: () => _goToVerse(_visibleVerseIndex + 1),
+          previousLabel: 'پچھلی آیت',
+          nextLabel: 'اگلی آیت',
+          label: 'آیت ${_visibleVerseIndex + 1} از ${_verses.length} — اسی سورة کے اندر',
+        ),
+        if (widget.onNextSection != null || widget.onPreviousSection != null) ...[
+          const SizedBox(height: 10),
+          ReaderPrevNextBar(
+            key: const ValueKey<String>('quran-section-prev-next'),
+            hasPrevious: widget.onPreviousSection != null,
+            hasNext: widget.onNextSection != null,
+            onPrevious: widget.onPreviousSection,
+            onNext: widget.onNextSection,
+            previousLabel: 'پچھلا متن',
+            nextLabel: 'اگلا متن',
+            label: widget.sectionNavLabel,
+          ),
+        ],
+      ],
+    );
   }
 
   int _verseNumber(Passage verse) {

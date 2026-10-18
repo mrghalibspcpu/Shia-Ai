@@ -65,6 +65,7 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
   String? _lastHandledLink;
   DateTime? _lastHandledAt;
   ThemeMode _themeMode = ThemeMode.light;
+  bool _amoled = false;
   // How many pages sit on top of the home screen, and the observer that counts
   // them: the circular hub is shown while the count is above zero.
   final ValueNotifier<int> _pageDepth = ValueNotifier<int>(0);
@@ -104,8 +105,9 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
     final stored = prefs.getString('theme_mode');
     if (!mounted) return;
     setState(() {
+      _amoled = stored == 'amoled';
       _themeMode = switch (stored) {
-        'dark' => ThemeMode.dark,
+        'dark' || 'amoled' => ThemeMode.dark,
         'system' => ThemeMode.system,
         _ => ThemeMode.light,
       };
@@ -113,7 +115,10 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
   }
 
   Future<void> _setThemeMode(ThemeMode mode) async {
-    setState(() => _themeMode = mode);
+    setState(() {
+      _themeMode = mode;
+      _amoled = false;
+    });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
       'theme_mode',
@@ -123,6 +128,17 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
         ThemeMode.system => 'system',
       },
     );
+  }
+
+  /// AMOLED (true black) is stored as its own theme_mode value; everywhere
+  /// else it simply behaves as dark.
+  Future<void> _setAmoled(bool enabled) async {
+    setState(() {
+      _amoled = enabled;
+      if (enabled) _themeMode = ThemeMode.dark;
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('theme_mode', enabled ? 'amoled' : 'dark');
   }
 
   @override
@@ -266,7 +282,7 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
       navigatorObservers: <NavigatorObserver>[_depthObserver],
       debugShowCheckedModeBanner: false,
       theme: buildLightTheme(),
-      darkTheme: buildDarkTheme(),
+      darkTheme: _amoled ? buildAmoledTheme() : buildDarkTheme(),
       themeMode: _themeMode,
       builder: (context, child) => PrayerScope(
         controller: _prayer,
@@ -287,6 +303,8 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
         installer: _installer,
         themeMode: _themeMode,
         onThemeModeChanged: _setThemeMode,
+        amoled: _amoled,
+        onAmoledChanged: _setAmoled,
         onReady: _openPendingReaderTarget,
         homeShellKey: _homeShellKey,
         onAction: _runHubAction,
@@ -303,6 +321,9 @@ class LibraryBootstrap extends StatefulWidget {
     required this.themeMode,
     required this.onThemeModeChanged,
     required this.onReady,
+    this.amoled = false,
+    this.onAmoledChanged,
+
     required this.homeShellKey,
     required this.onAction,
   });
@@ -311,6 +332,8 @@ class LibraryBootstrap extends StatefulWidget {
   final DataInstaller installer;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
+  final bool amoled;
+  final ValueChanged<bool>? onAmoledChanged;
   final VoidCallback onReady;
   final GlobalKey<HomeShellState> homeShellKey;
   final ValueChanged<HubDestination> onAction;
@@ -371,6 +394,8 @@ class _LibraryBootstrapState extends State<LibraryBootstrap> {
         installer: widget.installer,
         themeMode: widget.themeMode,
         onThemeModeChanged: widget.onThemeModeChanged,
+        amoled: widget.amoled,
+        onAmoledChanged: widget.onAmoledChanged,
         onAction: widget.onAction,
       );
     }
@@ -430,12 +455,16 @@ class HomeShell extends StatefulWidget {
     required this.themeMode,
     required this.onThemeModeChanged,
     required this.onAction,
+    this.amoled = false,
+    this.onAmoledChanged,
   });
 
   final LibraryRepository library;
   final DataInstaller installer;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
+  final bool amoled;
+  final ValueChanged<bool>? onAmoledChanged;
 
   /// The shared page actions used by the dock and the reading hub.
   final ValueChanged<HubDestination> onAction;
@@ -470,6 +499,8 @@ class HomeShellState extends State<HomeShell> {
         installer: widget.installer,
         themeMode: widget.themeMode,
         onThemeModeChanged: widget.onThemeModeChanged,
+        amoled: widget.amoled,
+        onAmoledChanged: widget.onAmoledChanged,
       ),
     )));
   }

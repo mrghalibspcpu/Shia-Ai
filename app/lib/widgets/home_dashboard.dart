@@ -617,7 +617,17 @@ class _MiniPrayerCard extends StatelessWidget {
         final window = schedule.window(now);
         final next = schedule.nextEntry(now);
         final running = !window.previousNight && now.isBefore(window.endsAt);
-        final prayers = schedule.obligatory;
+        // Mini card only: Fajr, طلوعِ شمس (sunrise), ظہرین (Dhuhr),
+        // مغربین (Maghrib) and نصف شب (midnight) — Asr & Isha are not shown
+        // here; the full prayer page still carries every marker.
+        final miniEntries = <(PrayerEntry, String)>[
+          (schedule.entryFor(PrayerMarker.fajr), 'فجر'),
+          (schedule.entryFor(PrayerMarker.sunrise), 'طلوعِ شمس'),
+          (schedule.entryFor(PrayerMarker.dhuhr), 'ظہرین'),
+          (schedule.entryFor(PrayerMarker.maghrib), 'مغربین'),
+          (schedule.entryFor(PrayerMarker.midnight), 'نصف شب'),
+        ];
+        final prayers = miniEntries;
         return Container(
           key: const ValueKey<String>('home-prayer-card'),
           decoration: BoxDecoration(
@@ -635,13 +645,14 @@ class _MiniPrayerCard extends StatelessWidget {
                 ),
                 child: LayoutBuilder(builder: (context, constraints) {
                   final compact = constraints.maxHeight < 205;
-                  Widget prayerRow(Iterable<PrayerEntry> entries) => Row(
+                  Widget prayerRow(Iterable<(PrayerEntry, String)> entries) => Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
-                      for (final entry in entries)
+                      for (final (entry, displayLabel) in entries)
                         Expanded(
                           child: _MiniPrayerCell(
                             entry: entry,
+                            displayLabel: displayLabel,
                             active: running && window.marker == entry.marker,
                             upcoming: !(running && window.marker == entry.marker) && next.marker == entry.marker,
                             remaining: next.marker == entry.marker ? next.time.difference(now) : null,
@@ -695,7 +706,7 @@ class _MiniPrayerCard extends StatelessWidget {
                             alignment: Alignment.bottomCenter,
                             child: SizedBox(
                               key: const ValueKey<String>('home-prayer-row'),
-                              height: compact ? 52.0 : 64.0,
+                              height: compact ? 58.0 : 70.0,
                               child: prayerRow(prayers),
                             ),
                           ),
@@ -754,9 +765,14 @@ class _MiniPrayerCell extends StatelessWidget {
     required this.active,
     required this.upcoming,
     this.remaining,
+    this.displayLabel,
   });
 
   final PrayerEntry entry;
+
+  /// Mini-card name override (ظہرین / مغربین / طلوعِ شمس …); null = the
+  /// marker's own name.
+  final String? displayLabel;
   final bool active;
   final bool upcoming;
   final Duration? remaining;
@@ -788,17 +804,17 @@ class _MiniPrayerCell extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Text(
-              entry.marker.labelUrdu,
+              displayLabel ?? entry.marker.labelUrdu,
               maxLines: 1,
               overflow: TextOverflow.clip,
-              style: _onSky(11, weight: lit ? FontWeight.w800 : FontWeight.w600, height: 1.2),
+              style: _onSky(15, weight: lit ? FontWeight.w800 : FontWeight.w700, height: 1.25),
             ),
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
                 formatClockDigitsUrdu(entry.time),
                 textDirection: TextDirection.ltr,
-                style: _onSky(14, weight: FontWeight.w800, digits: true, height: 1, color: upcoming ? gold : Colors.white),
+                style: _onSky(15, weight: FontWeight.w800, digits: true, height: 1, color: upcoming ? gold : Colors.white),
               ),
             ),
             const SizedBox(height: 1),

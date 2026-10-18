@@ -516,6 +516,59 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   List<Passage> _passages = [];
   int _initialIndex = 0;
+
+  /// Every section (متن) of this book in reading order: (sectionId, title).
+  List<(int, String)> _navSections = const [];
+  bool _navBusy = false;
+
+  int? get _currentSectionId =>
+      widget.sectionId ?? (_passages.isNotEmpty ? _passages.first.sectionId : null);
+
+  Future<void> _loadNavSections() async {
+    try {
+      final ordered = <(int, String)>[];
+      final chapters = await widget.library.getChapters(widget.book);
+      for (final chapter in chapters) {
+        final cid = _toInt(chapter['cid']) ?? _toInt(chapter['ID']) ?? 0;
+        final sections = await widget.library.getSections(widget.book, cid);
+        for (final section in sections) {
+          final secId = _toInt(section['Secid']) ?? _toInt(section['ID']);
+          if (secId != null && !ordered.any((s) => s.$1 == secId)) {
+            ordered.add((secId, (section['title'] ?? '').toString()));
+          }
+        }
+      }
+      if (mounted) setState(() => _navSections = ordered);
+    } catch (_) {
+      // Navigation is a convenience; reading must never fail because of it.
+    }
+  }
+
+  int get _navIndex {
+    final current = _currentSectionId;
+    if (current == null) return -1;
+    return _navSections.indexWhere((s) => s.$1 == current);
+  }
+
+  /// Opens the next/previous متن (section) — crossing chapter boundaries —
+  /// replacing this reader so the back button still returns to the lists.
+  void _openAdjacentSection(int delta) {
+    final index = _navIndex;
+    if (_navBusy || index < 0) return;
+    final targetIndex = index + delta;
+    if (targetIndex < 0 || targetIndex >= _navSections.length) return;
+    _navBusy = true;
+    final (secId, title) = _navSections[targetIndex];
+    Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
+      builder: (_) => ReaderScreen(
+        library: widget.library,
+        book: widget.book,
+        sectionId: secId,
+        sectionTitle: title.isEmpty ? widget.book.titleUrdu : title,
+      ),
+    ));
+  }
+
   bool _loading = true;
   String? _error;
   ReaderPreferences _preferences = const ReaderPreferences();
@@ -524,6 +577,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
   void initState() {
     super.initState();
     unawaited(_load());
+    unawaited(_loadNavSections());
   }
 
 
@@ -612,12 +666,38 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       padding: const EdgeInsets.fromLTRB(14, 8, 14, 112),
                       itemBuilder: (context, index) {
                         if (index >= _passages.length) {
-                          return ReaderPrevNextBar(
-                            hasPrevious: _visibleIndex > 0,
-                            hasNext: _visibleIndex < _passages.length - 1,
-                            onPrevious: () => _goTo(_visibleIndex - 1),
-                            onNext: () => _goTo(_visibleIndex + 1),
-                            label: 'آیت / روایت / فتویٰ نمبر ${_visibleIndex + 1} از ${_passages.length}',
+                          final navIndex = _navIndex;
+                          final hasSectionNav = navIndex >= 0 && _navSections.length > 1;
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Within this متن: previous / next passage.
+                              ReaderPrevNextBar(
+                                hasPrevious: _visibleIndex > 0,
+                                hasNext: _visibleIndex < _passages.length - 1,
+                                onPrevious: () => _goTo(_visibleIndex - 1),
+                                onNext: () => _goTo(_visibleIndex + 1),
+                                previousLabel: 'پچھلا حصہ',
+                                nextLabel: 'اگلا حصہ',
+                                label: 'حصہ ${_visibleIndex + 1} از ${_passages.length} — اسی متن کے اندر',
+                              ),
+                              const SizedBox(height: 10),
+                              // Across متون: open the previous / next section
+                              // or chapter directly (no need to go back and
+                              // pick it from the chapter lists).
+                              ReaderPrevNextBar(
+                                key: const ValueKey<String>('reader-section-prev-next'),
+                                hasPrevious: hasSectionNav && navIndex > 0,
+                                hasNext: hasSectionNav && navIndex < _navSections.length - 1,
+                                onPrevious: () => _openAdjacentSection(-1),
+                                onNext: () => _openAdjacentSection(1),
+                                previousLabel: 'پچھلا متن',
+                                nextLabel: 'اگلا متن',
+                                label: hasSectionNav
+                                    ? 'متن ${navIndex + 1} از ${_navSections.length}'
+                                    : 'متون کی فہرست تیار ہو رہی ہے…',
+                              ),
+                            ],
                           );
                         }
                         return PassageCard(
@@ -748,45 +828,114 @@ class BookmarksScreen extends StatelessWidget {
         if (items.isEmpty) {
           return const CollectionMessage('ابھی کچھ محفوظ نہیں کیا گیا۔', icon: Icons.bookmark_border);
         }
-        // Every book's bookmarks under its own heading, separately.
+        // Step 1: a GRID of just those books that actually have bookmarks.
         final grouped = <String, List<(BookDefinition, Passage)>>{};
         for (final item in items) {
           grouped.putIfAbsent(item.$1.key, () => []).add(item);
         }
-        final rows = <Widget>[];
-        for (final entry in grouped.entries) {
-          final book = entry.value.first.$1;
-          rows.add(Padding(
-            key: ValueKey<String>('bookmarks-book-${book.key}'),
-            padding: const EdgeInsets.only(top: 8, bottom: 8),
-            child: Row(children: [
-              Icon(Icons.bookmark_rounded, size: 19, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(width: 6),
-              Expanded(child: JustifiedText(book.titleUrdu, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold))),
-              Text('${entry.value.length}', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-            ]),
-          ));
-          for (final (itemBook, passage) in entry.value) {
-            final preview = passage.urdu.isNotEmpty
-                ? passage.urdu
-                : (passage.arabic.isNotEmpty ? passage.arabic : passage.commentary);
-            rows.add(Card(
-              margin: const EdgeInsets.only(bottom: 10),
-              child: ListTile(
-                title: JustifiedText(
-                  passage.sectionTitle.isNotEmpty ? passage.sectionTitle : itemBook.titleUrdu,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                  maxLines: 1,
+        final books = grouped.values.map((list) => list.first.$1).toList();
+        return GridView.builder(
+          key: const ValueKey<String>('bookmarks-book-grid'),
+          padding: const EdgeInsets.all(16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.92,
+          ),
+          itemCount: books.length,
+          itemBuilder: (context, index) {
+            final book = books[index];
+            final bookItems = grouped[book.key]!;
+            final accent = bookAccent(book);
+            return Card(
+              key: ValueKey<String>('bookmarks-grid-${book.key}'),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => _BookBookmarksScreen(library: library, book: book, items: bookItems),
+                )),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topRight,
+                      end: Alignment.bottomLeft,
+                      colors: [accent.withValues(alpha: 0.24), accent.withValues(alpha: 0.07)],
+                    ),
+                  ),
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Container(
+                          width: 46, height: 46,
+                          decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(14)),
+                          child: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 24),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: JustifiedText(book.titleUrdu,
+                            style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold), maxLines: 3),
+                      ),
+                      Row(children: [
+                        Icon(Icons.bookmark_rounded, size: 16, color: accent),
+                        const SizedBox(width: 4),
+                        Text('${bookItems.length} محفوظ', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: accent)),
+                        const Spacer(),
+                        const Icon(Icons.chevron_left, size: 18),
+                      ]),
+                    ],
+                  ),
                 ),
-                subtitle: JustifiedText(preview, maxLines: 2),
-                trailing: const Icon(Icons.chevron_left),
-                onTap: () => pushReaderFor(context, library: library, book: itemBook, passage: passage),
               ),
-            ));
-          }
-        }
-        return ListView(padding: const EdgeInsets.all(16), children: rows);
+            );
+          },
+        );
       },
+    );
+  }
+}
+
+/// Step 2: ONE book's bookmarks, as a simple list. Reached by tapping that
+/// book's card in the bookmarks grid.
+class _BookBookmarksScreen extends StatelessWidget {
+  const _BookBookmarksScreen({required this.library, required this.book, required this.items});
+
+  final LibraryRepository library;
+  final BookDefinition book;
+  final List<(BookDefinition, Passage)> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: JustifiedText(book.titleUrdu, maxLines: 1)),
+      body: ListView.separated(
+        key: ValueKey<String>('bookmarks-list-${book.key}'),
+        padding: const EdgeInsets.all(16),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          final (itemBook, passage) = items[index];
+          final preview = passage.urdu.isNotEmpty
+              ? passage.urdu
+              : (passage.arabic.isNotEmpty ? passage.arabic : passage.commentary);
+          return Card(
+            child: ListTile(
+              title: JustifiedText(
+                passage.sectionTitle.isNotEmpty ? passage.sectionTitle : itemBook.titleUrdu,
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                maxLines: 1,
+              ),
+              subtitle: JustifiedText(preview, maxLines: 2),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => pushReaderFor(context, library: library, book: itemBook, passage: passage),
+            ),
+          );
+        },
+      ),
     );
   }
 }

@@ -180,10 +180,26 @@ class BalaghaReaderScreen extends StatelessWidget {
   final int? initialRecordId;
   final String searchQuery;
 
+  Future<void> _openEntry(BuildContext context, int delta) async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final passages = await library.getBalaghaEntry(type, typeNo + delta);
+    if (!context.mounted) return;
+    if (passages.isEmpty) {
+      messenger.showSnackBar(SnackBar(content: Text(delta > 0 ? 'اس کے بعد کوئی متن نہیں۔' : 'اس سے پہلے کوئی متن نہیں۔')));
+      return;
+    }
+    navigator.pushReplacement(MaterialPageRoute<void>(
+      builder: (_) => BalaghaReaderScreen(library: library, type: type, typeNo: typeNo + delta, title: ''),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return _BalaghaPassageList(
       library: library,
+      onNextSection: () => unawaited(_openEntry(context, 1)),
+      onPreviousSection: () => unawaited(_openEntry(context, -1)),
       title: title.isEmpty ? '${balaghaSectionTitles[type] ?? ''} $typeNo' : title,
       loader: () => library.getBalaghaEntry(type, typeNo),
       storageKey: 'balagha-$type-$typeNo',
@@ -233,6 +249,8 @@ class _BalaghaPassageList extends StatefulWidget {
     required this.loader,
     required this.storageKey,
     required this.recordIdForLastRead,
+    this.onNextSection,
+    this.onPreviousSection,
   });
 
   final LibraryRepository library;
@@ -242,6 +260,8 @@ class _BalaghaPassageList extends StatefulWidget {
   final Future<List<Passage>> Function() loader;
   final String storageKey;
   final int recordIdForLastRead;
+  final VoidCallback? onNextSection;
+  final VoidCallback? onPreviousSection;
 
   @override
   State<_BalaghaPassageList> createState() => _BalaghaPassageListState();
@@ -336,12 +356,32 @@ class _BalaghaPassageListState extends State<_BalaghaPassageList> {
                         padding: const EdgeInsets.fromLTRB(14, 8, 14, 112),
                         itemBuilder: (context, index) {
                           if (index >= _passages.length) {
-                            return ReaderPrevNextBar(
-                              hasPrevious: _visibleIndex > 0,
-                              hasNext: _visibleIndex < _passages.length - 1,
-                              onPrevious: () => _goTo(_visibleIndex - 1),
-                              onNext: () => _goTo(_visibleIndex + 1),
-                              label: 'حصہ ${_visibleIndex + 1} از ${_passages.length}',
+                            return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ReaderPrevNextBar(
+                                  hasPrevious: _visibleIndex > 0,
+                                  hasNext: _visibleIndex < _passages.length - 1,
+                                  onPrevious: () => _goTo(_visibleIndex - 1),
+                                  onNext: () => _goTo(_visibleIndex + 1),
+                                  previousLabel: 'پچھلا حصہ',
+                                  nextLabel: 'اگلا حصہ',
+                                  label: 'حصہ ${_visibleIndex + 1} از ${_passages.length} — اسی متن کے اندر',
+                                ),
+                                if (widget.onNextSection != null || widget.onPreviousSection != null) ...[
+                                  const SizedBox(height: 10),
+                                  ReaderPrevNextBar(
+                                    key: const ValueKey<String>('balagha-section-prev-next'),
+                                    hasPrevious: widget.onPreviousSection != null,
+                                    hasNext: widget.onNextSection != null,
+                                    onPrevious: widget.onPreviousSection,
+                                    onNext: widget.onNextSection,
+                                    previousLabel: 'پچھلا متن',
+                                    nextLabel: 'اگلا متن',
+                                    label: 'اگلا یا پچھلا خطبہ / خط / قول براہِ راست کھولیں',
+                                  ),
+                                ],
+                              ],
                             );
                           }
                           final passage = _passages[index];

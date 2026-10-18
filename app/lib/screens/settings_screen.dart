@@ -6,7 +6,6 @@ import '../app_theme.dart';
 import '../data_installer.dart';
 import '../data_packages.dart';
 import '../library_repository.dart';
-import '../services/community_stats.dart';
 import '../widgets/reader_kit.dart';
 import 'data_screen.dart';
 
@@ -17,12 +16,16 @@ class SettingsScreen extends StatefulWidget {
     required this.installer,
     required this.themeMode,
     required this.onThemeModeChanged,
+    this.amoled = false,
+    this.onAmoledChanged,
   });
 
   final LibraryRepository library;
   final DataInstaller installer;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
+  final bool amoled;
+  final ValueChanged<bool>? onAmoledChanged;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -31,7 +34,13 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   /// Local copy: the screen is pushed as a route, so it must show the choice
   /// the reader just made without waiting for the app to rebuild it.
-  late ThemeMode _theme = widget.themeMode;
+  late String _themeChoice = widget.amoled
+      ? 'amoled'
+      : switch (widget.themeMode) {
+          ThemeMode.dark => 'dark',
+          ThemeMode.system => 'system',
+          ThemeMode.light => 'light',
+        };
   double _fontScale = 1.0;
   String _script = 'both';
   bool _loading = true;
@@ -39,9 +48,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _verifying = false;
   String? _status;
   bool _statusError = false;
-  CommunityStats _community = CommunityStats.empty;
-  InstallRecord? _installRecord;
-  bool _communityLoaded = false;
 
   @override
   void initState() {
@@ -49,23 +55,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     unawaited(_load());
   }
 
-  Future<void> _loadCommunity() async {
-    final service = CommunityStatsService();
-    final record = await service.ensureInstallRecord();
-    final cached = await service.cached();
-    if (mounted) {
-      setState(() {
-        _installRecord = record;
-        _community = cached;
-        _communityLoaded = true;
-      });
-    }
-    final fresh = await service.refresh();
-    if (mounted) setState(() => _community = fresh);
-  }
-
   Future<void> _load() async {
-    unawaited(_loadCommunity());
     final preferences = await ReaderPreferences.load();
     if (!mounted) return;
     setState(() {
@@ -156,6 +146,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
           : ListView(
               padding: const EdgeInsets.fromLTRB(18, 8, 18, 36),
               children: [
+                // A jewel-toned banner (plum -> teal -> gold) heads the page,
+                // so Settings feels as crafted as the rest of the app.
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topRight,
+                      end: Alignment.bottomLeft,
+                      colors: [Color(0xFF3B2358), Color(0xFF14586B), Color(0xFF8A6A2F)],
+                    ),
+                  ),
+                  child: const Row(children: [
+                    Icon(Icons.settings_suggest_rounded, color: Color(0xFFFFE1A1), size: 30),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        JustifiedText('اپنی پسند، اپنا انداز', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white)),
+                        JustifiedText('تھیم (روشن، تاریک، AMOLED، نظام)، حروف کا سائز، متن اور ڈیٹا — سب کچھ یہیں سے اپنے ذوق کے مطابق ڈھالیں۔',
+                            style: TextStyle(fontSize: 12.5, height: 1.5, color: Color(0xFFF3EAD2))),
+                      ]),
+                    ),
+                  ]),
+                ),
+                const SizedBox(height: 16),
                 const _SectionTitle('ڈیٹا'),
                 Card(
                   child: ListTile(
@@ -185,17 +200,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 8),
                 const _SectionTitle('مطالعہ'),
-                SegmentedButton<ThemeMode>(
+                SegmentedButton<String>(
                   segments: const [
-                    ButtonSegment(value: ThemeMode.light, label: Text('روشن'), icon: Icon(Icons.light_mode)),
-                    ButtonSegment(value: ThemeMode.dark, label: Text('تاریک'), icon: Icon(Icons.dark_mode)),
-                    ButtonSegment(value: ThemeMode.system, label: Text('نظام'), icon: Icon(Icons.phone_android)),
+                    ButtonSegment(value: 'light', label: Text('روشن'), icon: Icon(Icons.light_mode)),
+                    ButtonSegment(value: 'dark', label: Text('تاریک'), icon: Icon(Icons.dark_mode)),
+                    ButtonSegment(value: 'amoled', label: Text('AMOLED'), icon: Icon(Icons.brightness_1)),
+                    ButtonSegment(value: 'system', label: Text('نظام'), icon: Icon(Icons.phone_android)),
                   ],
-                  selected: {_theme},
+                  selected: {_themeChoice},
                   onSelectionChanged: (selection) {
-                    setState(() => _theme = selection.first);
-                    widget.onThemeModeChanged(selection.first);
+                    final choice = selection.first;
+                    setState(() => _themeChoice = choice);
+                    switch (choice) {
+                      case 'amoled':
+                        widget.onAmoledChanged?.call(true);
+                      case 'dark':
+                        widget.onAmoledChanged?.call(false);
+                        widget.onThemeModeChanged(ThemeMode.dark);
+                      case 'system':
+                        widget.onAmoledChanged?.call(false);
+                        widget.onThemeModeChanged(ThemeMode.system);
+                      default:
+                        widget.onAmoledChanged?.call(false);
+                        widget.onThemeModeChanged(ThemeMode.light);
+                    }
                   },
+                ),
+                const SizedBox(height: 6),
+                JustifiedText(
+                  _themeChoice == 'amoled'
+                      ? 'AMOLED: خالص سیاہ (#000000) — AMOLED اسکرین پر پکسل بند، بیٹری کی بچت اور گہرا کنٹراسٹ۔'
+                      : _themeChoice == 'dark'
+                          ? 'تاریک: عام نرم سیاہ/گرے — رات کے مطالعے کے لیے آنکھوں پر ہلکی۔'
+                          : 'روشن: سفید تھیم؛ نظام: فون کی اپنی تھیم کے ساتھ خود بدلتی ہے۔',
+                  style: TextStyle(fontSize: 12.5, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(height: 16),
                 JustifiedText('حروف کا سائز (${(_fontScale * 100).round()}٪)'),
@@ -301,24 +339,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 14),
                 const _SectionTitle('کریڈٹس (Credits)'),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topRight,
+                      end: Alignment.bottomLeft,
+                      colors: [Color(0xFF3B2358), Color(0xFF14586B), Color(0xFF8A6A2F)],
+                    ),
+                    border: Border.all(color: const Color(0xFFC59A50).withValues(alpha: 0.55)),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(18),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        JustifiedText('HashTech', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
-                        JustifiedText('کمپنی (Company)', style: TextStyle(fontSize: 13, color: Colors.grey)),
-                        SizedBox(height: 10),
-                        JustifiedText('Syed Sakhir Hashmi', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
-                        JustifiedText(
-                          'مالک و ماسٹر مائنڈ (Owner & Mastermind) • ڈویلپر (Developer) • محقق (Researcher) • مؤلف (Author) • شاعر (Poet)',
-                          style: TextStyle(fontSize: 13, height: 1.6),
-                        ),
+                        Text('HashTech', textDirection: TextDirection.ltr, textAlign: TextAlign.center,
+                            style: TextStyle(fontFamily: kDigitFont, fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 1.1)),
+                        SizedBox(height: 2),
+                        JustifiedText('وہ کمپنی جس کی چھتری تلے ShiaVerse نے جنم لیا — جہاں ٹیکنالوجی کو علم و عقیدت کی خدمت میں پیش کرنا ہی منشور ہے۔ HashTech کا ہر پروڈکٹ اسی سوچ کی جھلک ہے: جدید سافٹ ویئر، صاف ڈیزائن، اور قاری کے وقت و اعتماد کی مکمل قدر۔',
+                            style: TextStyle(fontSize: 13.5, height: 1.7, color: Color(0xFFF3EAD2))),
+                        Divider(height: 26, color: Color(0x66FFE1A1)),
+                        JustifiedText('Syed Sakhir Hashmi', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFFFFE1A1))),
+                        SizedBox(height: 4),
+                        JustifiedText('بانی و مالک (Owner) • ماسٹر مائنڈ (Mastermind) • ڈویلپر (Developer) • محقق (Researcher) • مؤلف (Author) • شاعر (Poet)',
+                            style: TextStyle(fontSize: 13, height: 1.6, color: Colors.white)),
                         SizedBox(height: 8),
                         JustifiedText(
-                          'ShiaVerse کا تصور، تحقیق، تحریر، ڈیزائن اور ترقی انہی کی کاوش ہے — HashTech کے تحت۔',
-                          style: TextStyle(fontSize: 13.5, height: 1.6),
+                          'ShiaVerse کسی ٹیم کے ہاتھوں بنی روایتی ایپ نہیں — یہ ایک ہی ذہین و محنتی انسان کے وژن کی تکمیل ہے۔ اس کا بنیادی تصور سوچنے سے لے کر کتب کی تحقیق و انتخاب، متن کی تدوین و تحریر، کوڈ کی ہر سطر، ڈیزائن کی ہر جھلک اور اشعار کی لطافت تک — ہر مرحلہ Syed Sakhir Hashmi کی ذاتی کاوش ہے۔ انہوں نے اس ایپ کو محض سافٹ ویئر نہیں بنایا، بلکہ اس میں ایک محقق کی امانت، ایک مؤلف کی ذمہ داری، ایک ڈویلپر کی مہارت اور ایک شاعر کی روح پھونک دی۔ یہی وجہ ہے کہ ShiaVerse پڑھنے والے کو صرف معلومات نہیں دیتی، ایک تجربہ دیتی ہے۔',
+                          style: TextStyle(fontSize: 13.5, height: 1.8, color: Color(0xFFF3EAD2)),
                         ),
                       ],
                     ),
@@ -328,33 +377,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 JustifiedText(
                   'نصب شدہ کتب: ${installed.map((book) => book.titleUrdu).join('، ')}',
                   style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                ),
-                const SizedBox(height: 26),
-                const _SectionTitle('ShiaVerse کمیونٹی (آخری ریکارڈ)'),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _CommunityRow(icon: Icons.install_mobile, label: 'کل انسٹالز (تمام صارفین)', value: _communityLoaded ? '${_community.totalInstalls}' : '…'),
-                        _CommunityRow(icon: Icons.people_alt_outlined, label: 'ایکٹو صارفین (ابھی ایپ موجود)', value: _communityLoaded ? '${_community.activeUsers}' : '…'),
-                        _CommunityRow(icon: Icons.touch_app_outlined, label: 'تمام صارفین کا مجموعی ذکر (تسبیح)', value: _communityLoaded ? '${_community.globalZikrTotal}' : '…'),
-                        if (_community.updatedAt.isNotEmpty)
-                          JustifiedText('آخری تجدید: ${_community.updatedAt}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                        const Divider(height: 22),
-                        if (_installRecord != null) ...[
-                          JustifiedText('اس ڈیوائس کا گمنام ریکارڈ: ${_installRecord!.anonymousId}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                          JustifiedText('انسٹال: ${_installRecord!.installedOn} • آخری فعالیت: ${_installRecord!.lastActiveOn}', style: const TextStyle(fontSize: 12.5)),
-                        ],
-                        const SizedBox(height: 6),
-                        const JustifiedText(
-                          'پرائیویسی: صرف ایک گمنام نمبر (ID)، انسٹال اور آخری فعالیت کی تاریخ محفوظ ہوتی ہے — نام، نمبر، مقام یا ڈیوائس کی کوئی ذاتی معلومات کبھی ریکارڈ نہیں کی جاتی۔ یہ عوامی اعداد پروجیکٹ کی مرکزی (main) برانچ کے فولڈر community_stats میں محفوظ ہوتے ہیں اور ہر صارف یہی ریکارڈ دیکھ سکتا ہے۔ انٹرنیٹ آن ہونے پر (مثلاً کتب ڈاؤن لوڈ کرتے وقت) یہ تازہ ہو جاتے ہیں۔',
-                          style: TextStyle(fontSize: 12.5, height: 1.6),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
               ],
             ),
@@ -368,23 +390,37 @@ class _SectionTitle extends StatelessWidget {
   final String title;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: JustifiedText(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-      );
-}
-
-class _CommunityRow extends StatelessWidget {
-  const _CommunityRow({required this.icon, required this.label, required this.value});
-  final IconData icon; final String label; final String value;
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(children: [
-          Icon(icon, size: 20, color: kForest),
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 9,
+            height: 26,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF7B4FD0), Color(0xFF0E9AA7), Color(0xFFC59A50)],
+              ),
+            ),
+          ),
           const SizedBox(width: 8),
-          Expanded(child: JustifiedText(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600))),
-          Text(value, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-        ]),
-      );
+          Expanded(
+            child: JustifiedText(
+              title,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: dark ? const Color(0xFFE9D8FF) : const Color(0xFF3B2358),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

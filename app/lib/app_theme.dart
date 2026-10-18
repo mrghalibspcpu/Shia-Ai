@@ -106,6 +106,35 @@ ThemeData buildLightTheme() {
   );
 }
 
+/// True-black AMOLED theme: pure #000000 surfaces so AMOLED pixels switch
+/// fully off (battery saved, deeper contrast). Cards are lifted just enough
+/// (#0D0D0F) to stay visible against the black.
+ThemeData buildAmoledTheme() {
+  final base = buildDarkTheme();
+  final scheme = base.colorScheme.copyWith(
+    surface: Colors.black,
+    surfaceContainerLowest: Colors.black,
+    surfaceContainerLow: const Color(0xFF0A0A0C),
+    surfaceContainer: const Color(0xFF0D0D0F),
+    surfaceContainerHigh: const Color(0xFF131316),
+  );
+  return base.copyWith(
+    colorScheme: scheme,
+    scaffoldBackgroundColor: Colors.black,
+    canvasColor: Colors.black,
+    appBarTheme: base.appBarTheme.copyWith(backgroundColor: Colors.black),
+    cardTheme: base.cardTheme.copyWith(color: const Color(0xFF0D0D0F)),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Color(0xFF0A0A0C),
+      surfaceTintColor: Colors.transparent,
+      showDragHandle: true,
+    ),
+    inputDecorationTheme: base.inputDecorationTheme.copyWith(
+      fillColor: const Color(0xFF111113),
+    ),
+  );
+}
+
 ThemeData buildDarkTheme() {
   final scheme = ColorScheme.fromSeed(
     seedColor: kForest,

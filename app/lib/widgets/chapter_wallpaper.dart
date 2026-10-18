@@ -26,7 +26,29 @@ class ChapterWallpaperCard extends StatelessWidget {
                 : const ColorFilter.mode(Color(0x1AFFFFFF), BlendMode.lighten),
           ),
         ),
-        child: child,
+        child: DecoratedBox(
+          // A jewel-toned wash (plum -> teal -> gold) over the manuscript, so
+          // chapter containers feel rich and festive instead of flat green,
+          // in both themes, while the wallpaper still shows through.
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topRight,
+              end: Alignment.bottomLeft,
+              colors: dark
+                  ? <Color>[
+                      const Color(0xFF241038).withValues(alpha: 0.55),
+                      const Color(0xFF0B3B42).withValues(alpha: 0.45),
+                      const Color(0xFF3A2A08).withValues(alpha: 0.50),
+                    ]
+                  : <Color>[
+                      const Color(0xFF7B4FD0).withValues(alpha: 0.14),
+                      const Color(0xFF0E9AA7).withValues(alpha: 0.12),
+                      const Color(0xFFC59A50).withValues(alpha: 0.16),
+                    ],
+            ),
+          ),
+          child: child,
+        ),
       ),
     );
   }
