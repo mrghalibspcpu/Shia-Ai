@@ -468,53 +468,58 @@ class _MeasureCard extends StatelessWidget {
     return GlassPanel(
       radius: 18,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          leading: Icon(Icons.science_outlined, color: palette.accent),
-          title: Text('فلکیاتی پیمائشیں',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: palette.ink)),
-          subtitle: Text('اختیاری تفصیل', style: TextStyle(fontSize: 12, color: palette.muted)),
-          tilePadding: const EdgeInsets.symmetric(horizontal: 4),
-          childrenPadding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
-          children: <Widget>[
-            _InfoRow(
-              label: 'کشیدگی (ARCL)',
-              value: ltr('${crescent.arcOfLight.toStringAsFixed(2)}°'),
-              palette: palette,
-              icon: Icons.straighten,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            leading: Icon(Icons.science_outlined, color: palette.accent),
+            title: Text(
+              'فلکیاتی پیمائشیں',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: palette.ink),
             ),
-            _InfoRow(
-              label: 'بلندی کا فرق (ARCV)',
-              value: ltr('${crescent.arcOfVision.toStringAsFixed(2)}°'),
-              palette: palette,
-              icon: Icons.height,
-            ),
-            _InfoRow(
-              label: 'سمت کا فرق (DAZ)',
-              value: ltr('${crescent.relativeAzimuth.toStringAsFixed(2)}°'),
-              palette: palette,
-              icon: Icons.explore_outlined,
-            ),
-            _InfoRow(
-              label: 'ہلال کی چوڑائی (W)',
-              value: ltr('${crescent.crescentWidth.toStringAsFixed(3)}′'),
-              palette: palette,
-              icon: Icons.brightness_1_outlined,
-            ),
-            _InfoRow(
-              label: 'نظر آنے کا عدد (V)',
-              value: ltr(crescent.visibility.toStringAsFixed(2)),
-              palette: palette,
-              icon: Icons.visibility_outlined,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'V بڑا ہو تو ہلال آسانی سے نظر آتا ہے: 5.65 سے اوپر ننگی آنکھ کے لیے، '
-              '2 سے اوپر اچھے موسم میں، اور 0.96− تک دوربین سے۔',
-              style: TextStyle(fontSize: 12.5, height: 1.5, color: palette.muted),
-            ),
-          ],
+            subtitle: Text('اختیاری تفصیل', style: TextStyle(fontSize: 12, color: palette.muted)),
+            tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+            childrenPadding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+            children: <Widget>[
+              _InfoRow(
+                label: 'کشیدگی (ARCL)',
+                value: ltr('${crescent.arcOfLight.toStringAsFixed(2)}°'),
+                palette: palette,
+                icon: Icons.straighten,
+              ),
+              _InfoRow(
+                label: 'بلندی کا فرق (ARCV)',
+                value: ltr('${crescent.arcOfVision.toStringAsFixed(2)}°'),
+                palette: palette,
+                icon: Icons.height,
+              ),
+              _InfoRow(
+                label: 'سمت کا فرق (DAZ)',
+                value: ltr('${crescent.relativeAzimuth.toStringAsFixed(2)}°'),
+                palette: palette,
+                icon: Icons.explore_outlined,
+              ),
+              _InfoRow(
+                label: 'ہلال کی چوڑائی (W)',
+                value: ltr('${crescent.crescentWidth.toStringAsFixed(3)}′'),
+                palette: palette,
+                icon: Icons.brightness_1_outlined,
+              ),
+              _InfoRow(
+                label: 'نظر آنے کا عدد (V)',
+                value: ltr(crescent.visibility.toStringAsFixed(2)),
+                palette: palette,
+                icon: Icons.visibility_outlined,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'V بڑا ہو تو ہلال آسانی سے نظر آتا ہے: 5.65 سے اوپر ننگی آنکھ کے لیے، '
+                '2 سے اوپر اچھے موسم میں، اور 0.96− تک دوربین سے۔',
+                style: TextStyle(fontSize: 12.5, height: 1.5, color: palette.muted),
+              ),
+            ],
+          ),
         ),
       ),
     );

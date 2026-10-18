@@ -1000,54 +1000,68 @@ class _MomentCardState extends State<_MomentCard> {
               _MomentTag(kind: line.kind),
               const SizedBox(width: 8),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    // One line always: a short ayah is still longer than the
-                    // card on a small phone, so it scales down instead of
-                    // clipping half a word.
-                    FittedBox(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return FittedBox(
+                      // Keep the preferred, larger type on regular screens;
+                      // scale only this text stack if a short phone leaves no
+                      // room for its two Urdu lines and source.
                       fit: BoxFit.scaleDown,
-                      alignment: AlignmentDirectional.centerStart,
-                      child: Text(
-                        line.arabic,
-                        maxLines: 1,
-                        textDirection: TextDirection.rtl,
-                        style: TextStyle(
-                          fontFamily: kArabicFont,
-                          fontSize: 15,
-                          height: 1.35,
-                          color: palette.momentInk,
+                      child: SizedBox(
+                        width: constraints.maxWidth,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            // One line always: a short ayah is still longer
+                            // than the card on a small phone, so it scales
+                            // down instead of clipping half a word.
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: AlignmentDirectional.centerStart,
+                              child: Text(
+                                line.arabic,
+                                maxLines: 1,
+                                textDirection: TextDirection.rtl,
+                                style: TextStyle(
+                                  fontFamily: kArabicFont,
+                                  fontSize: 14,
+                                  height: 1.35,
+                                  color: palette.momentInk,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              line.urdu,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textDirection: TextDirection.rtl,
+                              style: TextStyle(
+                                fontFamily: kUrduFont,
+                                fontSize: 12,
+                                height: 1.35,
+                                fontWeight: FontWeight.w600,
+                                color: palette.momentInk.withValues(alpha: 0.88),
+                              ),
+                            ),
+                            Text(
+                              line.source,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textDirection: TextDirection.rtl,
+                              style: TextStyle(
+                                fontFamily: kUrduFont,
+                                fontSize: 10,
+                                height: 1.3,
+                                color: palette.momentInk.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    Text(
-                      line.urdu,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textDirection: TextDirection.rtl,
-                      style: TextStyle(
-                        fontFamily: kUrduFont,
-                        fontSize: 13,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
-                        color: palette.momentInk.withValues(alpha: 0.88),
-                      ),
-                    ),
-                    Text(
-                      line.source,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textDirection: TextDirection.rtl,
-                      style: TextStyle(
-                        fontFamily: kUrduFont,
-                        fontSize: 10.5,
-                        height: 1.3,
-                        color: palette.momentInk.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 6),

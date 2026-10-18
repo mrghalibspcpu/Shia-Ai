@@ -368,7 +368,9 @@ void main() {
     await settle(tester);
     expect(find.text('اس سال کے ایام'), findsOneWidget);
     expect(find.text('3 جمادی الاول 1448ھ — G-11، اسلام آباد'), findsOneWidget);
-    // The nearest day of the year first: 3 Jumada al-Thani 1448, a month off.
+    // The converter now sits above the occasion list, so scroll to the next
+    // date before checking its contents: 3 Jumada al-Thani, a month off.
+    await tester.scrollUntilVisible(find.text('شہادتِ حضرت فاطمہ زہرا س'), 200);
     expect(find.text('شہادتِ حضرت فاطمہ زہرا س'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('یومِ عاشورہ'), 200);
     expect(find.text('یومِ عاشورہ'), findsOneWidget);
