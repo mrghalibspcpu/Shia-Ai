@@ -370,11 +370,11 @@ void main() {
     expect(find.text('3 جمادی الاول 1448ھ — G-11، اسلام آباد'), findsOneWidget);
     // The converter now sits above the occasion list, so scroll to the next
     // date before checking its contents: 3 Jumada al-Thani, a month off.
-    await tester.scrollUntilVisible(find.text('شہادتِ حضرت فاطمہ زہرا س'), 200);
+    await tester.scrollUntilVisible(find.text('شہادتِ حضرت فاطمہ زہرا س').first, 200);
     expect(find.text('شہادتِ حضرت فاطمہ زہرا س'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('یومِ عاشورہ'), 200);
+    await tester.scrollUntilVisible(find.text('یومِ عاشورہ').first, 200);
     expect(find.text('یومِ عاشورہ'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('عیدِ غدیر'), 200);
+    await tester.scrollUntilVisible(find.text('عیدِ غدیر').first, 200);
     expect(find.text('عیدِ غدیر'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await shoot(tester, 'islamic-calendar');
