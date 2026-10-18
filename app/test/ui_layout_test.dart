@@ -159,7 +159,7 @@ void main() {
         ),
       ),
       bottomNavigationBar: HomeDockBar(
-        selected: HomeDockItem.home,
+        selected: null,
         onSelected: (_) {},
       ),
     );
@@ -266,7 +266,7 @@ void main() {
       tasbeeh,
       Scaffold(
         bottomNavigationBar: HomeDockBar(
-          selected: HomeDockItem.home,
+          selected: null,
           onSelected: tapped.add,
         ),
       ),
@@ -277,11 +277,11 @@ void main() {
       await tester.pump();
     }
     expect(tapped, <HomeDockItem>[
-      HomeDockItem.home,
+      HomeDockItem.qibla,
       HomeDockItem.settings,
       HomeDockItem.bookmarks,
       HomeDockItem.lastSeen,
-      HomeDockItem.more,
+      HomeDockItem.xplore,
     ]);
     await finish(tester, prayer, tasbeeh);
   });
@@ -304,8 +304,8 @@ void main() {
     expect(first.top - canvas.top, lessThan(7));
     expect(search.bottom, closeTo(fatawa.bottom, 0.1));
     expect(dock.top - search.bottom, lessThan(8));
-    final homeIcon = tester.getRect(find.byKey(const ValueKey<String>('dock-icon-home')));
-    final moreIcon = tester.getRect(find.byKey(const ValueKey<String>('dock-icon-more')));
+    final homeIcon = tester.getRect(find.byKey(const ValueKey<String>('dock-icon-qibla')));
+    final moreIcon = tester.getRect(find.byKey(const ValueKey<String>('dock-icon-xplore')));
     expect(homeIcon.right, closeTo(fatawa.right, 0.1));
     expect(moreIcon.left, closeTo(search.left, 0.1));
     for (final item in HomeDockItem.values) {
@@ -323,7 +323,7 @@ void main() {
     await finish(tester, prayer, tasbeeh);
   });
 
-  testWidgets('the shell connects Settings, Bookmarks, Last seen and More without touching the collections', (tester) async {
+  testWidgets('the shell connects Settings, Bookmarks, Last seen and Xplore without touching the collections', (tester) async {
     phone(tester);
     final (prayer, tasbeeh) = await controllersAt(tester, localTime(12, 10));
     final library = LibraryRepository();
@@ -343,7 +343,7 @@ void main() {
     await tester.pageBack();
     await settle(tester);
     await tester.tap(find.byKey(const ValueKey<String>('dock-bookmarks')));
-    await tester.tap(find.byKey(const ValueKey<String>('dock-more')));
+    await tester.tap(find.byKey(const ValueKey<String>('dock-xplore')));
     expect(actions, <HubDestination>[HubDestination.bookmarks, HubDestination.more]);
     await tester.tap(find.byKey(const ValueKey<String>('dock-lastSeen')));
     await settle(tester);
@@ -363,7 +363,7 @@ void main() {
     })));
     expect((await ReaderPreferences.load()).palette.background, Colors.white);
     expect(HomeDockItem.values.map((item) => item.label).toList(),
-        <String>['Home', 'Settings', 'Bookmarks', 'Last seen', 'More']);
+        <String>['Qibla', 'Settings', 'Bookmarks', 'Last seen', 'Xplore']);
   });
 
   for (final (name, palette, scale) in <(String, String, double)>[

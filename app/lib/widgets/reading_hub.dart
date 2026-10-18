@@ -11,7 +11,7 @@ enum HubDestination {
   home('Home', Icons.home_rounded, Color(0xFF145B45)),
   search('Search', Icons.search_rounded, Color(0xFF2F6FD6)),
   bookmarks('Bookmarks', Icons.bookmark_rounded, Color(0xFFD9466B)),
-  more('More', Icons.apps_rounded, Color(0xFFE08A1E)),
+  more('Xplore', Icons.apps_rounded, Color(0xFFE08A1E)),
   settings('Settings', Icons.settings_rounded, Color(0xFF5C6BC0));
 
   const HubDestination(this.label, this.icon, this.color);

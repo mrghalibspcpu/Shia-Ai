@@ -138,11 +138,11 @@ Future<void> openHomeSection(
 /// The collections already have their own side rail. The dock is for the
 /// reader's personal tools instead, with English names on every button.
 enum HomeDockItem {
-  home('Home', Icons.home_rounded, Color(0xFF45225C)),
+  qibla('Qibla', Icons.explore_rounded, Color(0xFF00897B)),
   settings('Settings', Icons.settings_rounded, Color(0xFF19654C)),
   bookmarks('Bookmarks', Icons.bookmark_rounded, Color(0xFF146B70)),
   lastSeen('Last seen', Icons.history_rounded, Color(0xFF135C78)),
-  more('More', Icons.apps_rounded, Color(0xFF45225C));
+  xplore('Xplore', Icons.apps_rounded, Color(0xFF45225C));
 
   const HomeDockItem(this.label, this.icon, this.color);
 
@@ -156,7 +156,7 @@ enum HomeDockItem {
 class HomeDockBar extends StatelessWidget {
   const HomeDockBar({super.key, required this.selected, required this.onSelected});
 
-  final HomeDockItem selected;
+  final HomeDockItem? selected;
   final ValueChanged<HomeDockItem> onSelected;
 
   @override

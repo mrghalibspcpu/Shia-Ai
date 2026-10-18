@@ -17,6 +17,7 @@ import 'screens/qibla_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/tasbeeh_screen.dart';
+import 'services/community_stats.dart';
 import 'services/prayer_controller.dart';
 import 'services/prayer_scope.dart';
 import 'services/tasbeeh_controller.dart';
@@ -77,6 +78,13 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
     // correct times and a correct count on the very first frame.
     unawaited(_prayer.start());
     unawaited(_tasbeeh.load());
+    // Privacy-safe anonymous install record (random ID + dates only, on-device)
+    // and a refresh of the public community counters when online.
+    unawaited(() async {
+      final stats = CommunityStatsService();
+      await stats.ensureInstallRecord();
+      await stats.refresh();
+    }());
     _linkSubscription = _appLinks.uriLinkStream.listen(_handleIncomingLink, onError: (_) {});
     unawaited(_appLinks.getInitialLink().then(_handleIncomingLink, onError: (_) {}));
   }
@@ -211,7 +219,7 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
     }
   }
 
-  /// The items of **مزید** — every feature that is not one of the five
+  /// The items of **Xplore** — every feature that is not one of the five
   /// buttons of the bottom panel, in one list. New extras are added here.
   /// The collections (نہج البلاغہ، دینی مسائل…) are NOT repeated here: they
   /// already live on the home screen's own cards.
@@ -233,31 +241,6 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
           onOpen: () => unawaited(_navigatorKey.currentState?.push(MaterialPageRoute<void>(
             builder: (_) => const TasbeehScreen(),
           ))),
-        ),
-        MoreFeature(
-          title: 'قبلہ نما',
-          subtitle: 'قبلہ کی سمت معلوم کریں',
-          icon: Icons.explore_rounded,
-          color: const Color(0xFF00897B),
-          onOpen: () => unawaited(_navigatorKey.currentState?.push(MaterialPageRoute<void>(
-            builder: (_) => const QiblaScreen(),
-          ))),
-        ),
-        MoreFeature(
-          title: 'محفوظات',
-          subtitle: 'نشان زدہ مقامات اور نوٹ، ہر کتاب کے',
-          icon: Icons.bookmark_rounded,
-          color: const Color(0xFFD9466B),
-          onOpen: () => unawaited(_navigatorKey.currentState?.push(MaterialPageRoute<void>(
-            builder: (_) => SavedItemsScreen(library: _library),
-          ))),
-        ),
-        MoreFeature(
-          title: 'آخری مطالعہ',
-          subtitle: 'جہاں سے پڑھنا چھوڑا تھا وہیں سے دوبارہ شروع کریں',
-          icon: Icons.history_rounded,
-          color: const Color(0xFFE08A1E),
-          onOpen: () => unawaited(showLastSeenSheet(homeContext, library: _library)),
         ),
         MoreFeature(
           title: 'ڈیٹا ڈاؤن لوڈ',
@@ -499,15 +482,15 @@ class HomeShellState extends State<HomeShell> {
 
   void _onDockSelected(HomeDockItem item) {
     switch (item) {
-      case HomeDockItem.home:
-        refresh();
+      case HomeDockItem.qibla:
+        unawaited(Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const QiblaScreen())));
       case HomeDockItem.settings:
         openSettings();
       case HomeDockItem.bookmarks:
         widget.onAction(HubDestination.bookmarks);
       case HomeDockItem.lastSeen:
         unawaited(showLastSeenSheet(context, library: widget.library, onOpened: refresh));
-      case HomeDockItem.more:
+      case HomeDockItem.xplore:
         widget.onAction(HubDestination.more);
     }
   }
@@ -526,7 +509,7 @@ class HomeShellState extends State<HomeShell> {
         child: Scaffold(
           body: TickerMode(enabled: true, child: _homePage),
           bottomNavigationBar: HomeDockBar(
-            selected: HomeDockItem.home,
+            selected: null,
             onSelected: _onDockSelected,
           ),
         ),

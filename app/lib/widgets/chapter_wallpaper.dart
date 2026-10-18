@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
-/// The parchment belongs to chapter *name containers*, never the reading page.
-/// Ink paints the image on the Card's Material, below ListTile's ripple; an
-/// Image/Stack above the tile would make the tile look tappable but hide ink.
+/// Chapter *name containers* carry a wallpaper in BOTH themes: warm parchment
+/// by day and a deep emerald night manuscript in dark theme (its own painting,
+/// not just a darkened parchment), so white text stays readable on it.
 class ChapterWallpaperCard extends StatelessWidget {
   const ChapterWallpaperCard({super.key, required this.child});
 
   static const asset = 'assets/images/chapter_wallpaper.jpg';
+  static const darkAsset = 'assets/images/chapter_wallpaper_dark.jpg';
 
   final Widget child;
 
@@ -18,11 +19,10 @@ class ChapterWallpaperCard extends StatelessWidget {
       child: Ink(
         decoration: BoxDecoration(
           image: DecorationImage(
-            image: const AssetImage(asset),
+            image: AssetImage(dark ? darkAsset : asset),
             fit: BoxFit.cover,
-            // Dark theme must keep its light text readable on the parchment.
             colorFilter: dark
-                ? const ColorFilter.mode(Color(0xFF19231F), BlendMode.multiply)
+                ? const ColorFilter.mode(Color(0xB319231F), BlendMode.darken)
                 : const ColorFilter.mode(Color(0x1AFFFFFF), BlendMode.lighten),
           ),
         ),

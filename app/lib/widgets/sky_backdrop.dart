@@ -130,6 +130,8 @@ class _SkyImage extends StatelessWidget {
   /// Keeps the shrine of each painting inside the card's narrower frame.
   Alignment get _focus => switch (phase) {
         SkyPhase.dawn => const Alignment(0.55, 0.2),
+        SkyPhase.morning => const Alignment(0.4, 0.2),
+        SkyPhase.sehr => const Alignment(0.4, 0.15),
         SkyPhase.day => const Alignment(0.25, 0.2),
         SkyPhase.evening => const Alignment(-0.25, 0.2),
         SkyPhase.night => const Alignment(0.3, 0.1),
@@ -137,6 +139,8 @@ class _SkyImage extends StatelessWidget {
 
   Color get _fallback => switch (phase) {
         SkyPhase.dawn => const Color(0xFF4B3F72),
+        SkyPhase.morning => const Color(0xFFF2A65A),
+        SkyPhase.sehr => const Color(0xFF1B2A52),
         SkyPhase.day => const Color(0xFF3F8FD2),
         SkyPhase.evening => const Color(0xFFB4532A),
         SkyPhase.night => const Color(0xFF0B1633),
@@ -171,6 +175,8 @@ class _SkyVeil {
 
   static _SkyVeil of(SkyPhase phase) => switch (phase) {
         SkyPhase.dawn => const _SkyVeil(0.34, 0.12, 0.46),
+        SkyPhase.morning => const _SkyVeil(0.36, 0.16, 0.48),
+        SkyPhase.sehr => const _SkyVeil(0.28, 0.10, 0.46),
         SkyPhase.day => const _SkyVeil(0.42, 0.20, 0.50),
         SkyPhase.evening => const _SkyVeil(0.36, 0.14, 0.48),
         SkyPhase.night => const _SkyVeil(0.22, 0.06, 0.44),
@@ -224,6 +230,14 @@ class _SkyMotionPainter extends CustomPainter {
         _paintStars(canvas, size, t, count: stars.length, strength: 0.95);
         _paintShootingStar(canvas, size, t, start: 0.18, from: const Offset(0.12, 0.10), to: const Offset(0.46, 0.30));
         _paintShootingStar(canvas, size, t, start: 0.66, from: const Offset(0.58, 0.06), to: const Offset(0.86, 0.24));
+      case SkyPhase.sehr:
+        _paintStars(canvas, size, t, count: stars.length, strength: 0.75);
+        _paintGlow(canvas, size, t, centre: const Offset(0.60, 0.88), radius: 0.65, color: const Color(0xFF7FB4C7), base: 0.08, swing: 0.06);
+        _paintMist(canvas, size, t);
+      case SkyPhase.morning:
+        _paintGlow(canvas, size, t, centre: const Offset(0.62, 0.82), radius: 0.72, color: const Color(0xFFFFC98A), base: 0.14, swing: 0.08);
+        _paintClouds(canvas, size, t, tint: const Color(0xFFFFE3C2), strength: 0.28);
+        _paintBirds(canvas, size, t, start: 0.20, length: 0.40, height: 0.26, color: const Color(0xB3253040));
       case SkyPhase.dawn:
         _paintGlow(canvas, size, t, centre: const Offset(0.62, 0.86), radius: 0.75, color: const Color(0xFFFFB38A), base: 0.10, swing: 0.08);
         _paintStars(canvas, size, t, count: 18, strength: 0.45);

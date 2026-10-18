@@ -526,12 +526,23 @@ class _QuranVerseListState extends State<_QuranVerseList> {
                                 addAutomaticKeepAlives: false,
                                 minCacheExtent: 400,
                                 padding: const EdgeInsets.fromLTRB(14, 8, 14, 112),
-                                itemCount: _mushafGroups.length,
-                                itemBuilder: (context, index) => MushafText(
-                                  group: _mushafGroups[index],
-                                  palette: palette,
-                                  fontScale: _preferences.fontScale,
-                                ),
+                                itemCount: _mushafGroups.length + 1,
+                                itemBuilder: (context, index) {
+                                  if (index >= _mushafGroups.length) {
+                                    return ReaderPrevNextBar(
+                                      hasPrevious: _visibleVerseIndex > 0,
+                                      hasNext: _visibleVerseIndex < _verses.length - 1,
+                                      onPrevious: () => _goToVerse(_visibleVerseIndex - 1),
+                                      onNext: () => _goToVerse(_visibleVerseIndex + 1),
+                                      label: 'آیت ${_visibleVerseIndex + 1} از ${_verses.length}',
+                                    );
+                                  }
+                                  return MushafText(
+                                    group: _mushafGroups[index],
+                                    palette: palette,
+                                    fontScale: _preferences.fontScale,
+                                  );
+                                },
                               )
                             : ScrollablePositionedList.builder(
                           key: PageStorageKey(widget.storageKey),
@@ -542,9 +553,18 @@ class _QuranVerseListState extends State<_QuranVerseList> {
                           addAutomaticKeepAlives: false,
                           minCacheExtent: 400,
                           padding: const EdgeInsets.fromLTRB(14, 8, 14, 112),
-                          itemCount: _verses.length + (widget.bismillah ? 1 : 0),
+                          itemCount: _verses.length + (widget.bismillah ? 1 : 0) + 1,
                           itemBuilder: (context, index) {
                             if (widget.bismillah && index == 0) return _Bismillah(scale: _preferences.fontScale, color: palette.accent);
+                            if (index - (widget.bismillah ? 1 : 0) >= _verses.length) {
+                              return ReaderPrevNextBar(
+                                hasPrevious: _visibleVerseIndex > 0,
+                                hasNext: _visibleVerseIndex < _verses.length - 1,
+                                onPrevious: () => _goToVerse(_visibleVerseIndex - 1),
+                                onNext: () => _goToVerse(_visibleVerseIndex + 1),
+                                label: 'آیت ${_visibleVerseIndex + 1} از ${_verses.length}',
+                              );
+                            }
                             final verse = _verses[index - (widget.bismillah ? 1 : 0)];
                             return PassageCard(
                               key: ValueKey('quran-${verse.recordId}'),
@@ -560,6 +580,30 @@ class _QuranVerseListState extends State<_QuranVerseList> {
                       ),
                     ),
     );
+  }
+
+  void _goToVerse(int index) {
+    if (_verses.isEmpty || !_itemScrollController.isAttached) return;
+    final target = index.clamp(0, _verses.length - 1);
+    var scrollIndex = target + (widget.bismillah ? 1 : 0);
+    if (_mushafMode) {
+      final record = _verses[target].recordId;
+      final group = _mushafGroups.indexWhere((g) => g.verses.any((v) => v.recordId == record));
+      scrollIndex = group < 0 ? target : group;
+    }
+    _itemScrollController.scrollTo(
+      index: scrollIndex,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeInOut,
+      alignment: 0.04,
+    );
+  }
+
+  int get _visibleVerseIndex {
+    final record = _visibleRecordId();
+    if (record == null) return 0;
+    final index = _verses.indexWhere((v) => v.recordId == record);
+    return index < 0 ? 0 : index;
   }
 
   int _verseNumber(Passage verse) {

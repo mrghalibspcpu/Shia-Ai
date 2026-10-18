@@ -103,9 +103,11 @@ void main() {
 
     test('the sky follows the prayer times', () {
       expect(phaseAt(3, 0), SkyPhase.night);
+      expect(phaseAt(4, 0), SkyPhase.sehr, reason: 'sehri starts 90 minutes before Fajr');
       expect(phaseAt(5, 0), SkyPhase.dawn);
       expect(phaseAt(7, 5), SkyPhase.dawn, reason: 'dawn lasts a little past sunrise');
-      expect(phaseAt(7, 15), SkyPhase.day);
+      expect(phaseAt(7, 15), SkyPhase.morning, reason: 'morning follows the Fajr glow');
+      expect(phaseAt(11, 0), SkyPhase.day, reason: 'dopahar follows the morning');
       expect(phaseAt(15, 29), SkyPhase.day);
       expect(phaseAt(15, 30), SkyPhase.evening);
       expect(phaseAt(18, 30), SkyPhase.evening, reason: 'the glow lingers after Maghrib');
@@ -115,7 +117,7 @@ void main() {
 
     test('every sky has its own painting and an Urdu name', () {
       final assets = SkyPhase.values.map((phase) => phase.asset).toSet();
-      expect(assets.length, 4);
+      expect(assets.length, 6);
       for (final phase in SkyPhase.values) {
         expect(phase.asset, startsWith('assets/images/sky_'));
         expect(phase.labelUrdu, isNotEmpty);

@@ -494,6 +494,25 @@ class ReaderScreen extends StatefulWidget {
 
 class _ReaderScreenState extends State<ReaderScreen> {
   final ItemScrollController _itemScrollController = ItemScrollController();
+  final ItemPositionsListener _positions = ItemPositionsListener.create();
+  int _currentIndex = 0;
+
+  int get _visibleIndex {
+    final visible = _positions.itemPositions.value
+        .where((pos) => pos.itemTrailingEdge > 0 && pos.itemLeadingEdge < 1)
+        .toList()
+      ..sort((a, b) => a.index.compareTo(b.index));
+    return visible.isEmpty ? _currentIndex : visible.first.index.clamp(0, _passages.length - 1);
+  }
+
+  void _goTo(int index) {
+    if (_passages.isEmpty) return;
+    final target = index.clamp(0, _passages.length - 1);
+    setState(() => _currentIndex = target);
+    if (_itemScrollController.isAttached) {
+      _itemScrollController.scrollTo(index: target, duration: const Duration(milliseconds: 350), curve: Curves.easeInOut, alignment: 0.04);
+    }
+  }
 
   List<Passage> _passages = [];
   int _initialIndex = 0;
@@ -534,6 +553,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
           _preferences = preferences;
           _passages = passages;
           _initialIndex = index;
+          _currentIndex = index;
           _loading = false;
         });
         if (passages.isNotEmpty) {
@@ -582,14 +602,25 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       child: ScrollablePositionedList.builder(
                       key: PageStorageKey('reader-${widget.book.key}-${widget.sectionId ?? widget.recordId}'),
                       itemScrollController: _itemScrollController,
+                      itemPositionsListener: _positions,
                       initialScrollIndex: _initialIndex,
-                      itemCount: _passages.length,
+                      itemCount: _passages.length + 1,
                       // Long chapters kept every card alive, which grew the
                       // element tree until the GC ran mid-scroll.
                       addAutomaticKeepAlives: false,
                       minCacheExtent: 350,
                       padding: const EdgeInsets.fromLTRB(14, 8, 14, 112),
-                      itemBuilder: (context, index) => PassageCard(
+                      itemBuilder: (context, index) {
+                        if (index >= _passages.length) {
+                          return ReaderPrevNextBar(
+                            hasPrevious: _visibleIndex > 0,
+                            hasNext: _visibleIndex < _passages.length - 1,
+                            onPrevious: () => _goTo(_visibleIndex - 1),
+                            onNext: () => _goTo(_visibleIndex + 1),
+                            label: 'آیت / روایت / فتویٰ نمبر ${_visibleIndex + 1} از ${_passages.length}',
+                          );
+                        }
+                        return PassageCard(
                         key: ValueKey('${widget.book.key}-${_passages[index].recordId}'),
                         library: widget.library,
                         book: widget.book,
@@ -605,7 +636,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
                         indexLabel: widget.book.source == CorpusSource.hadith
                             ? 'حدیث ${arabicNumerals(index + 1)}'
                             : null,
-                      ),
+                        );
+                      },
                       ),
                     ),
     );
@@ -716,34 +748,44 @@ class BookmarksScreen extends StatelessWidget {
         if (items.isEmpty) {
           return const CollectionMessage('ابھی کچھ محفوظ نہیں کیا گیا۔', icon: Icons.bookmark_border);
         }
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: items.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (context, index) {
-            final (book, passage) = items[index];
+        // Every book's bookmarks under its own heading, separately.
+        final grouped = <String, List<(BookDefinition, Passage)>>{};
+        for (final item in items) {
+          grouped.putIfAbsent(item.$1.key, () => []).add(item);
+        }
+        final rows = <Widget>[];
+        for (final entry in grouped.entries) {
+          final book = entry.value.first.$1;
+          rows.add(Padding(
+            key: ValueKey<String>('bookmarks-book-${book.key}'),
+            padding: const EdgeInsets.only(top: 8, bottom: 8),
+            child: Row(children: [
+              Icon(Icons.bookmark_rounded, size: 19, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 6),
+              Expanded(child: JustifiedText(book.titleUrdu, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold))),
+              Text('${entry.value.length}', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            ]),
+          ));
+          for (final (itemBook, passage) in entry.value) {
             final preview = passage.urdu.isNotEmpty
                 ? passage.urdu
                 : (passage.arabic.isNotEmpty ? passage.arabic : passage.commentary);
-            return Card(
+            rows.add(Card(
+              margin: const EdgeInsets.only(bottom: 10),
               child: ListTile(
                 title: JustifiedText(
-                  passage.sectionTitle.isNotEmpty ? passage.sectionTitle : book.titleUrdu,
+                  passage.sectionTitle.isNotEmpty ? passage.sectionTitle : itemBook.titleUrdu,
                   style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                   maxLines: 1,
                 ),
                 subtitle: JustifiedText(preview, maxLines: 2),
                 trailing: const Icon(Icons.chevron_left),
-                onTap: () => pushReaderFor(
-                  context,
-                  library: library,
-                  book: book,
-                  passage: passage,
-                ),
+                onTap: () => pushReaderFor(context, library: library, book: itemBook, passage: passage),
               ),
-            );
-          },
-        );
+            ));
+          }
+        }
+        return ListView(padding: const EdgeInsets.all(16), children: rows);
       },
     );
   }

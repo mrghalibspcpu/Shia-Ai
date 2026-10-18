@@ -24,7 +24,7 @@ class MoreFeature {
   final VoidCallback onOpen;
 }
 
-/// Shows the **مزید** sheet: every feature that is not one of the five buttons
+/// Shows the **Xplore** sheet: every feature that is not one of the five buttons
 /// of the bottom panel. Tapping an item closes the sheet first and then runs
 /// that item's action.
 Future<void> showMoreFeaturesSheet(
@@ -44,7 +44,7 @@ Future<void> showMoreFeaturesSheet(
             const Padding(
               padding: EdgeInsets.fromLTRB(6, 0, 6, 12),
               child: JustifiedText(
-                'مزید',
+                'Xplore — ایکسپلور',
                 style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
               ),
             ),

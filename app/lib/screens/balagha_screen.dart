@@ -249,6 +249,21 @@ class _BalaghaPassageList extends StatefulWidget {
 
 class _BalaghaPassageListState extends State<_BalaghaPassageList> {
   final BookDefinition _book = BookDefinition.bookFor(CorpusSource.balagha)!;
+  final ItemScrollController _scroll = ItemScrollController();
+  final ItemPositionsListener _positions = ItemPositionsListener.create();
+
+  int get _visibleIndex {
+    final visible = _positions.itemPositions.value
+        .where((pos) => pos.itemTrailingEdge > 0 && pos.itemLeadingEdge < 1)
+        .toList()
+      ..sort((a, b) => a.index.compareTo(b.index));
+    return visible.isEmpty ? _initialIndex : visible.first.index.clamp(0, _passages.length - 1);
+  }
+
+  void _goTo(int index) {
+    if (_passages.isEmpty || !_scroll.isAttached) return;
+    _scroll.scrollTo(index: index.clamp(0, _passages.length - 1), duration: const Duration(milliseconds: 350), curve: Curves.easeInOut, alignment: 0.04);
+  }
 
   List<Passage> _passages = const [];
   int _initialIndex = 0;
@@ -310,14 +325,25 @@ class _BalaghaPassageListState extends State<_BalaghaPassageList> {
                   ? const CollectionMessage('اس حصے میں متن موجود نہیں۔')
                   : SelectionArea(
                       child: ScrollablePositionedList.builder(
+                        itemScrollController: _scroll,
+                        itemPositionsListener: _positions,
                         initialScrollIndex: _initialIndex,
                         initialAlignment: 0.04,
                         key: PageStorageKey(widget.storageKey),
-                        itemCount: _passages.length,
+                        itemCount: _passages.length + 1,
                         addAutomaticKeepAlives: false,
                         minCacheExtent: 350,
                         padding: const EdgeInsets.fromLTRB(14, 8, 14, 112),
                         itemBuilder: (context, index) {
+                          if (index >= _passages.length) {
+                            return ReaderPrevNextBar(
+                              hasPrevious: _visibleIndex > 0,
+                              hasNext: _visibleIndex < _passages.length - 1,
+                              onPrevious: () => _goTo(_visibleIndex - 1),
+                              onNext: () => _goTo(_visibleIndex + 1),
+                              label: 'حصہ ${_visibleIndex + 1} از ${_passages.length}',
+                            );
+                          }
                           final passage = _passages[index];
                           if (passage.format == 4) {
                             // A decorative separator in the source text

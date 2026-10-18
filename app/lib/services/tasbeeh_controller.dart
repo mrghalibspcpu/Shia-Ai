@@ -258,6 +258,7 @@ class TasbeehSnapshot {
     this.customNote = '',
     this.wirds = const <CustomWird>[],
     this.targetOverrides = const <String, int>{},
+    this.dhikrTotals = const <String, int>{},
   });
 
   final String presetKey;
@@ -281,6 +282,9 @@ class TasbeehSnapshot {
   /// Targets the reader chose for the built-in one-step zikr (key → target).
   final Map<String, int> targetOverrides;
 
+  /// Lifetime count per dhikr label (the Tasbeeh report).
+  final Map<String, int> dhikrTotals;
+
   TasbeehSnapshot copyWith({
     String? presetKey,
     int? stepIndex,
@@ -296,6 +300,7 @@ class TasbeehSnapshot {
     String? customNote,
     List<CustomWird>? wirds,
     Map<String, int>? targetOverrides,
+    Map<String, int>? dhikrTotals,
   }) =>
       TasbeehSnapshot(
         presetKey: presetKey ?? this.presetKey,
@@ -312,6 +317,7 @@ class TasbeehSnapshot {
         customNote: customNote ?? this.customNote,
         wirds: wirds ?? this.wirds,
         targetOverrides: targetOverrides ?? this.targetOverrides,
+        dhikrTotals: dhikrTotals ?? this.dhikrTotals,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -329,6 +335,7 @@ class TasbeehSnapshot {
         'custom_note': customNote,
         'wirds': <Map<String, dynamic>>[for (final wird in wirds) wird.toJson()],
         'targets': targetOverrides,
+        'dhikr_totals': dhikrTotals,
       };
 
   static TasbeehSnapshot fromJson(Map<String, dynamic> json) => TasbeehSnapshot(
@@ -346,6 +353,7 @@ class TasbeehSnapshot {
         customNote: json['custom_note'] is String ? (json['custom_note'] as String).trim() : '',
         wirds: _asWirds(json['wirds']),
         targetOverrides: _asTargets(json['targets']),
+        dhikrTotals: _asTargets(json['dhikr_totals']),
       );
 
   static List<CustomWird> _asWirds(Object? value) {
@@ -444,6 +452,7 @@ class TasbeehController extends ChangeNotifier {
   int get dailyTotal => _state.dailyTotal;
   int get lifetimeTotal => _state.lifetimeTotal;
   int get customTarget => _state.customTarget;
+  Map<String, int> get dhikrTotals => Map.unmodifiable(_state.dhikrTotals);
   bool get soundEnabled => _state.soundEnabled;
   bool get hapticsEnabled => _state.hapticsEnabled;
 
@@ -515,7 +524,11 @@ class TasbeehController extends ChangeNotifier {
     final lastStep = currentStep >= steps - 1;
     final finishedSequence = completes && lastStep;
 
+    final totals = Map<String, int>.of(rolled.dhikrTotals);
+    final label = step.arabic.isNotEmpty ? step.arabic : preset.titleUrdu;
+    totals[label] = (totals[label] ?? 0) + 1;
     _state = rolled.copyWith(
+      dhikrTotals: totals,
       count: completes ? 0 : nextCount,
       // A finished step either advances, or — when the whole sequence is done —
       // arms the first step again, which is how the reader starts the next
@@ -543,7 +556,11 @@ class TasbeehController extends ChangeNotifier {
   /// back too; nothing happens at the start of a step.
   void undo() {
     if (_state.count <= 0) return;
+    final totals = Map<String, int>.of(_state.dhikrTotals);
+    final label = step.arabic.isNotEmpty ? step.arabic : preset.titleUrdu;
+    if ((totals[label] ?? 0) > 0) totals[label] = totals[label]! - 1;
     _state = _state.copyWith(
+      dhikrTotals: totals,
       count: _state.count - 1,
       dailyTotal: _state.dailyTotal > 0 ? _state.dailyTotal - 1 : 0,
       lifetimeTotal: _state.lifetimeTotal > 0 ? _state.lifetimeTotal - 1 : 0,
@@ -560,6 +577,7 @@ class TasbeehController extends ChangeNotifier {
     _state = _state.copyWith(
       dailyTotal: daily ? 0 : _state.dailyTotal,
       lifetimeTotal: lifetime ? 0 : _state.lifetimeTotal,
+      dhikrTotals: lifetime ? const <String, int>{} : _state.dhikrTotals,
     );
     unawaited(_persist());
     notifyListeners();

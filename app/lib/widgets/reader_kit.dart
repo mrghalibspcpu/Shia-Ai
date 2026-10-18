@@ -800,3 +800,57 @@ class ErrorPanel extends StatelessWidget {
         ),
       );
 }
+
+/// Previous / Next navigation shown at the END of a reading list, so a reader
+/// on any ayat, riwayat or fatwa can move forward/back without scrolling up.
+class ReaderPrevNextBar extends StatelessWidget {
+  const ReaderPrevNextBar({
+    super.key,
+    required this.hasPrevious,
+    required this.hasNext,
+    required this.onPrevious,
+    required this.onNext,
+    this.label = '',
+  });
+
+  final bool hasPrevious;
+  final bool hasNext;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      key: const ValueKey<String>('reader-prev-next'),
+      padding: const EdgeInsets.only(top: 14),
+      child: Column(
+        children: [
+          if (label.isNotEmpty) ...[
+            Text(label, style: TextStyle(fontSize: 12.5, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            const SizedBox(height: 8),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: hasPrevious ? onPrevious : null,
+                  icon: const Icon(Icons.arrow_forward_rounded),
+                  label: const Text('پچھلا'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: hasNext ? onNext : null,
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  label: const Text('اگلا'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}

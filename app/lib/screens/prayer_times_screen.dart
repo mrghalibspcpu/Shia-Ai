@@ -243,57 +243,85 @@ class _HeroHeader extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 430),
           child: AspectRatio(
             aspectRatio: 0.72,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: Stack(
-                fit: StackFit.expand,
-                children: <Widget>[
-                  Image.asset(
-                    'assets/images/prayer_details.jpg',
-                    key: const ValueKey<String>('prayer-details-wallpaper'),
-                    fit: BoxFit.cover,
-                    alignment: Alignment.bottomCenter,
-                  ),
-                  // A subtle sky-to-architecture scrim keeps the date, live
-                  // clock, location and prayer cells readable at every hour.
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        stops: <double>[0, 0.45, 0.75, 1],
-                        colors: <Color>[
-                          Color(0x660B2330), Color(0x330B2330),
-                          Color(0x55201522), Color(0xB8000D13),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        _HeroTitleRow(controller: controller),
-                        const SizedBox(height: 10),
-                        _HeroLocationRow(controller: controller, now: now),
-                        const Spacer(),
-                        // The clock floats in the open middle of the sky; it
-                        // scales itself down instead of ever overflowing.
-                        Flexible(flex: 4, child: _HeroClock(now: now)),
-                        const Spacer(),
-                        _HeroNextPrayer(controller: controller, now: now),
-                        const SizedBox(height: 12),
-                        _TimingGlassRow(schedule: schedule, now: now),
-                      ],
-                    ),
-                  ),
-                ],
+            // The expanded prayer page now uses the SAME six dynamic animated
+            // skies as the home card (night, sehr, Fajr, morning, dopahar,
+            // Maghrib/evening) — phase chosen from today's prayer times.
+            child: SkyBackdrop(
+              key: const ValueKey<String>('prayer-details-wallpaper'),
+              phase: skyPhaseFor(schedule, now),
+              radius: 24,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    _HeroTitleRow(controller: controller),
+                    const Spacer(),
+                    Flexible(flex: 4, child: _HeroClock(now: now)),
+                    const Spacer(),
+                    _HeroNextPrayer(controller: controller, now: now),
+                    const SizedBox(height: 12),
+                    _TimingGlassRow(schedule: schedule, now: now),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Location + technical details BELOW the wallpaper, in their own container
+/// (place, dates, Hijri, coordinates, source) — nothing technical sits on the sky.
+class _LocationDetailsContainer extends StatelessWidget {
+  const _LocationDetailsContainer({required this.controller});
+
+  final PrayerController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = GlassPalette.of(context);
+    return ValueListenableBuilder<DateTime>(
+      valueListenable: controller.now,
+      builder: (context, now, _) {
+        final location = controller.location;
+        final hijri = controller.hijriFor(now);
+        return GlassPanel(
+          key: const ValueKey<String>('prayer-location-details'),
+          radius: 20,
+          padding: const EdgeInsets.all(14),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => unawaited(openLocationPicker(context)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                const GlassSectionHeader(title: 'مقام و تفصیل'),
+                const SizedBox(height: 8),
+                Row(children: <Widget>[
+                  Icon(Icons.place, size: 19, color: palette.gold),
+                  const SizedBox(width: 4),
+                  Expanded(child: Text(controller.loadingLocation ? 'مقام تلاش کیا جا رہا ہے…' : location.label,
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: palette.ink))),
+                  _SkyPill(label: location.source.labelUrdu, icon: Icons.edit_location_alt_outlined),
+                ]),
+                if (location.detail.isNotEmpty)
+                  Text(location.detail, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: palette.muted)),
+                const SizedBox(height: 6),
+                Text('${weekdayUrdu(now)}  •  ${formatDayMonthYearUrdu(now)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: palette.ink)),
+                Text('تاریخِ ہجری: ${hijri.labelUrdu}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: palette.gold)),
+                Text(formatCoordinatesUrdu(location.latitude, location.longitude),
+                    style: TextStyle(fontFamily: kDigitFont, fontSize: 12.5, color: palette.muted)),
+                if (location.accuracyMeters != null)
+                  Text('درستگی ~${location.accuracyMeters!.round()} میٹر', style: TextStyle(fontSize: 12.5, color: palette.muted)),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -365,69 +393,6 @@ class _HeroTitleRow extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _HeroLocationRow extends StatelessWidget {
-  const _HeroLocationRow({required this.controller, required this.now});
-
-  final PrayerController controller;
-  final DateTime now;
-
-  @override
-  Widget build(BuildContext context) {
-    final location = controller.location;
-    final hijri = controller.hijriFor(now);
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: () => unawaited(openLocationPicker(context)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              const Icon(Icons.place, size: 19, color: _skyGold),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  controller.loadingLocation ? 'مقام تلاش کیا جا رہا ہے…' : location.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _sky(18, weight: FontWeight.w800, height: 1.35),
-                ),
-              ),
-              const SizedBox(width: 6),
-              _SkyPill(label: location.source.labelUrdu, icon: Icons.edit_location_alt_outlined),
-            ],
-          ),
-          if (location.detail.isNotEmpty)
-            Text(
-              location.detail,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: _sky(13, alpha: 0.88, height: 1.4),
-            ),
-          const SizedBox(height: 4),
-          Text(
-            '${weekdayUrdu(now)}  •  ${formatDayMonthYearUrdu(now)}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: _sky(14.5, weight: FontWeight.w700, height: 1.45),
-          ),
-          Text(
-            'تاریخِ ہجری: ${hijri.labelUrdu}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: _sky(14, weight: FontWeight.w700, color: _skyGold, height: 1.4),
-          ),
-          Text(
-            formatCoordinatesUrdu(location.latitude, location.longitude),
-            maxLines: 1,
-            style: _sky(12, alpha: 0.8, digits: true),
-          ),
-        ],
-      ),
     );
   }
 }

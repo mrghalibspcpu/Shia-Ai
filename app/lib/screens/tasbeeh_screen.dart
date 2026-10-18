@@ -159,6 +159,8 @@ class _TasbeehScreenState extends State<TasbeehScreen> with TickerProviderStateM
           ],
           _Totals(controller: controller),
           const SizedBox(height: 12),
+          _ReportCard(controller: controller),
+          const SizedBox(height: 12),
           _FeedbackControls(controller: controller),
           const SizedBox(height: 12),
           _ResetRow(
@@ -1566,6 +1568,110 @@ class _ResetRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Opens the Tasbeeh report: which dhikr, how many times — from this app's counter.
+Future<void> showTasbeehReport(BuildContext context, TasbeehController controller) {
+  final entries = controller.dhikrTotals.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) {
+      final palette = GlassPalette.of(sheetContext);
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.82),
+            child: GlassPanel(
+              radius: 22,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  const GlassSectionHeader(title: 'تسبیح رپورٹ'),
+                  const SizedBox(height: 6),
+                  Text('اس ایپ کی تسبیح سے آپ نے کل کون کون سے اذکار اور کتنی تعداد میں پڑھے:',
+                      style: TextStyle(fontSize: 13.5, height: 1.5, color: palette.muted)),
+                  const SizedBox(height: 10),
+                  Row(children: <Widget>[
+                    Expanded(child: _ReportStat(label: 'آج کا کل', value: '${controller.dailyTotal}', palette: palette)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _ReportStat(label: 'مجموعی (لائف ٹائم)', value: '${controller.lifetimeTotal}', palette: palette)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _ReportStat(label: 'ادوار (راؤنڈز)', value: '${controller.rounds}', palette: palette)),
+                  ]),
+                  const SizedBox(height: 12),
+                  if (entries.isEmpty)
+                    Text('ابھی کوئی ذکر شمار نہیں ہوا۔ تسبیح شروع کریں تو رپورٹ یہاں بنے گی۔',
+                        style: TextStyle(fontSize: 14, height: 1.6, color: palette.muted))
+                  else
+                    Flexible(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: entries.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (_, index) => ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(entries[index].key, maxLines: 2, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontFamily: kArabicFont, fontSize: 16)),
+                          trailing: Text('${entries[index].value} بار',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: palette.accent)),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _ReportStat extends StatelessWidget {
+  const _ReportStat({required this.label, required this.value, required this.palette});
+  final String label; final String value; final GlassPalette palette;
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(color: palette.accentSoft, borderRadius: BorderRadius.circular(14)),
+        child: Column(children: <Widget>[
+          Text(value, style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: palette.accent)),
+          Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: palette.muted)),
+        ]),
+      );
+}
+
+class _ReportCard extends StatelessWidget {
+  const _ReportCard({required this.controller});
+  final TasbeehController controller;
+  @override
+  Widget build(BuildContext context) {
+    final palette = GlassPalette.of(context);
+    return GlassPanel(
+      radius: 18,
+      padding: const EdgeInsets.all(12),
+      child: Row(children: <Widget>[
+        Icon(Icons.assessment_outlined, size: 22, color: palette.accent),
+        const SizedBox(width: 8),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+          Text('تسبیح رپورٹ', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800, color: palette.ink)),
+          Text('کون سے اذکار، کتنی تعداد میں — مکمل حساب', style: TextStyle(fontSize: 12.5, color: palette.muted)),
+        ])),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: palette.accent),
+          onPressed: () => unawaited(showTasbeehReport(context, controller)),
+          child: const Text('رپورٹ دیکھیں'),
+        ),
+      ]),
     );
   }
 }

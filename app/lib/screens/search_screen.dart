@@ -440,14 +440,9 @@ class _SearchScreenState extends State<SearchScreen> {
       children: [
         ListView.separated(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-          itemCount: _results.length + (_results.length < _total ? 1 : 0),
+          itemCount: _results.length,
           separatorBuilder: (_, __) => const SizedBox(height: 10),
           itemBuilder: (context, index) {
-            if (index == _results.length) return Center(child: TextButton.icon(
-              onPressed: _loadingMore || _loading ? null : _loadMore,
-              icon: const Icon(Icons.expand_more),
-              label: Text(_loadingMore ? 'مزید نتائج آ رہے ہیں…' : 'مزید نتائج دکھائیں'),
-            ));
             return _SearchResultCard(
             hit: _results[index],
             query: _resultQuery,
@@ -463,6 +458,23 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
         if (_loading)
           const Positioned(left: 16, right: 16, top: 0, child: LinearProgressIndicator(minHeight: 2)),
+        // "Show more than 40 results" lives at the bottom-left, always in
+        // thumb reach, instead of hiding at the very end of the list.
+        if (_results.length < _total)
+          Positioned(
+            left: 12,
+            bottom: 12,
+            child: SafeArea(
+              child: FilledButton.icon(
+                key: const ValueKey<String>('search-load-more'),
+                onPressed: _loadingMore || _loading ? null : _loadMore,
+                icon: _loadingMore
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.expand_more),
+                label: Text(_loadingMore ? 'مزید نتائج آ رہے ہیں…' : 'مزید نتائج دکھائیں (${_total - _results.length})'),
+              ),
+            ),
+          ),
       ],
     );
   }
