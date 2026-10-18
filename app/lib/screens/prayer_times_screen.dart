@@ -1192,6 +1192,36 @@ class _AlertControls extends StatelessWidget {
             onChanged: controller.setHapticsEnabled,
             palette: palette,
           ),
+          if (controller.alertsEnabled) ...<Widget>[
+            const SizedBox(height: 4),
+            Row(
+              children: <Widget>[
+                Icon(Icons.schedule_send_outlined, size: 16, color: palette.accent),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'اگلے 30 دن کی اطلاع فون میں محفوظ کریں',
+                    style: TextStyle(fontSize: 11.5, color: palette.muted),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    final granted = await controller.requestNativePrayerNotifications();
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(granted
+                            ? 'فون پر نماز کی اطلاعات فعال ہیں۔'
+                            : 'اطلاع کی اجازت نہیں ملی؛ فون کی ترتیبات میں اجازت دیں۔'),
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  },
+                  child: const Text('اجازت دیں'),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 8),
           Row(
             children: <Widget>[

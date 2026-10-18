@@ -9,6 +9,7 @@ import '../astro/prayer_calculator.dart';
 import 'alerts.dart';
 import 'place_names.dart';
 import 'prayer_locations.dart';
+import 'prayer_notifications.dart';
 
 /// The location chain the controller drives: device fix → IP lookup → null.
 typedef LocationResolver = Future<PrayerLocation?> Function();
@@ -117,6 +118,8 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
   late PrayerSchedule _schedule;
   bool _loadingLocation = false;
   bool _started = false;
+  bool _nativeAlertsReady = false;
+  bool _nativeNotificationsGranted = false;
   Timer? _ticker;
   String? _lastFiredKey;
   final List<PrayerAlertEvent> _pendingAlerts = <PrayerAlertEvent>[];
@@ -224,11 +227,15 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
       // reader's own city; anything less than a fresh, named GPS fix is then
       // improved quietly in the background — never with a prompt.
       await _applyLocation(stored, persist: false);
+      _nativeAlertsReady = true;
+      unawaited(_syncNativePrayerNotifications());
       unawaited(_improveInBackground(stored));
       return;
     }
     // First run only: a device fix, then the IP lookup, and Islamabad last.
     await refreshLocation();
+    _nativeAlertsReady = true;
+    unawaited(_syncNativePrayerNotifications());
   }
 
   /// After a stored location: name an unnamed fix, re-check a stale one, and
@@ -431,21 +438,45 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void setAlertsEnabled(bool value) {
+    if (_alertsEnabled == value) return;
     _alertsEnabled = value;
     unawaited(_savePreferences());
+    if (_nativeAlertsReady) {
+      if (value && _live) {
+        // The toggle is an explicit action, so it is an appropriate moment to
+        // request Android 13+ notification and optional exact-alarm access.
+        unawaited(requestNativePrayerNotifications());
+      } else {
+        unawaited(_syncNativePrayerNotifications());
+      }
+    }
     notifyListeners();
   }
 
   void setSoundEnabled(bool value) {
+    if (_soundEnabled == value) return;
     _soundEnabled = value;
     unawaited(_savePreferences());
+    unawaited(_syncNativePrayerNotifications());
     notifyListeners();
   }
 
   void setHapticsEnabled(bool value) {
+    if (_hapticsEnabled == value) return;
     _hapticsEnabled = value;
     unawaited(_savePreferences());
+    unawaited(_syncNativePrayerNotifications());
     notifyListeners();
+  }
+
+  /// Explicit permission action shown alongside the existing alert controls.
+  /// Returns whether the platform granted notification permission; exact
+  /// alarms can still fall back to Android's inexact while-idle schedule.
+  Future<bool> requestNativePrayerNotifications() async {
+    if (!_live) return false;
+    final granted = await PrayerNotifications.instance.requestPermissions();
+    await _syncNativePrayerNotifications();
+    return granted;
   }
 
   /// Pops the oldest prayer alert, if the UI has not consumed it yet.
@@ -473,7 +504,31 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
       clock: raw,
     );
     now.value = _displayNow(raw);
+    if (_nativeAlertsReady) unawaited(_syncNativePrayerNotifications());
   }
+
+  Future<void> _syncNativePrayerNotifications() async {
+    if (!_live || !_nativeAlertsReady) return;
+    final notifications = PrayerNotifications.instance;
+    _nativeNotificationsGranted = await notifications.notificationsEnabled();
+    final reminders = _alertsEnabled ? _buildPrayerReminders() : const <PrayerReminder>[];
+    await notifications.synchronize(
+      reminders: reminders,
+      enabled: _alertsEnabled,
+      soundEnabled: _soundEnabled,
+      hapticsEnabled: _hapticsEnabled,
+    );
+  }
+
+  List<PrayerReminder> _buildPrayerReminders() => PrayerReminderPlanner.plan(
+        latitude: _location.latitude,
+        longitude: _location.longitude,
+        location: _location.label,
+        presetKey: _presetKey,
+        locationWallClockNow: now.value,
+        utcNow: _clock().toUtc(),
+        zoneOffset: _schedule.zoneOffset,
+      );
 
   void _tick() {
     final raw = _clock();
@@ -511,8 +566,15 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
         if (elapsed.isNegative || elapsed.inMinutes >= 1) continue;
         _lastFiredKey = key;
         _pendingAlerts.add(PrayerAlertEvent(marker: entry.marker, at: entry.time));
-        if (_alertsEnabled) unawaited(_feedback.playPrayerChime());
-        if (_hapticsEnabled) unawaited(_feedback.prayerHaptic());
+        // A granted native notification also sounds/vibrates when the app is
+        // open. Avoid firing the same chime twice; keep the in-process
+        // feedback as a fallback when Android notifications are not allowed.
+        if (_alertsEnabled && _soundEnabled && !_nativeNotificationsGranted) {
+          unawaited(_feedback.playPrayerChime());
+        }
+        if (_hapticsEnabled && (!_alertsEnabled || !_nativeNotificationsGranted)) {
+          unawaited(_feedback.prayerHaptic());
+        }
         notifyListeners();
         return;
       }

@@ -6,6 +6,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shia_ai/astro/hijri_calendar.dart' show formatHijriUrdu;
+import 'package:shia_ai/astro/prayer_format.dart' show weekdayUrdu;
 import 'package:shia_ai/app_theme.dart';
 import 'package:shia_ai/data_installer.dart';
 import 'package:shia_ai/main.dart' show HomeShell;
@@ -377,6 +379,25 @@ void main() {
     await finish(tester, prayer, tasbeeh);
   });
 
+  testWidgets('the calendar converter accepts a date and looks up its Shia occasion', (tester) async {
+    phone(tester);
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(12, 10));
+    final hijriNewYear = prayer.lunarHijri.civilStartOfMonth(1449, 1);
+    await tester.pumpWidget(host(prayer, tasbeeh, const IslamicCalendarScreen()));
+    await settle(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('gregorian-date-input')),
+      '${hijriNewYear.day.toString().padLeft(2, '0')}/${hijriNewYear.month.toString().padLeft(2, '0')}/${hijriNewYear.year}',
+    );
+    await tester.tap(find.text('تبدیل کریں'));
+    await settle(tester);
+    expect(find.text('آغازِ سالِ ہجری'), findsOneWidget);
+    expect(find.textContaining('دن: ${weekdayUrdu(hijriNewYear)}'), findsOneWidget);
+    expect(find.textContaining(formatHijriUrdu(prayer.lunarHijri.dateFor(hijriNewYear))), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await finish(tester, prayer, tasbeeh);
+  });
+
   testWidgets('the shell connects Settings, Bookmarks, Last seen and Xplore without touching the collections', (tester) async {
     phone(tester);
     final (prayer, tasbeeh) = await controllersAt(tester, localTime(12, 10));
@@ -578,6 +599,8 @@ void main() {
     final marker = tester.widget<Image>(find.byKey(const ValueKey<String>('qibla-kaaba-marker')));
     final resized = marker.image as ResizeImage;
     expect((resized.imageProvider as AssetImage).assetName, 'assets/images/kaaba_icon.png');
+    expect(find.text('نقشے پر سمتِ قبلہ'), findsOneWidget);
+    expect(find.textContaining('تیر شمالِ حقیقی سے ہے'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await shoot(tester, 'qibla-3d');
     await finish(tester, prayer, tasbeeh);

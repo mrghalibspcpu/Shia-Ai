@@ -494,25 +494,6 @@ class ReaderScreen extends StatefulWidget {
 
 class _ReaderScreenState extends State<ReaderScreen> {
   final ItemScrollController _itemScrollController = ItemScrollController();
-  final ItemPositionsListener _positions = ItemPositionsListener.create();
-  int _currentIndex = 0;
-
-  int get _visibleIndex {
-    final visible = _positions.itemPositions.value
-        .where((pos) => pos.itemTrailingEdge > 0 && pos.itemLeadingEdge < 1)
-        .toList()
-      ..sort((a, b) => a.index.compareTo(b.index));
-    return visible.isEmpty ? _currentIndex : visible.first.index.clamp(0, _passages.length - 1);
-  }
-
-  void _goTo(int index) {
-    if (_passages.isEmpty) return;
-    final target = index.clamp(0, _passages.length - 1);
-    setState(() => _currentIndex = target);
-    if (_itemScrollController.isAttached) {
-      _itemScrollController.scrollTo(index: target, duration: const Duration(milliseconds: 350), curve: Curves.easeInOut, alignment: 0.04);
-    }
-  }
 
   List<Passage> _passages = [];
   int _initialIndex = 0;
@@ -607,7 +588,6 @@ class _ReaderScreenState extends State<ReaderScreen> {
           _preferences = preferences;
           _passages = passages;
           _initialIndex = index;
-          _currentIndex = index;
           _loading = false;
         });
         if (passages.isNotEmpty) {
@@ -656,7 +636,6 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       child: ScrollablePositionedList.builder(
                       key: PageStorageKey('reader-${widget.book.key}-${widget.sectionId ?? widget.recordId}'),
                       itemScrollController: _itemScrollController,
-                      itemPositionsListener: _positions,
                       initialScrollIndex: _initialIndex,
                       itemCount: _passages.length + 1,
                       // Long chapters kept every card alive, which grew the
@@ -668,36 +647,19 @@ class _ReaderScreenState extends State<ReaderScreen> {
                         if (index >= _passages.length) {
                           final navIndex = _navIndex;
                           final hasSectionNav = navIndex >= 0 && _navSections.length > 1;
-                          return Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Within this متن: previous / next passage.
-                              ReaderPrevNextBar(
-                                hasPrevious: _visibleIndex > 0,
-                                hasNext: _visibleIndex < _passages.length - 1,
-                                onPrevious: () => _goTo(_visibleIndex - 1),
-                                onNext: () => _goTo(_visibleIndex + 1),
-                                previousLabel: 'پچھلا حصہ',
-                                nextLabel: 'اگلا حصہ',
-                                label: 'حصہ ${_visibleIndex + 1} از ${_passages.length} — اسی متن کے اندر',
-                              ),
-                              const SizedBox(height: 10),
-                              // Across متون: open the previous / next section
-                              // or chapter directly (no need to go back and
-                              // pick it from the chapter lists).
-                              ReaderPrevNextBar(
-                                key: const ValueKey<String>('reader-section-prev-next'),
-                                hasPrevious: hasSectionNav && navIndex > 0,
-                                hasNext: hasSectionNav && navIndex < _navSections.length - 1,
-                                onPrevious: () => _openAdjacentSection(-1),
-                                onNext: () => _openAdjacentSection(1),
-                                previousLabel: 'پچھلا متن',
-                                nextLabel: 'اگلا متن',
-                                label: hasSectionNav
-                                    ? 'متن ${navIndex + 1} از ${_navSections.length}'
-                                    : 'متون کی فہرست تیار ہو رہی ہے…',
-                              ),
-                            ],
+                          if (!hasSectionNav) return const SizedBox.shrink();
+                          // Passage-by-passage buttons were removed from the
+                          // end of the reader. Keep only the useful jump to a
+                          // different text/chapter when one exists.
+                          return ReaderPrevNextBar(
+                            key: const ValueKey<String>('reader-section-prev-next'),
+                            hasPrevious: navIndex > 0,
+                            hasNext: navIndex < _navSections.length - 1,
+                            onPrevious: () => _openAdjacentSection(-1),
+                            onNext: () => _openAdjacentSection(1),
+                            previousLabel: 'پچھلا متن',
+                            nextLabel: 'اگلا متن',
+                            label: 'متن ${navIndex + 1} از ${_navSections.length}',
                           );
                         }
                         return PassageCard(

@@ -34,6 +34,7 @@ class CheckDartTests(TestCase):
             )
             self.assertEqual(self.guard.check_sdk_imports([path]), 0, path.name)
             self.assertEqual(self.guard.check_forbidden([path]), 0, path.name)
+            self.assertEqual(self.guard.check_reader_end_controls([path]), 0, path.name)
             self.assertEqual(self.guard.check_balance([path]), 0, path.name)
             self.assertEqual(self.guard.check_imports([path]), 0, path.name)
 
@@ -87,6 +88,20 @@ class CheckDartTests(TestCase):
             self.assertEqual(
                 self.guard.check_forbidden([target]), 0, "comments should not trip the guard"
             )
+        finally:
+            target.write_text(original, encoding="utf-8")
+
+    def test_removed_reader_footer_controls_stay_removed(self) -> None:
+        targets = [
+            ROOT / "app" / "lib" / "screens" / "library_screen.dart",
+            ROOT / "app" / "lib" / "screens" / "balagha_screen.dart",
+        ]
+        self.assertEqual(self.guard.check_reader_end_controls(targets), 0)
+        target = targets[0]
+        original = target.read_text(encoding="utf-8")
+        try:
+            target.write_text(original + "\n// اگلا حصہ\n", encoding="utf-8")
+            self.assertEqual(self.guard.check_reader_end_controls([target]), 1)
         finally:
             target.write_text(original, encoding="utf-8")
 

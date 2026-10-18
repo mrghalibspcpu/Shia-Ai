@@ -270,20 +270,6 @@ class _BalaghaPassageList extends StatefulWidget {
 class _BalaghaPassageListState extends State<_BalaghaPassageList> {
   final BookDefinition _book = BookDefinition.bookFor(CorpusSource.balagha)!;
   final ItemScrollController _scroll = ItemScrollController();
-  final ItemPositionsListener _positions = ItemPositionsListener.create();
-
-  int get _visibleIndex {
-    final visible = _positions.itemPositions.value
-        .where((pos) => pos.itemTrailingEdge > 0 && pos.itemLeadingEdge < 1)
-        .toList()
-      ..sort((a, b) => a.index.compareTo(b.index));
-    return visible.isEmpty ? _initialIndex : visible.first.index.clamp(0, _passages.length - 1);
-  }
-
-  void _goTo(int index) {
-    if (_passages.isEmpty || !_scroll.isAttached) return;
-    _scroll.scrollTo(index: index.clamp(0, _passages.length - 1), duration: const Duration(milliseconds: 350), curve: Curves.easeInOut, alignment: 0.04);
-  }
 
   List<Passage> _passages = const [];
   int _initialIndex = 0;
@@ -346,7 +332,6 @@ class _BalaghaPassageListState extends State<_BalaghaPassageList> {
                   : SelectionArea(
                       child: ScrollablePositionedList.builder(
                         itemScrollController: _scroll,
-                        itemPositionsListener: _positions,
                         initialScrollIndex: _initialIndex,
                         initialAlignment: 0.04,
                         key: PageStorageKey(widget.storageKey),
@@ -356,32 +341,20 @@ class _BalaghaPassageListState extends State<_BalaghaPassageList> {
                         padding: const EdgeInsets.fromLTRB(14, 8, 14, 112),
                         itemBuilder: (context, index) {
                           if (index >= _passages.length) {
-                            return Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                ReaderPrevNextBar(
-                                  hasPrevious: _visibleIndex > 0,
-                                  hasNext: _visibleIndex < _passages.length - 1,
-                                  onPrevious: () => _goTo(_visibleIndex - 1),
-                                  onNext: () => _goTo(_visibleIndex + 1),
-                                  previousLabel: 'پچھلا حصہ',
-                                  nextLabel: 'اگلا حصہ',
-                                  label: 'حصہ ${_visibleIndex + 1} از ${_passages.length} — اسی متن کے اندر',
-                                ),
-                                if (widget.onNextSection != null || widget.onPreviousSection != null) ...[
-                                  const SizedBox(height: 10),
-                                  ReaderPrevNextBar(
-                                    key: const ValueKey<String>('balagha-section-prev-next'),
-                                    hasPrevious: widget.onPreviousSection != null,
-                                    hasNext: widget.onNextSection != null,
-                                    onPrevious: widget.onPreviousSection,
-                                    onNext: widget.onNextSection,
-                                    previousLabel: 'پچھلا متن',
-                                    nextLabel: 'اگلا متن',
-                                    label: 'اگلا یا پچھلا خطبہ / خط / قول براہِ راست کھولیں',
-                                  ),
-                                ],
-                              ],
+                            if (widget.onNextSection == null && widget.onPreviousSection == null) {
+                              return const SizedBox.shrink();
+                            }
+                            // Keep cross-text navigation, but remove the
+                            // previous/next-passage buttons from the page end.
+                            return ReaderPrevNextBar(
+                              key: const ValueKey<String>('balagha-section-prev-next'),
+                              hasPrevious: widget.onPreviousSection != null,
+                              hasNext: widget.onNextSection != null,
+                              onPrevious: widget.onPreviousSection,
+                              onNext: widget.onNextSection,
+                              previousLabel: 'پچھلا متن',
+                              nextLabel: 'اگلا متن',
+                              label: 'اگلا یا پچھلا خطبہ / خط / قول براہِ راست کھولیں',
                             );
                           }
                           final passage = _passages[index];

@@ -37,5 +37,6 @@ app/android/local.properties
 app/android/app/key.properties
 app/android/app/owner-release-key.jks
 
-# Delivered APK zips (build outputs, never committed).
+# Delivered APK zips and restorable source archives (build outputs, never committed).
 ShiaVerse-*-apk.zip
+deliverables/

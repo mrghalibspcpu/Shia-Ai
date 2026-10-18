@@ -814,59 +814,68 @@ class _MiniPrayerCell extends StatelessWidget {
     const gold = Color(0xFFFFE1A1);
     final lit = active || upcoming;
     final left = remaining;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      margin: const EdgeInsets.symmetric(horizontal: 1.5),
-      padding: const EdgeInsets.symmetric(vertical: 1, horizontal: 2),
-      decoration: BoxDecoration(
-        color: active
-            ? Colors.white.withValues(alpha: 0.22)
-            : (upcoming ? gold.withValues(alpha: 0.14) : Colors.transparent),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
+    return AnimatedScale(
+      scale: active ? 1.08 : (upcoming ? 1.03 : 1),
+      duration: const Duration(milliseconds: 220),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        margin: const EdgeInsets.symmetric(horizontal: 1.5),
+        padding: EdgeInsets.symmetric(vertical: active ? 3 : 1, horizontal: 2),
+        decoration: BoxDecoration(
           color: active
-              ? Colors.white.withValues(alpha: 0.55)
-              : (upcoming ? gold.withValues(alpha: 0.9) : Colors.transparent),
-          width: lit ? 1.3 : 1,
+              ? Colors.white.withValues(alpha: 0.24)
+              : (upcoming ? gold.withValues(alpha: 0.14) : Colors.transparent),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: active
+                ? Colors.white.withValues(alpha: 0.75)
+                : (upcoming ? gold.withValues(alpha: 0.9) : Colors.transparent),
+            width: active ? 1.7 : (lit ? 1.3 : 1),
+          ),
+          boxShadow: active
+              ? <BoxShadow>[
+                  BoxShadow(color: gold.withValues(alpha: 0.26), blurRadius: 7, offset: const Offset(0, 2)),
+                ]
+              : null,
         ),
-      ),
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Text(
-              displayLabel ?? entry.marker.labelUrdu,
-              maxLines: 1,
-              overflow: TextOverflow.clip,
-              style: _onSky(15, weight: lit ? FontWeight.w800 : FontWeight.w700, height: 1.25),
-            ),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                formatClockDigitsUrdu(entry.time),
-                textDirection: TextDirection.ltr,
-                style: _onSky(15, weight: FontWeight.w800, digits: true, height: 1, color: upcoming ? gold : Colors.white),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                displayLabel ?? entry.marker.labelUrdu,
+                maxLines: 1,
+                overflow: TextOverflow.clip,
+                style: _onSky(active ? 16 : 14.5, weight: lit ? FontWeight.w800 : FontWeight.w700, height: 1.25),
               ),
-            ),
-            const SizedBox(height: 1),
-            SizedBox(
-              height: 11,
-              child: Center(
-                child: active
-                    ? const _NowTag()
-                    : (left == null
-                        ? const SizedBox.shrink()
-                        : FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              formatCountdownClock(left),
-                              style: _onSky(9, weight: FontWeight.w700, color: gold, digits: true),
-                            ),
-                          )),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  formatClockDigitsUrdu(entry.time),
+                  textDirection: TextDirection.ltr,
+                  style: _onSky(active ? 16 : 14.5, weight: FontWeight.w800, digits: true, height: 1, color: upcoming ? gold : Colors.white),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 1),
+              SizedBox(
+                height: 14,
+                child: Center(
+                  child: active
+                      ? const _NowTag()
+                      : (left == null
+                          ? const SizedBox.shrink()
+                          : FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                formatCountdownClock(left),
+                                style: _onSky(11.5, weight: FontWeight.w800, color: gold, digits: true),
+                              ),
+                            )),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -890,7 +899,7 @@ class _NowTag extends StatelessWidget {
         maxLines: 1,
         style: TextStyle(
           fontFamily: kDigitFont,
-          fontSize: 7.5,
+          fontSize: 8.5,
           height: 1.2,
           fontWeight: FontWeight.w800,
           color: Color(0xFF4A2A05),
@@ -1007,7 +1016,7 @@ class _MomentCardState extends State<_MomentCard> {
                         textDirection: TextDirection.rtl,
                         style: TextStyle(
                           fontFamily: kArabicFont,
-                          fontSize: 12.5,
+                          fontSize: 15,
                           height: 1.35,
                           color: palette.momentInk,
                         ),
@@ -1020,7 +1029,7 @@ class _MomentCardState extends State<_MomentCard> {
                       textDirection: TextDirection.rtl,
                       style: TextStyle(
                         fontFamily: kUrduFont,
-                        fontSize: 11,
+                        fontSize: 13,
                         height: 1.35,
                         fontWeight: FontWeight.w600,
                         color: palette.momentInk.withValues(alpha: 0.88),
@@ -1033,7 +1042,7 @@ class _MomentCardState extends State<_MomentCard> {
                       textDirection: TextDirection.rtl,
                       style: TextStyle(
                         fontFamily: kUrduFont,
-                        fontSize: 9,
+                        fontSize: 10.5,
                         height: 1.3,
                         color: palette.momentInk.withValues(alpha: 0.7),
                       ),

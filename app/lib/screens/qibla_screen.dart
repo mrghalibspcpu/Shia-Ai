@@ -11,6 +11,7 @@ import '../services/alerts.dart';
 import '../services/prayer_controller.dart';
 import '../services/prayer_scope.dart';
 import '../widgets/glass_panel.dart';
+import '../widgets/qibla_map_card.dart';
 
 /// Where the compass is in its life cycle.
 enum _CompassStatus {
@@ -167,6 +168,15 @@ class _QiblaScreenState extends State<QiblaScreen> {
       heading: (hasHeading ? _filter.heading : bearing),
       hasHeading: hasHeading,
     );
+    final compassUnavailable = _status == _CompassStatus.unavailable;
+    final mapFallback = QiblaMapCard(
+      location: controller.location,
+      bearing: bearing,
+      distanceKm: controller.distanceToKaabaKm,
+      onRefreshLocation: () async {
+        await controller.refreshLocation();
+      },
+    );
 
     return Scaffold(
       backgroundColor: palette.scaffold,
@@ -192,12 +202,20 @@ class _QiblaScreenState extends State<QiblaScreen> {
             ),
             const SizedBox(height: 12),
           ],
+          if (compassUnavailable) ...<Widget>[
+            mapFallback,
+            const SizedBox(height: 12),
+          ],
           _CompassCard(
             reading: reading,
             status: _status,
             continuousHeading: _continuousHeading,
             palette: palette,
           ),
+          if (!compassUnavailable) ...<Widget>[
+            const SizedBox(height: 12),
+            mapFallback,
+          ],
           const SizedBox(height: 12),
           _LocationCard(controller: controller, palette: palette),
           const SizedBox(height: 12),

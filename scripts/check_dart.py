@@ -40,6 +40,11 @@ FORBIDDEN_SYMBOLS = (
     "SHIA_AI_API_BASE_URL",
 )
 
+# The two passage-by-passage buttons were explicitly removed from the ends of
+# the Urdu book readers; cross-text/chapter navigation remains available.
+READER_END_CONTROL_LABELS = ("اگلا حصہ", "پچھلا حصہ")
+READER_END_CONTROL_FILES = {"library_screen.dart", "balagha_screen.dart"}
+
 STRIP_PATTERNS = (
     re.compile(r"//[^\n]*"),
     re.compile(r"/\*.*?\*/", re.DOTALL),
@@ -266,6 +271,20 @@ def check_forbidden(paths: list[Path]) -> int:
     return errors
 
 
+def check_reader_end_controls(paths: list[Path]) -> int:
+    """Ensure the removed passage-only footer buttons stay out of both readers."""
+    errors = 0
+    for path in paths:
+        if path.name not in READER_END_CONTROL_FILES:
+            continue
+        source = path.read_text(encoding="utf-8", errors="replace")
+        for label in READER_END_CONTROL_LABELS:
+            if label in source:
+                errors += 1
+                print(f"REMOVED READER CONTROL {path.relative_to(ROOT)}: {label}")
+    return errors
+
+
 def check_balance(paths: list[Path]) -> int:
     errors = 0
     for path in paths:
@@ -297,6 +316,7 @@ def main() -> int:
     total += check_unused_imports(paths)
     total += check_sdk_imports(paths)
     total += check_forbidden(paths)
+    total += check_reader_end_controls(paths)
     total += check_balance(paths)
 
     if args.verbose:

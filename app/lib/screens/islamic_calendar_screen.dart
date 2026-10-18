@@ -2,57 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
 import '../astro/hijri_calendar.dart';
+import '../astro/islamic_events.dart';
 import '../astro/lunar_hijri.dart';
 import '../astro/prayer_format.dart';
 import '../services/prayer_scope.dart';
 import '../widgets/glass_panel.dart';
 
-/// One day of the Hijri year the reader keeps.
-class _HolyDay {
-  const _HolyDay(this.month, this.day, this.title, {this.note, this.fast = false});
-
-  /// 1 = محرم … 12 = ذو الحجہ.
-  final int month;
-  final int day;
-  final String title;
-
-  /// A line on what the day is, or what is recommended in it.
-  final String? note;
-
-  /// A recommended fast, not an obligation.
-  final bool fast;
-
-  String get whenUrdu => '$day ${kHijriMonthsUrdu[(month - 1).clamp(0, 11)]}';
-}
-
-/// The days of the Hijri year that Shia readers keep, in the order of the
-/// year. Where the narrations differ (the day of Sayyida Fatima's martyrdom,
-/// for one) the date most widely acted upon is the one listed.
-const List<_HolyDay> _kHijriHolyDays = <_HolyDay>[
-  _HolyDay(1, 1, 'آغازِ سالِ ہجری', note: 'ہجرتِ نبوی ص سے ہجری تقویم کا پہلا دن۔'),
-  _HolyDay(1, 10, 'یومِ عاشورہ', note: 'کربلا میں امام حسین ع اور ان کے ساتھیوں کی شہادت۔'),
-  _HolyDay(2, 20, 'اربعین حسینی', note: 'چالیسواں؛ زیارتِ اربعین کا دن۔'),
-  _HolyDay(2, 28, 'وفاتِ رسول اللہ ص', note: 'رسول اللہ ص کی وفات اور امام حسن ع کی شہادت۔'),
-  _HolyDay(3, 17, 'ولادتِ رسول اللہ ص', note: 'اسی دن امام جعفر صادق ع کی ولادت بھی۔'),
-  _HolyDay(6, 3, 'شہادتِ حضرت فاطمہ زہرا س', note: 'مشہور ترین روایت کے مطابق۔'),
-  _HolyDay(7, 13, 'ولادتِ امام علی ع', note: 'خانۂ کعبہ میں ولادت۔'),
-  _HolyDay(7, 27, 'یومِ مبعث', note: 'نبوتِ محمدی ص کا آغاز۔'),
-  _HolyDay(8, 15, 'نیم شعبان', note: 'ولادتِ امام مہدی عج; شب بیداری اور روزہ۔', fast: true),
-  _HolyDay(9, 1, 'آغازِ ماہِ رمضان', note: 'روزوں کا پہلا دن۔'),
-  _HolyDay(9, 21, 'شہادتِ امام علی ع', note: 'شبِ قدر بھی اسی ماہ کی طاق راتیں ہیں۔'),
-  _HolyDay(10, 1, 'عید الفطر', note: 'رمضان کے روزوں کے بعد عید; صدقۂ فطرہ واجب ہے۔'),
-  _HolyDay(10, 25, 'شہادتِ امام جعفر صادق ع', note: 'فقہِ جعفری کے امام۔'),
-  _HolyDay(12, 9, 'یومِ عرفہ', note: 'حج کا رکنِ اعظم; دعائے عرفہ۔'),
-  _HolyDay(12, 10, 'عید الاضحیٰ', note: 'قربانی کا دن۔'),
-  _HolyDay(12, 18, 'عیدِ غدیر', note: 'امامت کا اعلان; عیدِ اکبر۔'),
-  _HolyDay(12, 24, 'یومِ مباہلہ', note: 'آیتِ مباہلہ کا نزول۔'),
-];
-
-/// The year's days, dated in the reader's own calendar.
-///
-/// The Hijri date is the one the crescent gives (see `CrescentScreen`), so
-/// every occasion below falls where it will actually fall for this city — not
-/// where a printed table put it.
+/// The year's days, dated in the reader's own calendar, with a Gregorian →
+/// Hijri converter driven by the same local crescent model as the home card.
 class IslamicCalendarScreen extends StatelessWidget {
   const IslamicCalendarScreen({super.key});
 
@@ -62,21 +19,21 @@ class IslamicCalendarScreen extends StatelessWidget {
     final controller = PrayerScope.of(context);
     final calendar = controller.lunarHijri;
     final today = controller.hijriToday.date;
-    // `now` is already the location's own wall clock (see `zoneWallClock`),
-    // so its calendar day is the day the reader is living in.
+    // `now` is already the location's wall clock, so this is the civil day the
+    // reader is living in, even when the device timezone differs.
     final now = controller.now.value;
     final civilToday = DateTime.utc(now.year, now.month, now.day);
+    final adjustment = controller.hijriAdjustment ?? 0;
 
     final rows = <_OccasionRow>[
-      for (final holy in _kHijriHolyDays)
+      for (final event in kShiaIslamicEvents)
         _OccasionRow(
-          holy: holy,
-          // The same day of the month, in the Hijri year that is running.
-          civil: _civilFor(calendar, holy, today, civilToday),
+          event: event,
+          civil: _civilFor(calendar, event, today, civilToday, adjustDays: adjustment),
         ),
-    ];
-    rows.sort((a, b) => a.civil.compareTo(b.civil));
+    ]..sort((a, b) => a.civil.compareTo(b.civil));
     final next = rows.indexWhere((row) => !row.civil.isBefore(civilToday));
+    final nextDate = next < 0 ? null : rows[next].civil;
 
     return Scaffold(
       backgroundColor: palette.scaffold,
@@ -86,50 +43,383 @@ class IslamicCalendarScreen extends StatelessWidget {
         title: const Text('اسلامی تقویم',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 6, 16, 26),
+      body: Stack(
         children: <Widget>[
-          GlassPanel(
-            radius: 20,
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                const GlassSectionHeader(title: 'اس سال کے ایام'),
-                const SizedBox(height: 8),
-                Text(
-                  '${formatHijriUrdu(today)} — ${controller.location.label}',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: palette.ink),
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/chapter_wallpaper_dark.jpg',
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => ColoredBox(color: palette.scaffold),
+            ),
+          ),
+          Positioned.fill(
+            child: ColoredBox(
+              color: palette.scaffold.withValues(alpha: palette.isDark ? 0.76 : 0.9),
+            ),
+          ),
+          ListView(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 26),
+            children: <Widget>[
+              _CalendarHero(today: today, palette: palette),
+              const SizedBox(height: 12),
+              _GregorianDateConverter(
+                calendar: calendar,
+                adjustment: adjustment,
+                initialDate: civilToday,
+                palette: palette,
+              ),
+              const SizedBox(height: 12),
+              GlassPanel(
+                radius: 20,
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    const GlassSectionHeader(title: 'اس سال کے ایام'),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${formatHijriUrdu(today)} — ${controller.location.label}',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: palette.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'تاریخیں اسی شہر کے فلکیاتی ہلال کے مطابق ہیں؛ '
+                      'مقامی رؤیت اور مرجع کے اعلان سے ایک دن فرق ہو سکتا ہے۔',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12.5, height: 1.55, color: palette.muted),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'ہر تاریخ اسی شہر سے چاند نظر آنے کے حساب سے ہے، اس لیے کسی '
-                  'چھپی ہوئی جدول سے ایک دن پہلے یا بعد ہو سکتی ہے۔',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12.5, height: 1.55, color: palette.muted),
+              ),
+              const SizedBox(height: 12),
+              for (final row in rows)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _OccasionCard(
+                    row: row,
+                    upcoming: nextDate != null && row.civil == nextDate,
+                    palette: palette,
+                    days: row.civil.difference(civilToday).inDays,
+                  ),
+                ),
+              GlassPanel(
+                radius: 20,
+                padding: const EdgeInsets.all(13),
+                child: Text(
+                  'جہاں تاریخی روایات مختلف ہیں وہاں معروف قول اور اختلاف کی وضاحت دی گئی ہے۔ '
+                  'روزے اور عبادات کے فقہی حکم کے لیے اپنے مرجعِ تقلید کی رہنمائی دیکھیں۔',
+                  style: TextStyle(fontSize: 12.5, height: 1.6, color: palette.muted),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CalendarHero extends StatelessWidget {
+  const _CalendarHero({required this.today, required this.palette});
+
+  final HijriDate today;
+  final GlassPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 142,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        image: const DecorationImage(
+          image: AssetImage('assets/images/sky_night.jpg'),
+          fit: BoxFit.cover,
+        ),
+        border: Border.all(color: palette.gold.withValues(alpha: 0.75)),
+        boxShadow: <BoxShadow>[
+          BoxShadow(color: palette.shadow, blurRadius: 18, offset: const Offset(0, 7)),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(21),
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerRight,
+              end: Alignment.centerLeft,
+              colors: <Color>[Color(0xE6122928), Color(0xA611252B), Color(0xE609141B)],
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: palette.gold.withValues(alpha: 0.13),
+                    border: Border.all(color: palette.gold.withValues(alpha: 0.7)),
+                  ),
+                  child: Icon(Icons.nights_stay_rounded, size: 42, color: palette.gold),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      Text('اسلامی تاریخ',
+                          style: TextStyle(fontSize: 14, color: palette.gold)),
+                      const SizedBox(height: 3),
+                      Text(
+                        formatHijriUrdu(today),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 23,
+                          height: 1.35,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'اہلِ بیت ع کی اہم مناسبتیں اور تاریخ تبدیل کرنے کا آلہ',
+                        maxLines: 2,
+                        style: TextStyle(fontSize: 12.5, height: 1.4, color: Color(0xFFE1E7DC)),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          for (var index = 0; index < rows.length; index++)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _OccasionCard(
-                row: rows[index],
-                upcoming: index == next,
-                palette: palette,
-                days: rows[index].civil.difference(civilToday).inDays,
+        ),
+      ),
+    );
+  }
+}
+
+/// A compact, editable Gregorian → Hijri converter. The date picker is a
+/// convenience, while the text field also accepts dates directly as
+/// DD/MM/YYYY or YYYY-MM-DD (1900–2100, the validated astronomy range).
+class _GregorianDateConverter extends StatefulWidget {
+  const _GregorianDateConverter({
+    required this.calendar,
+    required this.adjustment,
+    required this.initialDate,
+    required this.palette,
+  });
+
+  final LunarHijri calendar;
+  final int adjustment;
+  final DateTime initialDate;
+  final GlassPalette palette;
+
+  @override
+  State<_GregorianDateConverter> createState() => _GregorianDateConverterState();
+}
+
+class _GregorianDateConverterState extends State<_GregorianDateConverter> {
+  late final TextEditingController _input;
+  late DateTime _gregorian;
+  late HijriDate _hijri;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _gregorian = DateTime.utc(widget.initialDate.year, widget.initialDate.month, widget.initialDate.day);
+    _hijri = widget.calendar.dateFor(_gregorian, adjustDays: widget.adjustment);
+    _input = TextEditingController(text: _dateInput(_gregorian));
+  }
+
+  @override
+  void didUpdateWidget(_GregorianDateConverter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.calendar != widget.calendar || oldWidget.adjustment != widget.adjustment) {
+      _hijri = widget.calendar.dateFor(_gregorian, adjustDays: widget.adjustment);
+    }
+  }
+
+  @override
+  void dispose() {
+    _input.dispose();
+    super.dispose();
+  }
+
+  String _dateInput(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+  DateTime? _parseDate(String text) {
+    final value = displayDigits(text.trim());
+    final match = RegExp(r'^(\d{1,4})[./-](\d{1,2})[./-](\d{1,4})$').firstMatch(value);
+    if (match == null) return null;
+    final first = match.group(1)!;
+    final second = int.tryParse(match.group(2)!);
+    final third = match.group(3)!;
+    final yearFirst = first.length == 4;
+    final year = int.tryParse(yearFirst ? first : third);
+    final month = second;
+    final day = int.tryParse(yearFirst ? third : first);
+    if (year == null || month == null || day == null || year < 1900 || year > 2100) return null;
+    final date = DateTime.utc(year, month, day);
+    if (date.year != year || date.month != month || date.day != day) return null;
+    return date;
+  }
+
+  void _convert([DateTime? date]) {
+    final parsed = date ?? _parseDate(_input.text);
+    if (parsed == null) {
+      setState(() => _error = 'تاریخ DD/MM/YYYY یا YYYY-MM-DD میں درج کریں (سال 1900 تا 2100)۔');
+      return;
+    }
+    setState(() {
+      _gregorian = DateTime.utc(parsed.year, parsed.month, parsed.day);
+      _hijri = widget.calendar.dateFor(_gregorian, adjustDays: widget.adjustment);
+      _input.text = _dateInput(_gregorian);
+      _error = null;
+    });
+  }
+
+  Future<void> _pickDate() async {
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _gregorian,
+      firstDate: DateTime(1900),
+      lastDate: DateTime(2100, 12, 31),
+      helpText: 'عیسوی تاریخ منتخب کریں',
+    );
+    if (selected != null) _convert(selected);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = widget.palette;
+    final events = kShiaIslamicEvents
+        .where((event) => event.month == _hijri.month && event.day == _hijri.day)
+        .toList(growable: false);
+    return GlassPanel(
+      radius: 20,
+      padding: const EdgeInsets.all(13),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          const GlassSectionHeader(title: 'عیسوی سے ہجری تاریخ'),
+          const SizedBox(height: 5),
+          Text(
+            'کوئی بھی تاریخ لکھیں یا کیلنڈر سے چنیں۔',
+            style: TextStyle(fontSize: 12.5, height: 1.4, color: palette.muted),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            key: const ValueKey<String>('gregorian-date-input'),
+            controller: _input,
+            keyboardType: TextInputType.datetime,
+            textDirection: TextDirection.ltr,
+            textAlign: TextAlign.center,
+            decoration: InputDecoration(
+              labelText: 'عیسوی تاریخ',
+              hintText: '18/10/2026',
+              suffixIcon: IconButton(
+                tooltip: 'کیلنڈر سے تاریخ منتخب کریں',
+                onPressed: _pickDate,
+                icon: const Icon(Icons.calendar_month_outlined),
               ),
             ),
-          GlassPanel(
-            radius: 20,
-            padding: const EdgeInsets.all(13),
-            child: Text(
-              'جہاں مختلف روایات ہیں وہاں مشہور ترین قول درج ہے۔ ایام البیض '
-              '(ہر مہینے کی 13، 14، 15) اور ماہِ رجب و شعبان کے روزے مستحب ہیں۔',
-              style: TextStyle(fontSize: 12.5, height: 1.6, color: palette.muted),
+            onSubmitted: (_) => _convert(),
+          ),
+          if (_error != null) ...<Widget>[
+            const SizedBox(height: 5),
+            Text(_error!, style: TextStyle(fontSize: 12.5, color: palette.gold)),
+          ],
+          const SizedBox(height: 8),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _convert(widget.initialDate),
+                  icon: const Icon(Icons.today_outlined, size: 18),
+                  label: const Text('آج'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _convert,
+                  icon: const Icon(Icons.sync_alt, size: 18),
+                  label: const Text('تبدیل کریں'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 11),
+          Container(
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+              color: palette.solid.withValues(alpha: 0.72),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: palette.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Text(
+                  formatDateUrdu(_gregorian),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: palette.muted),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  formatHijriUrdu(_hijri),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 23,
+                    height: 1.35,
+                    fontWeight: FontWeight.w800,
+                    color: palette.accent,
+                  ),
+                ),
+                Text(
+                  'دن: ${weekdayUrdu(_gregorian)}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: palette.ink),
+                ),
+                const SizedBox(height: 6),
+                if (events.isEmpty)
+                  Text(
+                    'اس تاریخ کے لیے درج شدہ کوئی خاص مناسبت نہیں۔',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12.5, height: 1.4, color: palette.muted),
+                  )
+                else
+                  for (final event in events) ...<Widget>[
+                    Text(
+                      event.title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: palette.gold),
+                    ),
+                    if (event.note != null)
+                      Text(
+                        event.note!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, height: 1.4, color: palette.muted),
+                      ),
+                  ],
+                const SizedBox(height: 5),
+                Text(
+                  'یہ مقامی فلکیاتی تخمینہ ہے؛ اصل رؤیت، مرجع اور برادری کے اعلان سے تاریخ ایک دن مختلف ہو سکتی ہے۔',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11.5, height: 1.4, color: palette.muted),
+                ),
+              ],
             ),
           ),
         ],
@@ -140,18 +430,27 @@ class IslamicCalendarScreen extends StatelessWidget {
 
 /// The civil day a Hijri occasion falls on: in the year running now, or — once
 /// the day has gone by — in the year that follows.
-DateTime _civilFor(LunarHijri calendar, _HolyDay holy, HijriDate today, DateTime civilToday) {
-  DateTime forYear(int year) =>
-      calendar.civilStartOfMonth(year, holy.month).add(Duration(days: holy.day - 1));
+DateTime _civilFor(
+  LunarHijri calendar,
+  IslamicEvent event,
+  HijriDate today,
+  DateTime civilToday, {
+  int adjustDays = 0,
+}) {
+  // `dateFor(day, adjustDays: n)` shifts the Hijri day forward by n, so the
+  // inverse mapping subtracts n from the civil start.
+  DateTime forYear(int year) => calendar
+      .civilStartOfMonth(year, event.month)
+      .add(Duration(days: event.day - 1 - adjustDays));
   final thisYear = forYear(today.year);
   if (!thisYear.isBefore(civilToday)) return thisYear;
   return forYear(today.year + 1);
 }
 
 class _OccasionRow {
-  const _OccasionRow({required this.holy, required this.civil});
+  const _OccasionRow({required this.event, required this.civil});
 
-  final _HolyDay holy;
+  final IslamicEvent event;
   final DateTime civil;
 }
 
@@ -209,7 +508,7 @@ class _OccasionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  row.holy.title,
+                  row.event.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -221,13 +520,13 @@ class _OccasionCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  row.holy.whenUrdu,
+                  row.event.dateUrdu,
                   style: TextStyle(fontSize: 12, color: palette.muted),
                 ),
-                if (row.holy.note != null) ...<Widget>[
+                if (row.event.note != null) ...<Widget>[
                   const SizedBox(height: 3),
                   Text(
-                    row.holy.note!,
+                    row.event.note!,
                     style: TextStyle(fontSize: 12.5, height: 1.5, color: palette.muted),
                   ),
                 ],
@@ -239,16 +538,10 @@ class _OccasionCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
               Text(
-                days == 0
-                    ? 'آج'
-                    : (days > 0 ? '${formatCount(days)} دن' : 'گزشتہ'),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: colour,
-                ),
+                days == 0 ? 'آج' : (days > 0 ? '${formatCount(days)} دن' : 'گزشتہ'),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: colour),
               ),
-              if (row.holy.fast) ...<Widget>[
+              if (row.event.recommendedFast) ...<Widget>[
                 const SizedBox(height: 4),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -256,10 +549,7 @@ class _OccasionCard extends StatelessWidget {
                     color: palette.gold.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    'روزہ',
-                    style: TextStyle(fontSize: 10.5, color: palette.gold),
-                  ),
+                  child: Text('روزہ مستحب', style: TextStyle(fontSize: 10.5, color: palette.gold)),
                 ),
               ],
             ],
