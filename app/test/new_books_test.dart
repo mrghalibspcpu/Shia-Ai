@@ -63,5 +63,5 @@ void main() {
     // A real SQLite database, not a text file or a truncated download.
     expect(utf8.decode(bytes.sublist(0, 15)), 'SQLite format 3');
     expect(sha256.convert(bytes).toString(), entry['sha256']);
-  }, timeout: const Timeout(Duration(minutes: 3)));
+  });
 }
