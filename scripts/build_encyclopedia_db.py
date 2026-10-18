@@ -296,8 +296,10 @@ def excerpt_of(text: str, limit: int = 170) -> str:
     """A readable opening line of the article, for the list rows."""
     paragraphs = [p for p in text.split("\n\n") if not looks_like_a_list(p)]
     paragraph = next((p for p in paragraphs if len(p) >= 120), "")
-    if not paragraph:
-        paragraph = paragraphs[0] if paragraphs else text.split("\n\n", 1)[0]
+    paragraph = paragraph or (paragraphs[0] if paragraphs else text.split("\n\n", 1)[0])
+    # A stub whose whole body is one infobox arrives as ``name • ...``.
+    if " • " in paragraph[:60]:
+        paragraph = ""
     if len(paragraph) <= limit:
         return paragraph
     cut = paragraph[:limit]

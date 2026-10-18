@@ -44,7 +44,7 @@ class DatabaseSpec:
 
     @property
     def packed_path(self) -> Path:
-        """The gzipped copy committed for large files (e.g. the Wikipedia DB)."""
+        """The gzipped copy committed for large files (the encyclopaedia edition)."""
         return EXTRA_DIR / f"{self.name}.gz"
 
 
