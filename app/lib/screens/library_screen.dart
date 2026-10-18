@@ -508,7 +508,7 @@ Future<void> _openVerifiedSource(BuildContext context, String url) async {
 /// "مضمون • تقریباً ۳ منٹ" for a Wikipedia article of [characters] characters.
 String _wikiSubtitle(int characters) {
   if (characters <= 0) return 'مضمون';
-  final minutes = (characters / 900).ceil().clamp(1, 90);
+  final minutes = (characters / 900).ceil().clamp(1, 90).toInt();
   return 'مضمون • تقریباً ${arabicNumerals(minutes)} منٹ';
 }
 
