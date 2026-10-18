@@ -368,14 +368,21 @@ void main() {
     await settle(tester);
     expect(find.text('اس سال کے ایام'), findsOneWidget);
     expect(find.text('3 جمادی الاول 1448ھ — G-11، اسلام آباد'), findsOneWidget);
-    // The converter now sits above the occasion list, so scroll to the next
-    // date before checking its contents: 3 Jumada al-Thani, a month off.
-    await tester.scrollUntilVisible(find.text('شہادتِ حضرت فاطمہ زہرا س').first, 200);
-    expect(find.text('شہادتِ حضرت فاطمہ زہرا س'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('یومِ عاشورہ').first, 200);
-    expect(find.text('یومِ عاشورہ'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('عیدِ غدیر').first, 200);
-    expect(find.text('عیدِ غدیر'), findsOneWidget);
+    // The converter now sits above the occasion list, so move the list to
+    // each expected row before checking it: 3 Jumada al-Thani, a month off.
+    final calendarList = find.byType(ListView).first;
+    Future<void> reveal(String title) async {
+      final target = find.text(title).first;
+      for (var attempt = 0; attempt < 40 && target.evaluate().isEmpty; attempt++) {
+        await tester.drag(calendarList, const Offset(0, -320));
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(target, findsOneWidget);
+    }
+
+    await reveal('شہادتِ حضرت فاطمہ زہرا س');
+    await reveal('یومِ عاشورہ');
+    await reveal('عیدِ غدیر');
     expect(tester.takeException(), isNull);
     await shoot(tester, 'islamic-calendar');
     await finish(tester, prayer, tasbeeh);
