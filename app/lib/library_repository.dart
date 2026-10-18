@@ -19,7 +19,7 @@ export 'text_utils.dart'
         normalizeArabicUrdu,
         relevanceScore;
 
-const int _searchIndexVersion = 5;
+const int _searchIndexVersion = 6;
 const int _indexPageSize = 400;
 
 const String _kLastReadKey = 'last_read_v2';

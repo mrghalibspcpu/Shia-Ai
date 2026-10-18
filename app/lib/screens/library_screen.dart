@@ -719,7 +719,7 @@ class _ReaderScreenState extends State<ReaderScreen> with ReaderDisplayMode<Read
                                 EncyclopediaRelatedStrip(
                                   library: widget.library,
                                   book: widget.book,
-                                  articleId: articleId!,
+                                  articleId: articleId,
                                 ),
                               if (hasSectionNav)
                                 ReaderPrevNextBar(
