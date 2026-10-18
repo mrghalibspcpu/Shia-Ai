@@ -137,8 +137,8 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
   /// Made again whenever the coordinates change; the months it has already
   /// worked out travel with it.
   LunarHijri _lunarHijri = LunarHijri(
-    latitude: PrayerLocations.fallback.latitude,
-    longitude: PrayerLocations.fallback.longitude,
+    latitude: PrayerLocation.fallback.latitude,
+    longitude: PrayerLocation.fallback.longitude,
   );
 
   PrayerLocation get location => _location;

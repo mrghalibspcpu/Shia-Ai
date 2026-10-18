@@ -28,7 +28,7 @@ class _HolyDay {
 /// The days of the Hijri year that Shia readers keep, in the order of the
 /// year. Where the narrations differ (the day of Sayyida Fatima's martyrdom,
 /// for one) the date most widely acted upon is the one listed.
-const List<_HolyDay> kHijriHolyDays = <_HolyDay>[
+const List<_HolyDay> _kHijriHolyDays = <_HolyDay>[
   _HolyDay(1, 1, 'آغازِ سالِ ہجری', note: 'ہجرتِ نبوی ص سے ہجری تقویم کا پہلا دن۔'),
   _HolyDay(1, 10, 'یومِ عاشورہ', note: 'کربلا میں امام حسین ع اور ان کے ساتھیوں کی شہادت۔'),
   _HolyDay(2, 20, 'اربعین حسینی', note: 'چالیسواں؛ زیارتِ اربعین کا دن۔'),
@@ -68,7 +68,7 @@ class IslamicCalendarScreen extends StatelessWidget {
     final civilToday = DateTime.utc(now.year, now.month, now.day);
 
     final rows = <_OccasionRow>[
-      for (final holy in kHijriHolyDays)
+      for (final holy in _kHijriHolyDays)
         _OccasionRow(
           holy: holy,
           // The same day of the month, in the Hijri year that is running.

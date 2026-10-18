@@ -10,7 +10,7 @@ double _midnight(int year, int month, int day) =>
 /// Islamabad (33.6844, 73.0479) — the first civil day of every month from
 /// Dhu al-Qadah 1445 to Shawwal 1451, the Hijri month it opens, and how many
 /// days the month before it had.
-const _kMonthStarts = <(DateTime, int, int, int)>[
+final _kMonthStarts = <(DateTime, int, int, int)>[
     // Islamabad (33.6844, 73.0479) — the first civil day of every month
     // from Shawwal 1445 to Dhu al-Quddah 1451, with the month it opens.
     (DateTime.utc(2024, 5, 10), 1445, 11, 30),  // (2024, 5, 10)

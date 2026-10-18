@@ -689,7 +689,8 @@ class LunarHijri {
 
   /// The conjunction that opens a month, for the calendar's footnote.
   DateTime conjunctionOfMonth(int hijriYear, int hijriMonth) =>
-      _dateTimeFromJulianDay(_newMoon(_lunationOf(_monthStartOfMonth(hijriYear, hijriMonth))));
+      _dateTimeFromJulianDay(
+          _newMoon(_lunationOf(_monthStartOfMonth(hijriYear, hijriMonth)).toDouble()));
 
   /// The crescent on the evening of any civil date.
   CrescentObservation? observationFor(DateTime civilDate) =>
@@ -728,7 +729,7 @@ class LunarHijri {
   /// evening reaches the crescent, the first one tried is used, and the
   /// 29/30-day rule above settles the length.
   double _visibleDay(int lunation) {
-    final conjunction = _newMoon(lunation);
+    final conjunction = _newMoon(lunation.toDouble());
     // The evening is the reader's, not Greenwich's: the conjunction may fall
     // on the far side of midnight for them.
     final evening = (conjunction + longitude / 360.0 - 0.5).floor() + 0.5;
