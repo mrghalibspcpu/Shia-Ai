@@ -372,7 +372,9 @@ void main() {
     // each expected row before checking it: 3 Jumada al-Thani, a month off.
     final calendarList = find.byType(ListView).first;
     Future<void> reveal(String title) async {
-      final target = find.text(title).first;
+      // Keep the Finder non-unique while the lazy list has not built the row;
+      // a `.first` Finder would throw before the first scroll brings it in.
+      final target = find.text(title);
       for (var attempt = 0; attempt < 40 && target.evaluate().isEmpty; attempt++) {
         await tester.drag(calendarList, const Offset(0, -320));
         await tester.pump(const Duration(milliseconds: 100));
