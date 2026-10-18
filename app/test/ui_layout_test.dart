@@ -27,6 +27,7 @@ import 'package:shia_ai/library_repository.dart';
 import 'package:shia_ai/models.dart';
 import 'package:shia_ai/screens/prayer_times_screen.dart';
 import 'package:shia_ai/screens/qibla_screen.dart';
+import 'package:shia_ai/widgets/section_background.dart';
 import 'package:shia_ai/screens/tasbeeh_screen.dart';
 import 'package:shia_ai/services/alerts.dart';
 import 'package:shia_ai/services/city_index.dart';
@@ -357,6 +358,7 @@ void main() {
     expect(find.text('رویت کی شام'), findsOneWidget);
     expect(find.text('ننگی آنکھ سے دکھائی دے گا'), findsWidgets);
     expect(tester.takeException(), isNull);
+    expect(find.byType(SectionBackground), findsOneWidget);
     await shoot(tester, 'crescent');
     await finish(tester, prayer, tasbeeh);
   });
@@ -386,6 +388,7 @@ void main() {
     await reveal('یومِ عاشورہ');
     await reveal('عیدِ غدیر');
     expect(tester.takeException(), isNull);
+    expect(find.byType(SectionBackground), findsOneWidget);
     await shoot(tester, 'islamic-calendar');
     await finish(tester, prayer, tasbeeh);
   });
@@ -611,7 +614,14 @@ void main() {
     final resized = marker.image as ResizeImage;
     expect((resized.imageProvider as AssetImage).assetName, 'assets/images/kaaba_icon.png');
     expect(find.text('نقشے پر سمتِ قبلہ'), findsOneWidget);
-    expect(find.textContaining('تیر شمالِ حقیقی سے ہے'), findsOneWidget);
+    // The map opens Qibla-up: the reader faces the top of the screen and needs
+    // no compass, angle or gesture. شمال اوپر switches to the north-up map.
+    expect(find.textContaining('نقشہ خود قبلہ کی سمت گھما ہوا ہے'), findsOneWidget);
+    expect(find.textContaining('تیر اسی طرف ہے'), findsOneWidget);
+    expect(find.byType(SectionBackground), findsOneWidget);
+    await tester.tap(find.text('شمال اوپر'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('سنہری تیر شمالِ حقیقی سے قبلہ کی طرف ہے'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await shoot(tester, 'qibla-3d');
     await finish(tester, prayer, tasbeeh);
@@ -628,6 +638,7 @@ void main() {
     await tester.pumpWidget(host(prayer, tasbeeh, const TasbeehScreen()));
     await settle(tester);
     expect(find.text('تعداد (ہدف)'), findsOneWidget);
+    expect(find.byType(SectionBackground), findsOneWidget);
     await shoot(tester, 'tasbeeh-screen');
     await finish(tester, prayer, tasbeeh);
   });

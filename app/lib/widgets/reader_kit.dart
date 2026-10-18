@@ -564,6 +564,10 @@ class _PassageCardState extends State<PassageCard> {
                   textColor: textColor,
                   fontScale: widget.fontScale,
                   onOpen: _openSource,
+                  // A Wikipedia section gets the small chip: the heading on the
+                  // card is already the section, and a full-width box under
+                  // every paragraph would bury the article.
+                  compact: widget.book.source == CorpusSource.wiki,
                 ),
               ],
             ],
@@ -586,6 +590,7 @@ class _SourceLink extends StatelessWidget {
     required this.textColor,
     required this.fontScale,
     required this.onOpen,
+    this.compact = false,
   });
 
   final String url;
@@ -594,9 +599,51 @@ class _SourceLink extends StatelessWidget {
   final double fontScale;
   final VoidCallback onOpen;
 
+  /// True for the Wikipedia collection: one small «ماخذ» button rather than a
+  /// full panel with the address printed twice.
+  final bool compact;
+
   @override
   Widget build(BuildContext context) {
     final accent = textColor.computeLuminance() > 0.5 ? const Color(0xFFE4BC70) : kForest;
+    if (compact) {
+      return Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: Tooltip(
+          message: url,
+          child: InkWell(
+            key: const ValueKey<String>('passage-source-chip'),
+            borderRadius: BorderRadius.circular(20),
+            onTap: onOpen,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: accent.withValues(alpha: 0.35)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(Icons.open_in_new_rounded, size: 13, color: accent),
+                  const SizedBox(width: 5),
+                  Text(
+                    'ماخذ',
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 12 * fontScale,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.chevron_left_rounded, size: 14, color: accent.withValues(alpha: 0.8)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     final label = reference.trim().isEmpty
         ? 'اصل ماخذ پر جائیں'
         : 'اصل ماخذ پر جائیں — مسئلہ ${reference.trim()}';

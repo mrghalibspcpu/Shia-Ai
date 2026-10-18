@@ -8,6 +8,7 @@ import '../library_repository.dart';
 import '../models.dart';
 import '../widgets/reader_kit.dart';
 import '../widgets/reader_chrome.dart';
+import '../widgets/reader_display.dart';
 import '../widgets/chapter_wallpaper.dart';
 import '../widgets/resume_card.dart';
 
@@ -267,7 +268,7 @@ class _BalaghaPassageList extends StatefulWidget {
   State<_BalaghaPassageList> createState() => _BalaghaPassageListState();
 }
 
-class _BalaghaPassageListState extends State<_BalaghaPassageList> {
+class _BalaghaPassageListState extends State<_BalaghaPassageList> with ReaderDisplayMode<_BalaghaPassageList> {
   final BookDefinition _book = BookDefinition.bookFor(CorpusSource.balagha)!;
   final ItemScrollController _scroll = ItemScrollController();
 
@@ -281,6 +282,12 @@ class _BalaghaPassageListState extends State<_BalaghaPassageList> {
   void initState() {
     super.initState();
     unawaited(_load());
+  }
+
+  @override
+  void dispose() {
+    disposeReaderDisplay();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -323,6 +330,9 @@ class _BalaghaPassageListState extends State<_BalaghaPassageList> {
       title: widget.title,
       preferences: _preferences,
       onPreferencesChanged: (value) => setState(() => _preferences = value),
+      fullScreen: readerFullScreen,
+      overlay: readerDisplayOverlay(context),
+      actions: <Widget>[readerDisplayActions(context, color: palette.accent)],
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -332,6 +342,7 @@ class _BalaghaPassageListState extends State<_BalaghaPassageList> {
                   : SelectionArea(
                       child: ScrollablePositionedList.builder(
                         itemScrollController: _scroll,
+                        scrollOffsetController: scrollOffsetController,
                         initialScrollIndex: _initialIndex,
                         initialAlignment: 0.04,
                         key: PageStorageKey(widget.storageKey),

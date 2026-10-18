@@ -19,10 +19,11 @@ import prepare_databases  # noqa: E402
 
 
 class DatabaseSpecTests(unittest.TestCase):
-    def test_catalogue_covers_twenty_databases(self):
-        self.assertEqual(len(DATABASES), 20)
+    def test_catalogue_covers_twenty_one_databases(self):
+        self.assertEqual(len(DATABASES), 21)
         self.assertEqual(len([spec for spec in DATABASES if spec.source == "hadith"]), 14)
-        self.assertEqual(len(EXTRA_DATABASES), 6)
+        # 5 curated standalones + the 1.18 Wikipedia collection.
+        self.assertEqual(len(EXTRA_DATABASES), 7)
 
     def test_keys_and_file_names_are_unique(self):
         keys = [spec.key for spec in DATABASES]
@@ -78,8 +79,8 @@ class ManifestTests(unittest.TestCase):
 
     def test_manifest_is_version_two_and_complete(self):
         self.assertEqual(self.manifest["format_version"], 2)
-        self.assertEqual(self.manifest["database_count"], 20)
-        self.assertEqual(len(self.manifest["databases"]), 20)
+        self.assertEqual(self.manifest["database_count"], 21)
+        self.assertEqual(len(self.manifest["databases"]), 21)
 
     def test_every_entry_carries_a_digest_and_titles(self):
         for entry in self.manifest["databases"]:
@@ -133,26 +134,30 @@ class ValidationTests(unittest.TestCase):
     """The three standalone collections are checked in, so validate them here."""
 
     def test_standalone_databases_open_and_match_their_spec(self):
-        for spec in EXTRA_DATABASES:
-            with self.subTest(spec.name):
-                self.assertTrue(spec.asset_path.is_file())
-                counts = prepare_databases.validate_database(spec.asset_path, spec)
-                self.assertEqual(set(counts), set(spec.tables))
-                for table, count in counts.items():
-                    self.assertGreater(count, 0, f"{spec.name}.{table} is empty")
+        # collect_databases() expands the gzipped Wikipedia edition into a
+        # scratch copy, exactly as the release pipeline does.
+        with prepare_databases.collect_databases(include_bundle=False) as collected:
+            for spec, path in collected:
+                with self.subTest(spec.name):
+                    counts = prepare_databases.validate_database(path, spec)
+                    self.assertEqual(set(counts), set(spec.tables))
+                    for table, count in counts.items():
+                        self.assertGreater(count, 0, f"{spec.name}.{table} is empty")
 
     def test_standalone_databases_use_the_shared_page_size(self):
         import sqlite3
 
-        for spec in EXTRA_DATABASES:
-            with self.subTest(spec.name):
-                connection = sqlite3.connect(
-                    f"file:{spec.asset_path.resolve().as_posix()}?mode=ro", uri=True
-                )
+        with prepare_databases.collect_databases(include_bundle=False) as collected:
+            for spec, path in collected:
+              with self.subTest(spec.name):
+                connection = sqlite3.connect(f"file:{path.resolve().as_posix()}?mode=ro", uri=True)
                 try:
                     self.assertEqual(
                         connection.execute("PRAGMA page_size").fetchone()[0],
-                        4096 if spec.source in {"sahifa", "fatwa"} else TARGET_PAGE_SIZE
+                        # safiha/fatwa are the publisher's own files; the
+                        # Wikipedia edition is a 57 MB corpus whose pages are
+                        # kept at 4 KiB (1 KiB pages would inflate it).
+                        4096 if spec.source in {"sahifa", "fatwa", "wiki"} else TARGET_PAGE_SIZE
                     )
                     self.assertEqual(
                         str(connection.execute("PRAGMA encoding").fetchone()[0]).lower(), "utf-8"

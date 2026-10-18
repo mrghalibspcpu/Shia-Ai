@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app_theme.dart';
 import '../astro/hijri_calendar.dart';
@@ -7,6 +8,7 @@ import '../astro/lunar_hijri.dart';
 import '../astro/prayer_format.dart';
 import '../services/prayer_scope.dart';
 import '../widgets/glass_panel.dart';
+import '../widgets/section_background.dart';
 
 /// The year's days, dated in the reader's own calendar, with a Gregorian →
 /// Hijri converter driven by the same local crescent model as the home card.
@@ -15,7 +17,6 @@ class IslamicCalendarScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = GlassPalette.of(context);
     final controller = PrayerScope.of(context);
     final calendar = controller.lunarHijri;
     final today = controller.hijriToday.date;
@@ -35,29 +36,23 @@ class IslamicCalendarScreen extends StatelessWidget {
     final next = rows.indexWhere((row) => !row.civil.isBefore(civilToday));
     final nextDate = next < 0 ? null : rows[next].civil;
 
-    return Scaffold(
-      backgroundColor: palette.scaffold,
+    return SectionBackground(
+      asset: 'assets/images/wall_calendar.jpg',
+      dim: 0.5,
+      builder: (context) {
+      final palette = GlassPalette.of(context);
+      return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         scrolledUnderElevation: 0,
+        // The wallpaper is always dark, so the status-bar icons are always
+        // light, in both app themes.
+        systemOverlayStyle: SystemUiOverlayStyle.light,
         title: const Text('اسلامی تقویم',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
       ),
-      body: Stack(
-        children: <Widget>[
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/chapter_wallpaper_dark.jpg',
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => ColoredBox(color: palette.scaffold),
-            ),
-          ),
-          Positioned.fill(
-            child: ColoredBox(
-              color: palette.scaffold.withValues(alpha: palette.isDark ? 0.76 : 0.9),
-            ),
-          ),
-          ListView(
+      body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 6, 16, 26),
             children: <Widget>[
               _CalendarHero(today: today, palette: palette),
@@ -118,8 +113,8 @@ class IslamicCalendarScreen extends StatelessWidget {
               ),
             ],
           ),
-        ],
-      ),
+      );
+      },
     );
   }
 }

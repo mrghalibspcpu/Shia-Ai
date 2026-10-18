@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 
 import '../app_theme.dart';
@@ -12,6 +13,7 @@ import '../services/prayer_controller.dart';
 import '../services/prayer_scope.dart';
 import '../widgets/glass_panel.dart';
 import '../widgets/qibla_map_card.dart';
+import '../widgets/section_background.dart';
 
 /// Where the compass is in its life cycle.
 enum _CompassStatus {
@@ -159,7 +161,6 @@ class _QiblaScreenState extends State<QiblaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final palette = GlassPalette.of(context);
     final controller = PrayerScope.of(context);
     final bearing = controller.qiblaBearing;
     final hasHeading = _status == _CompassStatus.live && _continuousHeading != null;
@@ -178,11 +179,19 @@ class _QiblaScreenState extends State<QiblaScreen> {
       },
     );
 
-    return Scaffold(
-      backgroundColor: palette.scaffold,
+    return SectionBackground(
+      asset: 'assets/images/wall_qibla.jpg',
+      dim: 0.46,
+      builder: (context) {
+      final palette = GlassPalette.of(context);
+      return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         scrolledUnderElevation: 0,
+        // The wallpaper is always dark, so the status-bar icons are always
+        // light, in both app themes.
+        systemOverlayStyle: SystemUiOverlayStyle.light,
         title: const Text('قبلہ نما', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
         actions: <Widget>[
           IconButton(
@@ -228,6 +237,8 @@ class _QiblaScreenState extends State<QiblaScreen> {
           _HowToCard(palette: palette, bearing: bearing),
         ],
       ),
+      );
+      },
     );
   }
 }

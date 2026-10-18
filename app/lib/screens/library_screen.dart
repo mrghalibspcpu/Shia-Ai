@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../app_theme.dart';
 import '../library_repository.dart';
@@ -9,6 +10,7 @@ import '../models.dart';
 import '../reader_navigation.dart';
 import '../text_utils.dart' show arabicNumerals;
 import '../widgets/home_dashboard.dart';
+import '../widgets/reader_display.dart';
 import '../widgets/reader_kit.dart';
 import '../widgets/reader_chrome.dart';
 import '../widgets/chapter_wallpaper.dart';
@@ -440,16 +442,37 @@ class SectionListScreen extends StatelessWidget {
               final row = sections[index];
               final secid = _toInt(row['Secid']);
               final title = (row['title'] ?? '').toString();
+              final isWiki = book.source == CorpusSource.wiki;
+              final sourceUrl = (row['source_url'] ?? '').toString();
+              final length = _toInt(row['count']) ?? 0;
               return ChapterWallpaperCard(
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   leading: const Icon(Icons.article_outlined),
                   title: JustifiedText(title, style: const TextStyle(fontSize: 16)),
                   subtitle: JustifiedText(
-                    'فصل ${index + 1}',
+                    isWiki ? _wikiSubtitle(length) : 'فصل ${index + 1}',
                     style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
-                  trailing: const Icon(Icons.chevron_left),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      // A Wikipedia article always keeps its own page one tap
+                      // away, right here in the list: the reader can check the
+                      // wording without opening the متن first.
+                      if (isWiki && sourceUrl.startsWith('http'))
+                        IconButton(
+                          tooltip: 'اصل ویکیپیڈیا صفحہ کھولیں',
+                          visualDensity: VisualDensity.compact,
+                          constraints: const BoxConstraints.tightFor(width: 34, height: 38),
+                          padding: EdgeInsets.zero,
+                          onPressed: () => _openVerifiedSource(context, sourceUrl),
+                          icon: Icon(Icons.open_in_new_rounded,
+                              size: 18, color: Theme.of(context).colorScheme.primary),
+                        ),
+                      const Icon(Icons.chevron_left),
+                    ],
+                  ),
                   onTap: secid == null
                       ? null
                       : () => Navigator.of(context).push(MaterialPageRoute(
@@ -468,6 +491,25 @@ class SectionListScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Opens a permanent Wikipedia revision in the browser; failures are spoken in
+/// Urdu instead of silently doing nothing.
+Future<void> _openVerifiedSource(BuildContext context, String url) async {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return;
+  final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (opened || !context.mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('لنک نہیں کھل سکا — انٹرنیٹ چیک کریں۔')),
+  );
+}
+
+/// "مضمون • تقریباً ۳ منٹ" for a Wikipedia article of [characters] characters.
+String _wikiSubtitle(int characters) {
+  if (characters <= 0) return 'مضمون';
+  final minutes = (characters / 900).ceil().clamp(1, 90);
+  return 'مضمون • تقریباً ${arabicNumerals(minutes)} منٹ';
 }
 
 class ReaderScreen extends StatefulWidget {
@@ -492,7 +534,7 @@ class ReaderScreen extends StatefulWidget {
   State<ReaderScreen> createState() => _ReaderScreenState();
 }
 
-class _ReaderScreenState extends State<ReaderScreen> {
+class _ReaderScreenState extends State<ReaderScreen> with ReaderDisplayMode<ReaderScreen> {
   final ItemScrollController _itemScrollController = ItemScrollController();
 
   List<Passage> _passages = [];
@@ -619,6 +661,12 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   @override
+  void dispose() {
+    disposeReaderDisplay();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final palette = _preferences.palette;
     return ReaderScaffold(
@@ -626,6 +674,9 @@ class _ReaderScreenState extends State<ReaderScreen> {
       title: widget.sectionTitle ?? widget.book.titleUrdu,
       preferences: _preferences,
       onPreferencesChanged: (value) => setState(() => _preferences = value),
+      fullScreen: readerFullScreen,
+      overlay: readerDisplayOverlay(context),
+      actions: <Widget>[readerDisplayActions(context, color: palette.accent)],
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -636,6 +687,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       child: ScrollablePositionedList.builder(
                       key: PageStorageKey('reader-${widget.book.key}-${widget.sectionId ?? widget.recordId}'),
                       itemScrollController: _itemScrollController,
+                      scrollOffsetController: scrollOffsetController,
                       initialScrollIndex: _initialIndex,
                       itemCount: _passages.length + 1,
                       // Long chapters kept every card alive, which grew the
@@ -669,7 +721,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
                         passage: _passages[index],
                         palette: palette,
                         fontScale: _preferences.fontScale,
-                        script: widget.searchQuery.isEmpty ? _preferences.script : 'both',
+                        // Wikipedia articles are Urdu prose; the Arabic-only
+                        // reader option would leave them blank.
+                        script: widget.book.source == CorpusSource.wiki
+                            ? 'urdu'
+                            : (widget.searchQuery.isEmpty ? _preferences.script : 'both'),
                         searchQuery: widget.searchQuery,
                         focusMatch: _passages[index].recordId == widget.recordId,
                         // Numbered within this section (۱، ۲، ۳…) — not the

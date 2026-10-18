@@ -9,6 +9,7 @@ import '../astro/prayer_format.dart' show formatCount;
 import '../services/prayer_scope.dart';
 import '../services/tasbeeh_controller.dart';
 import '../widgets/glass_panel.dart';
+import '../widgets/section_background.dart';
 
 /// The digital tasbeeh: a big tap zone that feels like a bead, the
 /// Tasbeeh-e-Zahra (s.a.) workflow that advances by itself, the reader's own
@@ -86,7 +87,6 @@ class _TasbeehScreenState extends State<TasbeehScreen> with TickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    final palette = GlassPalette.of(context);
     final controller = TasbeehScope.of(context);
 
     // A completed step flashes the ring, names the dhikr that finished, and
@@ -106,11 +106,19 @@ class _TasbeehScreenState extends State<TasbeehScreen> with TickerProviderStateM
       });
     }
 
-    return Scaffold(
-      backgroundColor: palette.scaffold,
+    return SectionBackground(
+      asset: 'assets/images/wall_tasbeeh.jpg',
+      dim: 0.44,
+      builder: (context) {
+      final palette = GlassPalette.of(context);
+      return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         scrolledUnderElevation: 0,
+        // The wallpaper is always dark, so the status-bar icons are always
+        // light, in both app themes.
+        systemOverlayStyle: SystemUiOverlayStyle.light,
         title: const Text('تسبیح', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
         actions: <Widget>[
           IconButton(
@@ -169,6 +177,8 @@ class _TasbeehScreenState extends State<TasbeehScreen> with TickerProviderStateM
           ),
         ],
       ),
+      );
+      },
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../astro/hijri_calendar.dart';
 import '../astro/lunar_hijri.dart';
@@ -8,6 +9,7 @@ import '../astro/prayer_format.dart';
 import '../services/prayer_controller.dart';
 import '../services/prayer_scope.dart';
 import '../widgets/glass_panel.dart';
+import '../widgets/section_background.dart';
 
 /// The crescent that opens the Hijri month, read for the reader's own sky.
 ///
@@ -19,7 +21,6 @@ class CrescentScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = GlassPalette.of(context);
     final controller = PrayerScope.of(context);
     final calendar = controller.lunarHijri;
     final offset = controller.schedule.zoneOffset;
@@ -50,29 +51,23 @@ class CrescentScreen extends StatelessWidget {
     final instant = controller.now.value.toUtc().subtract(offset);
     final phase = _lunarPhase(instant, current.conjunction);
 
-    return Scaffold(
-      backgroundColor: palette.scaffold,
+    return SectionBackground(
+      asset: 'assets/images/wall_crescent.jpg',
+      dim: 0.52,
+      builder: (context) {
+      final palette = GlassPalette.of(context);
+      return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         scrolledUnderElevation: 0,
+        // The wallpaper is always dark, so the status-bar icons are always
+        // light, in both app themes.
+        systemOverlayStyle: SystemUiOverlayStyle.light,
         title: const Text('چاند کی رویت',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
       ),
-      body: Stack(
-        children: <Widget>[
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/chapter_wallpaper_dark.jpg',
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => ColoredBox(color: palette.scaffold),
-            ),
-          ),
-          Positioned.fill(
-            child: ColoredBox(
-              color: palette.scaffold.withValues(alpha: palette.isDark ? 0.7 : 0.88),
-            ),
-          ),
-          ListView(
+      body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 6, 16, 26),
             children: <Widget>[
               _CrescentHero(
@@ -93,8 +88,8 @@ class CrescentScreen extends StatelessWidget {
               _MethodCard(controller: controller, palette: palette),
             ],
           ),
-        ],
-      ),
+      );
+      },
     );
   }
 }

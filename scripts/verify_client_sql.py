@@ -308,6 +308,42 @@ def fatwa(name: str):
     return check_book
 
 
+def wiki(connection: sqlite3.Connection) -> None:
+    """The Shia Urdu Wikipedia collection reads exactly like the other books."""
+    categories = run(connection, "FROM categories AS c\n        ORDER BY c.id")
+    check("wiki: eleven navigation groups", len(categories) == 11, f"{len(categories)}")
+    articles = run(
+        connection,
+        "JOIN article_categories AS ac ON ac.article_id = a.id\n        WHERE ac.category_id = ?",
+        (1,),
+    )
+    check("wiki: one category lists its articles", len(articles) > 5, f"{len(articles)} articles")
+    # One article rendered as its ordered sections, which is what the reader
+    # shows and every source chip is attached to.
+    sections = connection.execute(
+        f"SELECT record_id, section_id, urdu, locator, source_url, article_url, ordinal "
+        f"FROM ({extract_query('s.heading_ur AS locator')})",
+        (articles[0][0],),
+    ).fetchall()
+    check("wiki: an article opens as ordered sections", len(sections) >= 1, f"{len(sections)} sections")
+    ordered = [row[6] for row in sections]
+    check("wiki: sections arrive in reading order", ordered == sorted(ordered), str(ordered[:8]))
+    with_text = [row for row in sections if str(row[2] or "").strip()]
+    check("wiki: every section carries Urdu text", len(with_text) == len(sections), f"{len(sections) - len(with_text)} blank")
+    # The reader falls back from the section URL to the article URL.
+    sourced = [row for row in sections if str(row[4] or row[5] or "").startswith("https://")]
+    check("wiki: every section can open its source", len(sourced) == len(sections), f"{len(sections) - len(sourced)} without a URL")
+    imams = run(connection, "FROM imams AS i JOIN articles AS a ON a.id = i.article_id\n        ORDER BY i.imam_number")
+    check("wiki: twelve Imam biographies", len(imams) == 12, f"{len(imams)}")
+    topics = run(connection, "FROM topics AS t JOIN articles AS a ON a.id = t.primary_article_id\n        ORDER BY t.id")
+    check("wiki: curated topics resolve to articles", len(topics) >= 5, f"{len(topics)}")
+    # The small «ماخذ» chip must have a real page for every reference it shows.
+    blank_refs = connection.execute(
+        "SELECT COUNT(*) FROM source_references WHERE source_url NOT LIKE 'https://%'"
+    ).fetchone()[0]
+    check("wiki: references keep their permanent URLs", blank_refs == 0, f"{blank_refs} without a URL")
+
+
 def build_index(paths: dict[str, Path]) -> sqlite3.Connection:
     """Recreate the on-device search index (search_docs + FTS5) in memory."""
     index = sqlite3.connect(":memory:")
@@ -329,6 +365,7 @@ def build_index(paths: dict[str, Path]) -> sqlite3.Connection:
         "sahifa": "SELECT d.ID AS record_id, d.t_id * 10000",
         "khamenei": "SELECT q.rowid AS record_id, q.category_id AS section_id",
         "sistani": "SELECT q.rowid AS record_id, q.category_id AS section_id",
+        "shia_wiki": "FROM sections AS s JOIN articles AS a ON a.id = s.article_id\n          ORDER BY s.article_id, s.ordinal",
     }
     total = 0
     for source_key, fragment in fragments.items():
@@ -367,7 +404,7 @@ def build_index(paths: dict[str, Path]) -> sqlite3.Connection:
                 "VALUES (?,?,?,?,?)",
                 (total, title, title, arabic, urdu),
             )
-    check("index: rows written from all four sources", total > 1000, f"{total} rows")
+    check("index: rows written from every source", total > 1000, f"{total} rows")
     return index
 
 
@@ -387,7 +424,7 @@ def search_probe(index: sqlite3.Connection) -> None:
 
 
 def run_checks(paths: dict[str, Path]) -> None:
-    needed = ("alkafi", "quran", "mafatih", "nahjul_balagha")
+    needed = ("alkafi", "quran", "mafatih", "nahjul_balagha", "shia_wiki")
     missing = [key for key in needed if key not in paths]
     if missing:
         raise SystemExit(f"Missing databases for client SQL check: {missing}")
@@ -400,6 +437,7 @@ def run_checks(paths: dict[str, Path]) -> None:
         ("sahifa", sahifa),
         ("khamenei", fatwa("khamenei")),
         ("sistani", fatwa("sistani")),
+        ("shia_wiki", wiki),
     ):
         connection = sqlite3.connect(f"file:{paths[key]}?mode=ro", uri=True)
         try:

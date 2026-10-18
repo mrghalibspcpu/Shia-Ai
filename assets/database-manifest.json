@@ -2,7 +2,7 @@
   "format_version": 2,
   "source_app": "Ahadith al Shia Urdu 1.0.1 corpus plus the Quran, Mafatih al-Jinan, and Nahj al-Balagha collections",
   "sqlite_page_size": 1024,
-  "database_count": 20,
+  "database_count": 21,
   "totals": {
     "hadith_records": 96513,
     "sections": 17855,
@@ -304,6 +304,22 @@
       "records": {
         "saheefa_data": 4993,
         "saheefa_index": 148
+      }
+    },
+    {
+      "name": "shia_urdu_wikipedia.db",
+      "key": "shia_wiki",
+      "source": "wiki",
+      "title_urdu": "شیعہ اردو ویکیپیڈیا",
+      "title_latin": "Shia Urdu Wikipedia",
+      "record_label": "مضمون",
+      "size_bytes": 57389056,
+      "sha256": "1c9de11f08d4ebb0a4a768e6e926ca3500f91bfafa8d81d094d77f73e6eafc96",
+      "records": {
+        "articles": 1588,
+        "sections": 11737,
+        "categories": 11,
+        "imams": 12
       }
     },
     {

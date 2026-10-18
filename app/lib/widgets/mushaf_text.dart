@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
@@ -39,15 +40,80 @@ int mushafVerseNumber(Passage verse) {
 /// Only the COMPLETE Arabic matn and discreet ayah markers: no translation,
 /// commentary, footnotes, per-ayah containers or actions. SelectionArea lives
 /// in the reader, around the lazily built groups, so the text is selectable.
-class MushafText extends StatelessWidget {
-  const MushafText({super.key, required this.group, required this.palette, required this.fontScale});
+class MushafText extends StatefulWidget {
+  const MushafText({
+    super.key,
+    required this.group,
+    required this.palette,
+    required this.fontScale,
+    this.onVerseTap,
+  });
 
   final MushafGroup group;
   final ReaderPalette palette;
   final double fontScale;
 
+  /// Called when the reader taps anywhere inside an ayah, including its
+  /// ﴿n﴾ marker. The reader opens the translation/tafseer popup.
+  final ValueChanged<Passage>? onVerseTap;
+
+  @override
+  State<MushafText> createState() => _MushafTextState();
+}
+
+class _MushafTextState extends State<MushafText> {
+  final Map<int, TapGestureRecognizer> _recognizers = <int, TapGestureRecognizer>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _buildRecognizers();
+  }
+
+  @override
+  void didUpdateWidget(covariant MushafText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.group, widget.group) ||
+        oldWidget.onVerseTap != widget.onVerseTap) {
+      _buildRecognizers();
+    }
+  }
+
+  void _buildRecognizers() {
+    final old = _recognizers.values.toList(growable: false);
+    _recognizers.clear();
+    final onTap = widget.onVerseTap;
+    if (onTap != null) {
+      for (final verse in widget.group.verses) {
+        _recognizers[verse.recordId] = TapGestureRecognizer()..onTap = () => onTap(verse);
+      }
+    }
+    // The old spans are still part of the frame that is being replaced; dispose
+    // them only after that frame, or a tap in the same frame would reach a
+    // disposed recognizer.
+    if (old.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        for (final recognizer in old) {
+          recognizer.dispose();
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final recognizer in _recognizers.values) {
+      recognizer.dispose();
+    }
+    _recognizers.clear();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final group = widget.group;
+    final palette = widget.palette;
+    final fontScale = widget.fontScale;
     final first = group.verses.first;
     final surahBegins = mushafVerseNumber(first) == 1 && first.sectionTitle.isNotEmpty;
     final ink = palette.foreground;
@@ -86,9 +152,13 @@ class MushafText extends StatelessWidget {
               children: <InlineSpan>[
                 for (final verse in group.verses)
                   if (verse.arabic.trim().isNotEmpty) ...<InlineSpan>[
-                    TextSpan(text: '${verse.arabic.trim().replaceAll(RegExp(r'\s+'), ' ')} '),
+                    TextSpan(
+                      text: '${verse.arabic.trim().replaceAll(RegExp(r'\s+'), ' ')} ',
+                      recognizer: _recognizers[verse.recordId],
+                    ),
                     TextSpan(
                       text: '﴿${arabicNumerals(mushafVerseNumber(verse))}﴾ ',
+                      recognizer: _recognizers[verse.recordId],
                       style: bodyStyle.copyWith(color: palette.accent, fontSize: 20 * fontScale),
                     ),
                   ],

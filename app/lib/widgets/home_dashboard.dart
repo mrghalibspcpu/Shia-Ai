@@ -633,7 +633,12 @@ class _MiniPrayerCard extends StatelessWidget {
         final schedule = controller.schedule;
         final window = schedule.window(now);
         final next = schedule.nextEntry(now);
-        final running = !window.previousNight && now.isBefore(window.endsAt);
+        // The running window is "current" until the next marker, INCLUDING
+        // the Isha window that continues past Nisf al-Layl until Fajr: between
+        // midnight and dawn `window.previousNight` is true and Isha is still
+        // the prayer the reader is in. Excluding that case left the card with
+        // no highlighted prayer for the whole second half of the night.
+        final running = now.isBefore(window.endsAt);
         // Mini card only: Fajr, طلوعِ شمس (sunrise), ظہرین (Dhuhr),
         // مغربین (Maghrib) and نصف شب (midnight) — Asr & Isha are not shown
         // here; the full prayer page still carries every marker.
@@ -822,19 +827,29 @@ class _MiniPrayerCell extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 1.5),
         padding: EdgeInsets.symmetric(vertical: active ? 3 : 1, horizontal: 2),
         decoration: BoxDecoration(
+          // The running prayer is a solid gold tile with dark ink, not a faint
+          // white wash: on a bright sky the old 24%-white fill was almost
+          // invisible, which is exactly what readers reported.
+          gradient: active
+              ? LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: <Color>[gold, Color(0xFFE9B45C)],
+                )
+              : null,
           color: active
-              ? Colors.white.withValues(alpha: 0.24)
+              ? null
               : (upcoming ? gold.withValues(alpha: 0.14) : Colors.transparent),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: active
-                ? Colors.white.withValues(alpha: 0.75)
+                ? Colors.white
                 : (upcoming ? gold.withValues(alpha: 0.9) : Colors.transparent),
             width: active ? 1.7 : (lit ? 1.3 : 1),
           ),
           boxShadow: active
               ? <BoxShadow>[
-                  BoxShadow(color: gold.withValues(alpha: 0.26), blurRadius: 7, offset: const Offset(0, 2)),
+                  BoxShadow(color: gold.withValues(alpha: 0.55), blurRadius: 10, offset: const Offset(0, 3)),
                 ]
               : null,
         ),
@@ -847,14 +862,16 @@ class _MiniPrayerCell extends StatelessWidget {
                 displayLabel ?? entry.marker.labelUrdu,
                 maxLines: 1,
                 overflow: TextOverflow.clip,
-                style: _onSky(active ? 16 : 14.5, weight: lit ? FontWeight.w800 : FontWeight.w700, height: 1.25),
+                style: _onSky(active ? 16 : 14.5, weight: lit ? FontWeight.w800 : FontWeight.w700, height: 1.25,
+                    color: active ? const Color(0xFF4A2A05) : Colors.white),
               ),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(
                   formatClockDigitsUrdu(entry.time),
                   textDirection: TextDirection.ltr,
-                  style: _onSky(active ? 16 : 14.5, weight: FontWeight.w800, digits: true, height: 1, color: upcoming ? gold : Colors.white),
+                  style: _onSky(active ? 16 : 14.5, weight: FontWeight.w800, digits: true, height: 1,
+                      color: active ? const Color(0xFF3A2003) : (upcoming ? gold : Colors.white)),
                 ),
               ),
               const SizedBox(height: 1),
@@ -891,7 +908,7 @@ class _NowTag extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 0.5),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFE1A1),
+        color: const Color(0xFF4A2A05),
         borderRadius: BorderRadius.circular(7),
       ),
       child: const Text(
@@ -902,7 +919,7 @@ class _NowTag extends StatelessWidget {
           fontSize: 8.5,
           height: 1.2,
           fontWeight: FontWeight.w800,
-          color: Color(0xFF4A2A05),
+          color: Color(0xFFFFE9C4),
         ),
       ),
     );

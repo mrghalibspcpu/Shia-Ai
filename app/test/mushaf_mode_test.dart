@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -73,6 +74,75 @@ void main() {
     expect(find.byType(MushafText), findsWidgets);
     expect(find.byType(PassageCard), findsNothing);
     expect((await SharedPreferences.getInstance()).getBool(kQuranMushafKey), isTrue);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('tapping an ayah in the mushaf opens its translation and a tafseer toggle', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(theme: buildLightTheme(), home: SurahReaderScreen(
+      library: _QuranLibrary(), surah: _surah, startInMushaf: true,
+    )));
+    await tester.pumpAndSettle();
+    // Every ayah — and its ﴿n﴾ marker — carries a tap recognizer, so a tap
+    // anywhere inside the ayah can open the popup.
+    final matn = tester.widget<RichText>(find.byKey(const ValueKey<String>('mushaf-page-1')));
+    final spans = (matn.text as TextSpan).children!.cast<TextSpan>();
+    expect(spans.first.recognizer, isA<TapGestureRecognizer>());
+    expect(spans[1].text, contains('﴿۱﴾'));
+    expect(spans[1].recognizer, isA<TapGestureRecognizer>());
+
+    final mushaf = tester.widget<MushafText>(find.byType(MushafText).first);
+    expect(mushaf.onVerseTap, isNotNull);
+    mushaf.onVerseTap!(_ayahs.first);
+    await tester.pumpAndSettle();
+    expect(find.text('ترجمہ'), findsOneWidget);
+    expect(find.text('ترجمہ اوّل'), findsOneWidget);
+    expect(find.textContaining('تفسیری حاشیہ'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey<String>('quran-tafseer-toggle')));
+    await tester.pumpAndSettle();
+    expect(find.text('تفسیری حاشیہ اوّل'), findsOneWidget);
+    expect(find.text('تفسیر چھپائیں'), findsOneWidget);
+    await tester.tap(find.text('بند کریں'));
+    await tester.pumpAndSettle();
+    expect(find.text('ترجمہ اوّل'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('the reader offers full screen and a smooth, adjustable auto-scroll', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(theme: buildLightTheme(), home: SurahReaderScreen(
+      library: _QuranLibrary(), surah: _surah,
+    )));
+    await tester.pumpAndSettle();
+    expect(find.byType(AppBar), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('reader-auto-scroll')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey<String>('reader-full-screen')));
+    await tester.pumpAndSettle();
+    expect(find.byType(AppBar), findsNothing);
+    expect(find.byKey(const ValueKey<String>('reader-display-bar')), findsOneWidget);
+    await tester.tap(find.byTooltip('پوری اسکرین سے باہر'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AppBar), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey<String>('reader-auto-scroll')));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('1.00×'), findsOneWidget);
+    // The strip's own +/- controls change the pace; they are practical enough
+    // to use with a thumb while the text is moving.
+    await tester.tap(find.byTooltip('تیز'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('1.25×'), findsOneWidget);
+    await tester.tap(find.byTooltip('روکیں'));
+    await tester.pump(const Duration(milliseconds: 400));
+    // The list really moved: the first verse is no longer at its start offset.
+    expect(find.byKey(const ValueKey<String>('reader-display-bar')), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });

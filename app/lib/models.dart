@@ -1,4 +1,4 @@
-enum CorpusSource { hadith, quran, dua, balagha, sahifa, fatwa }
+enum CorpusSource { hadith, quran, dua, balagha, sahifa, fatwa, wiki }
 
 extension CorpusSourceX on CorpusSource {
   /// Urdu label used by the search filter and library sections.
@@ -9,6 +9,7 @@ extension CorpusSourceX on CorpusSource {
         CorpusSource.balagha => 'نہج البلاغہ',
         CorpusSource.sahifa => 'صحیفہ سجادیہ',
         CorpusSource.fatwa => 'فتاویٰ',
+        CorpusSource.wiki => 'نئی کتابیں',
       };
 
   /// Wire value stored in the search index and the manifest.
@@ -19,6 +20,7 @@ extension CorpusSourceX on CorpusSource {
         CorpusSource.balagha => 'balagha',
         CorpusSource.sahifa => 'sahifa',
         CorpusSource.fatwa => 'fatwa',
+        CorpusSource.wiki => 'wiki',
       };
 }
 
@@ -61,6 +63,7 @@ CorpusSource corpusSourceFromWire(String? value) => switch (value) {
       'balagha' => CorpusSource.balagha,
       'sahifa' => CorpusSource.sahifa,
       'fatwa' => CorpusSource.fatwa,
+      'wiki' => CorpusSource.wiki,
       _ => CorpusSource.hadith,
     };
 
@@ -147,10 +150,28 @@ class BookDefinition {
       source: CorpusSource.balagha,
       recordLabel: 'فقرا',
     ),
+    // 1.18 — the Shia Urdu Wikipedia collection. It is appended LAST on
+    // purpose: `bookAccent` indexes this list, so no existing book changes
+    // colour, and every older key/file name stays exactly where it was.
+    BookDefinition(
+      key: 'shia_wiki',
+      fileName: 'shia_urdu_wikipedia.db',
+      titleUrdu: 'شیعہ اردو ویکیپیڈیا',
+      titleLatin: 'Shia Urdu Wikipedia',
+      description: 'شیعہ عقائد، ائمہ، تاریخ، کتب اور مقامات — ہر مضمون کے اصل ماخذ کے ساتھ',
+      source: CorpusSource.wiki,
+      recordLabel: 'مضمون',
+    ),
   ];
 
   static List<BookDefinition> get hadithBooks =>
       all.where((book) => book.source == CorpusSource.hadith).toList();
+
+  /// Books added after the original corpus, shown under **Xplore → نئی کتابیں**
+  /// instead of the home rail. The Shia Urdu Wikipedia collection is the first
+  /// of them; adding another is one more entry here.
+  static List<BookDefinition> get newBooks =>
+      all.where((book) => book.source == CorpusSource.wiki).toList();
 
   static BookDefinition? bookFor(CorpusSource source) {
     for (final book in all) {

@@ -42,6 +42,12 @@ class _QiblaMapCardState extends State<QiblaMapCard> {
   bool _needsCenter = true;
   bool _refreshing = false;
 
+  /// The map opens with the Qibla pointing straight up, so the reader has
+  /// nothing to work out: the bright ray is simply "that way". Tapping
+  /// شمال اوپر turns the ordinary north-up map back on, and the choice is
+  /// remembered for the session.
+  bool _qiblaUp = true;
+
   @override
   void didUpdateWidget(covariant QiblaMapCard oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -107,6 +113,31 @@ class _QiblaMapCardState extends State<QiblaMapCard> {
             sourceNote,
             style: TextStyle(fontSize: 12, height: 1.45, color: palette.muted),
           ),
+          const SizedBox(height: 8),
+          // One tap switches the reading, not a pinch, a drag or a protractor.
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: _MapModeChip(
+                  icon: Icons.navigation_rounded,
+                  label: 'قبلہ اوپر',
+                  selected: _qiblaUp,
+                  palette: palette,
+                  onTap: () => setState(() => _qiblaUp = true),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MapModeChip(
+                  icon: Icons.explore_outlined,
+                  label: 'شمال اوپر',
+                  selected: !_qiblaUp,
+                  palette: palette,
+                  onTap: () => setState(() => _qiblaUp = false),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           LayoutBuilder(
             builder: (context, constraints) {
@@ -133,7 +164,17 @@ class _QiblaMapCardState extends State<QiblaMapCard> {
                         child: SizedBox(
                           width: _mapSize,
                           height: _mapSize,
-                          child: Stack(
+                          child: Transform(
+                            // Qibla-up rotates the whole map around the
+                            // reader's own dot, so the dot never moves and
+                            // the ray ends up pointing at the top edge.
+                            alignment: Alignment.topLeft,
+                            transform: _qiblaUp
+                                ? Matrix4.translationValues(_userPoint.dx, _userPoint.dy, 0) *
+                                    Matrix4.rotationZ(-widget.bearing * math.pi / 180) *
+                                    Matrix4.translationValues(-_userPoint.dx, -_userPoint.dy, 0)
+                                : Matrix4.identity(),
+                            child: Stack(
                             children: <Widget>[
                               for (final tile in tileGrid)
                                 Positioned(
@@ -154,14 +195,15 @@ class _QiblaMapCardState extends State<QiblaMapCard> {
                               ),
                             ],
                           ),
+                          ),
                         ),
                       ),
                       Positioned(
                         top: 8,
                         right: 8,
                         child: _MapTag(
-                          icon: Icons.navigation_outlined,
-                          label: 'شمال اوپر',
+                          icon: _qiblaUp ? Icons.navigation_rounded : Icons.explore_outlined,
+                          label: _qiblaUp ? 'قبلہ اوپر — اسی طرف' : 'شمال اوپر',
                           palette: palette,
                         ),
                       ),
@@ -170,7 +212,7 @@ class _QiblaMapCardState extends State<QiblaMapCard> {
                         bottom: 8,
                         child: _MapTag(
                           icon: Icons.zoom_in_map_outlined,
-                          label: 'نقشہ پھیلانے کے لیے دو انگلیاں',
+                          label: _qiblaUp ? 'تیر اسی طرف ہے' : 'نقشہ پھیلانے کے لیے دو انگلیاں',
                           palette: palette,
                           compact: true,
                         ),
@@ -200,7 +242,11 @@ class _QiblaMapCardState extends State<QiblaMapCard> {
           ),
           const SizedBox(height: 5),
           Text(
-            'تیر شمالِ حقیقی سے ہے؛ کمپاس کی ضرورت نہیں۔ نقشہ ٹائلز © OpenStreetMap contributors۔',
+            _qiblaUp
+                ? 'نقشہ خود قبلہ کی سمت گھما ہوا ہے — کھڑے ہو کر اوپر کی طرف منہ کریں، '
+                  'کسی کمپاس یا اینگل کی ضرورت نہیں۔ ٹائلز © OpenStreetMap contributors۔'
+                : 'سنہری تیر شمالِ حقیقی سے قبلہ کی طرف ہے؛ کمپاس کی ضرورت نہیں۔ '
+                  'ٹائلز © OpenStreetMap contributors۔',
             style: TextStyle(fontSize: 11.5, height: 1.45, color: palette.muted),
           ),
         ],
@@ -498,6 +544,65 @@ class _MapTag extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+
+/// One half of the map's two-mode switch.
+class _MapModeChip extends StatelessWidget {
+  const _MapModeChip({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.palette,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final GlassPalette palette;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+          decoration: BoxDecoration(
+            color: selected ? palette.accent.withValues(alpha: 0.16) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? palette.accent.withValues(alpha: 0.65) : palette.border,
+              width: selected ? 1.4 : 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Icon(icon, size: 16, color: selected ? palette.accent : palette.muted),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    color: selected ? palette.ink : palette.muted,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

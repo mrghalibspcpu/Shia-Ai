@@ -9,6 +9,7 @@ import '../library_repository.dart';
 import '../models.dart';
 import '../widgets/reader_kit.dart';
 import '../widgets/reader_chrome.dart';
+import '../widgets/reader_display.dart';
 import '../widgets/chapter_wallpaper.dart';
 import '../widgets/resume_card.dart';
 import '../widgets/highlighted_text.dart';
@@ -224,7 +225,8 @@ class DuaReaderScreen extends StatefulWidget {
   State<DuaReaderScreen> createState() => _DuaReaderScreenState();
 }
 
-class _DuaReaderScreenState extends State<DuaReaderScreen> {
+class _DuaReaderScreenState extends State<DuaReaderScreen> with ReaderDisplayMode<DuaReaderScreen> {
+  final ItemScrollController _scroll = ItemScrollController();
   final BookDefinition _book = BookDefinition.bookFor(CorpusSource.dua)!;
 
   List<Passage> _lines = const [];
@@ -239,6 +241,12 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
   void initState() {
     super.initState();
     unawaited(_load());
+  }
+
+  @override
+  void dispose() {
+    disposeReaderDisplay();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -324,6 +332,9 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
       title: widget.item.name,
       preferences: _preferences,
       onPreferencesChanged: (value) => setState(() => _preferences = value),
+      fullScreen: readerFullScreen,
+      overlay: readerDisplayOverlay(context),
+      actions: <Widget>[readerDisplayActions(context, color: palette.accent)],
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -332,6 +343,8 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> {
                   ? const CollectionMessage('اس دعا کا متن موجود نہیں۔')
                   : SelectionArea(
                       child: ScrollablePositionedList.builder(
+                        itemScrollController: _scroll,
+                        scrollOffsetController: scrollOffsetController,
                         initialScrollIndex: _matchIndex < 0 ? 0 : _matchIndex + 1,
                         initialAlignment: 0.04,
                         padding: const EdgeInsets.fromLTRB(18, 8, 18, 112),

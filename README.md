@@ -1,5 +1,37 @@
 # ShiaVerse
 
+## New in 1.18 — wallpapers, a Qibla-up map, and the Wikipedia collection
+
+- **نئی کتابیں** in **Xplore** opens the Shia Urdu Wikipedia collection
+  (`shia_urdu_wikipedia.db`, 1,588 articles / 11,737 sections / 16,929 source
+  references, CC BY-SA 4.0). It is a normal library book: a cover card, the 11
+  categories, the twelve Imams, curated topics, in-book search, bookmarks,
+  notes and the same reader. Every article and every section card carries a
+  small **ماخذ** button that opens the exact `oldid` Wikipedia revision the
+  words came from, and the article list has the same button beside each title.
+- **Every متن page** (Quran, all hadith books, Mafatih, Nahj al-Balagha and
+  now the Wikipedia collection) gains a full-screen mode and a smooth,
+  adjustable auto-scroll: one play button in the app bar, −/＋ steps the pace
+  from 0.50× to 4.00×, and the strip stays at the bottom-left while the text
+  moves.
+- **مصحف موڈ** has become a reading surface: tapping any ayah (or its ﴿n﴾
+  marker) opens the ayah with its Urdu translation, and **تفسیر دکھائیں /
+  چھپائیں** folds the tafseer note in and out.
+- **قبلہ نما** now opens with the map already turned **قبلہ اوپر**: face the top
+  of the phone and that is the Qibla — no compass, angle or gesture. One tap
+  switches to the classic **شمال اوپر** map with the true-north ray.
+- The **mini prayer card** marks the running prayer with a solid gold tile in
+  both themes, and keeps Isha marked after midnight (until Fajr) instead of
+  going blank for the second half of the night.
+- **تسبیح**, **قبلہ نما**, **چاند کی رویت** and **اسلامی تقویم** are now painted
+  over their own full-page wallpaper — edge to edge behind the app bar and the
+  list — instead of a flat header image.
+
+The APK still downloads databases on first launch: the Wikipedia edition is
+published gzipped with the rest of the corpus and verified against its SHA-256
+before it is installed. `assets/shia_urdu_wikipedia.db.gz` is the committed
+packaged copy; `google_drive/` (the raw 47 MB Drive ZIP) is git-ignored.
+
 ## New in 1.13 — reading and home polish
 
 The home has a black dock and raised glass keys, closer mini-prayer and
@@ -35,8 +67,9 @@ all run on the device.
   three standalone collections, normalised to the same SQLite settings as the
   other books.
 - `assets/database-manifest.json` — sizes, SHA-256 digests, row counts, titles,
-  and download locations for all 20 databases. `app/assets/database-manifest.json`
-  is the identical copy bundled into the APK.
+  and download locations for all 21 databases (the 1.18 Wikipedia edition
+  included). `app/assets/database-manifest.json` is the identical copy bundled
+  into the APK.
 - `scripts/` — normalisation, packaging, publishing, and verification tools.
 - `docs/apk-analysis.md` — findings and signing/licensing limits of the supplied
   compiled APK.

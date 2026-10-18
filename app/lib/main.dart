@@ -14,6 +14,7 @@ import 'screens/crescent_screen.dart';
 import 'screens/data_screen.dart';
 import 'screens/islamic_calendar_screen.dart';
 import 'screens/library_screen.dart';
+import 'screens/new_books_screen.dart';
 import 'screens/prayer_times_screen.dart';
 import 'screens/qibla_screen.dart';
 import 'screens/search_screen.dart';
@@ -246,6 +247,18 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
   /// The collections (نہج البلاغہ، دینی مسائل…) are NOT repeated here: they
   /// already live on the home screen's own cards.
   List<MoreFeature> _moreFeatures(BuildContext homeContext) => <MoreFeature>[
+        MoreFeature(
+          title: 'نئی کتابیں',
+          subtitle: 'شیعہ اردو ویکیپیڈیا — مضامین، ائمہ اور اصل ماخذ کے لنکس',
+          icon: Icons.library_add_rounded,
+          color: const Color(0xFF4B3B78),
+          onOpen: () => unawaited(_navigatorKey.currentState?.push(MaterialPageRoute<void>(
+            builder: (_) => NewBooksScreen(
+              library: _library,
+              onOpenData: () => _homeShellKey.currentState?.openData(),
+            ),
+          ))),
+        ),
         MoreFeature(
           title: 'نماز کے اوقات',
           subtitle: 'اہلِ تشیع (جعفری) اوقات، مقام اور قرات کا وقت',

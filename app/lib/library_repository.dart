@@ -448,6 +448,7 @@ class LibraryRepository {
         CorpusSource.balagha => 'balaghatext',
         CorpusSource.sahifa => 'saheefa_data',
         CorpusSource.fatwa => 'question_answers',
+        CorpusSource.wiki => 'sections',
       };
 
   /// Copies one book into `search_docs` (and the FTS mirror) starting at [startId].
@@ -575,6 +576,14 @@ class LibraryRepository {
       case CorpusSource.sahifa:
       case CorpusSource.fatwa:
         return (chapter: book.titleUrdu, section: (row['section_title'] ?? '').toString());
+      case CorpusSource.wiki:
+        // Each section is indexed with its article as the chapter and the
+        // section heading as the sub-heading, so a hit reads
+        // «تقلید (اصطلاح) — لغوی معنی» instead of a bare paragraph.
+        return (
+          chapter: (row['chapter_title'] ?? '').toString(),
+          section: (row['section_title'] ?? '').toString(),
+        );
       case CorpusSource.hadith:
         final chapter = (row['chapter_title'] ?? '').toString();
         // Twenty records across four books point at a section id that has no
@@ -635,6 +644,15 @@ class LibraryRepository {
           ORDER BY m.rowid
           LIMIT ? OFFSET ?
         ''', [_indexPageSize, offset]);
+      case CorpusSource.wiki:
+        return source.rawQuery('''
+          SELECT s.id AS record_id, s.article_id AS section_id,
+                 '' AS arabic, s.plain_text AS urdu,
+                 s.heading_ur AS section_title, a.title_ur AS chapter_title
+          FROM sections AS s JOIN articles AS a ON a.id = s.article_id
+          ORDER BY s.article_id, s.ordinal
+          LIMIT ? OFFSET ?
+        ''', [_indexPageSize, offset]);
       case CorpusSource.balagha:
         return source.rawQuery('''
           SELECT x.ID AS record_id, x.AR AS arabic, x.UR AS urdu, x.ParaNo AS page_no,
@@ -691,6 +709,13 @@ class LibraryRepository {
             'CREATE INDEX IF NOT EXISTS shia_balagha_toc_type ON balaghatoc(TypeID, TypeNo)',
             'CREATE INDEX IF NOT EXISTS shia_balagha_hawashi_locate ON balaghatext_hawashi(Type, TypeNo, ParaNo)',
             'CREATE INDEX IF NOT EXISTS shia_balagha_muqadamat_type ON balaghatext_muqadamat(Type, ParaFormat, ID)',
+          ],
+        CorpusSource.wiki => const [
+            'CREATE INDEX IF NOT EXISTS shia_wiki_sections_article ON sections(article_id, ordinal)',
+            'CREATE INDEX IF NOT EXISTS shia_wiki_articles_title ON articles(title_ur)',
+            'CREATE INDEX IF NOT EXISTS shia_wiki_article_categories ON article_categories(category_id, article_id)',
+            'CREATE INDEX IF NOT EXISTS shia_wiki_links_source ON article_links(source_article_id)',
+            'CREATE INDEX IF NOT EXISTS shia_wiki_references_article ON source_references(article_id)',
           ],
       };
       final existing = await database.rawQuery(
@@ -827,6 +852,15 @@ class LibraryRepository {
 
   Future<List<Map<String, Object?>>> getChapters(BookDefinition book) async {
     final db = await _openBook(book);
+    if (book.source == CorpusSource.wiki) {
+      // The eleven logical groups of the Wikipedia corpus are the chapters.
+      return db.rawQuery('''
+        SELECT c.id AS ID, c.id AS cid, c.name_ur AS title,
+               (SELECT COUNT(*) FROM article_categories ac WHERE ac.category_id = c.id) AS count
+        FROM categories AS c
+        ORDER BY c.id
+      ''');
+    }
     if (book.source == CorpusSource.sahifa || book.source == CorpusSource.fatwa) {
       return db.rawQuery('SELECT section_id AS ID, section_id AS cid, section_title AS title '
           'FROM (${_extraQuery(book)}) GROUP BY section_id ORDER BY section_id');
@@ -836,6 +870,17 @@ class LibraryRepository {
 
   Future<List<Map<String, Object?>>> getSections(BookDefinition book, int chapterId) async {
     final db = await _openBook(book);
+    if (book.source == CorpusSource.wiki) {
+      return db.rawQuery('''
+        SELECT a.id AS ID, a.title_ur AS title, ac.category_id AS Chapid,
+               a.id AS Secid, a.source_url AS source_url,
+               a.character_count AS count
+        FROM articles AS a
+        JOIN article_categories AS ac ON ac.article_id = a.id
+        WHERE ac.category_id = ?
+        ORDER BY a.title_ur
+      ''', [chapterId]);
+    }
     if (book.source == CorpusSource.sahifa || book.source == CorpusSource.fatwa) {
       return db.rawQuery('SELECT section_id AS ID, section_title AS title, section_id AS Chapid, section_id AS Secid '
           'FROM (${_extraQuery(book)}) WHERE section_id = ? GROUP BY section_id', [chapterId]);
@@ -848,6 +893,9 @@ class LibraryRepository {
 
   Future<List<Passage>> getSectionPassages(BookDefinition book, int sectionId) async {
     final db = await _openBook(book);
+    if (book.source == CorpusSource.wiki) {
+      return _wikiArticlePassages(db, sectionId);
+    }
     if (book.source == CorpusSource.sahifa || book.source == CorpusSource.fatwa) {
       final rows = await db.rawQuery('SELECT * FROM (${_extraQuery(book)}) WHERE section_id = ? ORDER BY record_id', [sectionId]);
       return rows.map(Passage.fromMap).toList();
@@ -864,6 +912,94 @@ class LibraryRepository {
       ORDER BY p.rowid
     ''', [sectionId]);
     return rows.map(Passage.fromMap).toList();
+  }
+
+  /// Every section of one Wikipedia article, in reading order.
+  ///
+  /// The reader shows the article as one continuous متن: the heading of each
+  /// section is the card header, its text is the Urdu body, and the section's
+  /// own permanent Wikipedia URL is attached to that card, so the small
+  /// «ماخذ» button under any passage opens exactly the revision the words came
+  /// from.
+  Future<List<Passage>> _wikiArticlePassages(Database db, int articleId) async {
+    final rows = await db.rawQuery('''
+      SELECT s.id AS record_id, s.article_id AS section_id,
+             '' AS arabic, s.plain_text AS urdu,
+             a.title_ur AS section_title, s.heading_ur AS locator,
+             s.source_url AS source_url, a.source_url AS article_url,
+             s.ordinal AS ordinal
+      FROM sections AS s JOIN articles AS a ON a.id = s.article_id
+      WHERE s.article_id = ?
+      ORDER BY s.ordinal
+    ''', [articleId]);
+    return [
+      for (final row in rows)
+        Passage.fromMap({
+          ...row,
+          // A section without a verified fragment still carries its article's
+          // canonical page: never leave a Wikipedia card without a source.
+          'source_url': (row['source_url'] ?? '').toString().isEmpty
+              ? (row['article_url'] ?? '').toString()
+              : row['source_url'],
+        }),
+    ];
+  }
+
+  // --------------------------------------------------------- wikipedia
+
+  /// Counts shown on the نئی کتابیں page (مقالے، حصے، ماخذ).
+  Future<({int articles, int sections, int references})> wikiStats() async {
+    const empty = (articles: 0, sections: 0, references: 0);
+    final book = BookDefinition.byKey('shia_wiki');
+    if (book == null || !_installed.contains(book.key)) return empty;
+    try {
+      final db = await _openBook(book);
+      Future<int> count(String sql) async =>
+          (await db.rawQuery(sql)).first.values.first as int? ?? 0;
+      return (
+        articles: await count('SELECT COUNT(*) FROM articles'),
+        sections: await count('SELECT COUNT(*) FROM sections'),
+        references: await count('SELECT COUNT(*) FROM source_references'),
+      );
+    } catch (_) {
+      return empty;
+    }
+  }
+
+  /// The twelve Imams of the corpus, in order: the article id opens the full
+  /// biography as one متن.
+  Future<List<Map<String, Object?>>> getWikiImams() async {
+    final book = BookDefinition.byKey('shia_wiki');
+    if (book == null || !_installed.contains(book.key)) return const [];
+    try {
+      final db = await _openBook(book);
+      return db.rawQuery('''
+        SELECT i.imam_number AS number, a.id AS article_id, a.title_ur AS title,
+               a.character_count AS count
+        FROM imams AS i JOIN articles AS a ON a.id = i.article_id
+        ORDER BY i.imam_number
+      ''');
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// The curated topical entry points (غدیر، کربلا، امامت …), each pointing at
+  /// a real article rather than an invented page.
+  Future<List<Map<String, Object?>>> getWikiTopics() async {
+    final book = BookDefinition.byKey('shia_wiki');
+    if (book == null || !_installed.contains(book.key)) return const [];
+    try {
+      final db = await _openBook(book);
+      return db.rawQuery('''
+        SELECT t.id AS id, t.title_ur AS title, a.id AS article_id, a.title_ur AS article_title,
+               (SELECT COUNT(*) FROM topic_articles ta WHERE ta.topic_id = t.id) AS related
+        FROM topics AS t JOIN articles AS a ON a.id = t.primary_article_id
+        ORDER BY t.id
+      ''');
+    } catch (_) {
+      return const [];
+    }
   }
 
   // ----------------------------------------------------------------- quran
@@ -1359,6 +1495,16 @@ class LibraryRepository {
       case CorpusSource.fatwa:
         final rows = await db.rawQuery('SELECT * FROM (${_extraQuery(book)}) WHERE record_id = ?', [recordId]);
         return rows.isEmpty ? null : Passage.fromMap(rows.first);
+      case CorpusSource.wiki:
+        final rows = await db.rawQuery('''
+          SELECT s.id AS record_id, s.article_id AS section_id,
+                 '' AS arabic, s.plain_text AS urdu,
+                 a.title_ur AS section_title, s.heading_ur AS locator,
+                 s.source_url AS source_url
+          FROM sections AS s JOIN articles AS a ON a.id = s.article_id
+          WHERE s.id = ? LIMIT 1
+        ''', [recordId]);
+        return rows.isEmpty ? null : Passage.fromMap(rows.first);
       case CorpusSource.hadith:
         final rows = await db.rawQuery('''
           SELECT COALESCE(NULLIF(p.ID, ''), -p.rowid) AS record_id, p.txt AS arabic, p.Secid AS section_id,
@@ -1621,6 +1767,19 @@ class LibraryRepository {
       case CorpusSource.fatwa:
         final rows = await db.rawQuery('SELECT * FROM (${_extraQuery(book)}) WHERE record_id IN ($placeholders)', ids);
         return {for (final row in rows) _asInt(row['record_id'])!: Passage.fromMap(row)};
+      case CorpusSource.wiki:
+        final rows = await db.rawQuery('''
+          SELECT s.id AS record_id, s.article_id AS section_id,
+                 '' AS arabic, s.plain_text AS urdu,
+                 a.title_ur AS section_title, s.heading_ur AS locator,
+                 s.source_url AS source_url
+          FROM sections AS s JOIN articles AS a ON a.id = s.article_id
+          WHERE s.id IN ($placeholders)
+        ''', ids);
+        return {
+          for (final row in rows)
+            if (_asInt(row['record_id']) != null) _asInt(row['record_id'])!: Passage.fromMap(row),
+        };
       case CorpusSource.hadith:
         final rows = await db.rawQuery('''
           SELECT COALESCE(NULLIF(p.ID, ''), -p.rowid) AS record_id, p.txt AS arabic, p.Secid AS section_id,

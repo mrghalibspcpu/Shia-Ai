@@ -42,6 +42,11 @@ class DatabaseSpec:
     def asset_path(self) -> Path:
         return EXTRA_DIR / self.name
 
+    @property
+    def packed_path(self) -> Path:
+        """The gzipped copy committed for large files (e.g. the Wikipedia DB)."""
+        return EXTRA_DIR / f"{self.name}.gz"
+
 
 HADITH_TABLES: dict[str, set[str]] = {
     "Parags": {"ID", "txt", "Secid", "paganum", "mean"},
@@ -88,6 +93,32 @@ HADITH_BOOKS: tuple[tuple[str, str, str], ...] = (
 )
 
 EXTRA_DATABASES: tuple[DatabaseSpec, ...] = (
+    # 1.18 — the Shia Urdu Wikipedia collection. The checked-in file is the
+    # gzipped reader edition built by scripts/build_wikipedia_db.py; the plain
+    # .db is materialised by collect_databases() (and is git-ignored, like the
+    # other expanded database files).
+    DatabaseSpec(
+        name="shia_urdu_wikipedia.db",
+        source="wiki",
+        key="shia_wiki",
+        title_urdu="شیعہ اردو ویکیپیڈیا",
+        title_latin="Shia Urdu Wikipedia",
+        origin="assets",
+        tables={
+            "articles": {"id", "wikipedia_page_id", "title_ur", "source_url",
+                         "history_url", "current_revision_id", "character_count",
+                         "license_id", "attribution", "verification_status"},
+            "sections": {"id", "article_id", "ordinal", "heading_ur",
+                         "heading_level", "source_url", "plain_text"},
+            "categories": {"id", "name_en", "name_ur"},
+            "imams": {"imam_number", "article_id"},
+        },
+        indexes=(
+            "CREATE INDEX IF NOT EXISTS shia_wiki_sections_article ON sections(article_id, ordinal)",
+            "CREATE INDEX IF NOT EXISTS shia_wiki_articles_title ON articles(title_ur)",
+        ),
+        record_label="مضمون",
+    ),
     DatabaseSpec(name="Sahifa_Sajjadiyya_full_runtime.sqlite3", source="sahifa", key="sahifa",
         title_urdu="صحیفہ سجادیہ", title_latin="Sahifa Sajjadiyya", origin="assets",
         tables={"saheefa_data": {"ID", "oe", "t_id", "t_no", "p_no", "p_format", "p_text"},

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import gzip
 import hashlib
 import json
 import shutil
@@ -109,13 +110,20 @@ def collect_databases(
         if include_bundle:
             collected.extend(_read_bundle(bundle, staging))
         for spec in EXTRA_DATABASES:
-            if not spec.asset_path.is_file():
-                raise DatabaseBundleError(
-                    f"{spec.name} is missing from {spec.asset_path.parent}. Add the file or "
-                    "remove it from scripts/database_specs.py."
-                )
             target = staging / spec.name
-            shutil.copyfile(spec.asset_path, target)
+            if spec.asset_path.is_file():
+                shutil.copyfile(spec.asset_path, target)
+            elif spec.packed_path.is_file():
+                # Large collections are committed gzipped (the app downloads
+                # them gzipped too); expand into the scratch directory.
+                with gzip.open(spec.packed_path, "rb") as packed, target.open("wb") as handle:
+                    shutil.copyfileobj(packed, handle, length=1024 * 1024)
+            else:
+                raise DatabaseBundleError(
+                    f"{spec.name} is missing from {spec.asset_path.parent}. Add "
+                    f"{spec.name} or {spec.packed_path.name}, or remove it from "
+                    "scripts/database_specs.py."
+                )
             collected.append((spec, target))
         yield collected
     finally:

@@ -40,3 +40,11 @@ app/android/app/owner-release-key.jks
 # Delivered APK zips and restorable source archives (build outputs, never committed).
 ShiaVerse-*-apk.zip
 deliverables/
+
+# The Wikipedia reader edition is committed gzipped; the expanded .db is a
+# build artefact (scripts/build_wikipedia_db.py writes it on demand).
+assets/shia_urdu_wikipedia.db
+
+# The raw corpus downloaded from Google Drive (47 MB ZIP). The app edition is
+# assets/shia_urdu_wikipedia.db.gz; the ZIP is only the builder's input.
+google_drive/

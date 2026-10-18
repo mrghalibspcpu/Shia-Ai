@@ -12,6 +12,8 @@ Color readerCollectionColor(BookDefinition book) => switch (book.source) {
       CorpusSource.dua || CorpusSource.sahifa => const Color(0xFF135C78),
       CorpusSource.balagha => const Color(0xFF23563F),
       CorpusSource.fatwa => const Color(0xFF4A2260),
+      // Deep aubergine, distinct from the fatawa plum and the hadith teal.
+      CorpusSource.wiki => const Color(0xFF4B3B78),
     };
 
 IconData _collectionIcon(BookDefinition book) => switch (book.source) {
@@ -20,6 +22,7 @@ IconData _collectionIcon(BookDefinition book) => switch (book.source) {
       CorpusSource.dua || CorpusSource.sahifa => Icons.mosque_rounded,
       CorpusSource.balagha => Icons.auto_stories_rounded,
       CorpusSource.fatwa => Icons.gavel_rounded,
+      CorpusSource.wiki => Icons.travel_explore_rounded,
     };
 
 /// Shared, quiet chrome for ALL readers. Only the presentation is shared: each
@@ -36,6 +39,8 @@ class ReaderScaffold extends StatelessWidget {
     this.actions = const <Widget>[],
     this.headerAction,
     this.showAppearanceLabel = false,
+    this.fullScreen = false,
+    this.overlay,
   });
 
   final BookDefinition book;
@@ -46,21 +51,29 @@ class ReaderScaffold extends StatelessWidget {
   final List<Widget> actions;
   final Widget? headerAction;
   final bool showAppearanceLabel;
+
+  /// When true the app bar and its banner are hidden: the صفحہ is the whole
+  /// screen. The caller shows the small display bar (with the exit button)
+  /// through [overlay].
+  final bool fullScreen;
+
+  /// A floating control strip drawn over the متن (see `ReaderDisplayMode`).
+  final Widget? overlay;
   final Widget body;
 
   @override
   Widget build(BuildContext context) {
     final palette = preferences.palette;
-    final overlay = (palette.isNight ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
+    final overlayStyle = (palette.isNight ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
         .copyWith(statusBarColor: Colors.transparent, systemNavigationBarColor: palette.background);
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: overlay,
+      value: overlayStyle,
       child: Scaffold(
         backgroundColor: palette.background,
-        appBar: AppBar(
+        appBar: fullScreen ? null : AppBar(
           backgroundColor: palette.background,
           foregroundColor: palette.foreground,
-          systemOverlayStyle: overlay,
+          systemOverlayStyle: overlayStyle,
           centerTitle: true,
           title: Text(
             book.titleUrdu,
@@ -107,12 +120,17 @@ class ReaderScaffold extends StatelessWidget {
           ),
         ),
         body: SafeArea(
-          top: false,
+          top: fullScreen,
           bottom: false,
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 760),
-              child: body,
+              child: Stack(
+                children: <Widget>[
+                  Positioned.fill(child: body),
+                  if (overlay != null) Positioned.fill(child: overlay!),
+                ],
+              ),
             ),
           ),
         ),

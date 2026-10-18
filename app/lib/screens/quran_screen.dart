@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,6 +11,7 @@ import '../models.dart';
 import '../text_utils.dart' show arabicNumerals, parseReaderNumber;
 import '../widgets/reader_kit.dart';
 import '../widgets/reader_chrome.dart';
+import '../widgets/reader_display.dart';
 import '../widgets/chapter_wallpaper.dart';
 import '../widgets/mushaf_text.dart';
 import '../widgets/resume_card.dart';
@@ -383,7 +385,7 @@ class _QuranVerseList extends StatefulWidget {
   State<_QuranVerseList> createState() => _QuranVerseListState();
 }
 
-class _QuranVerseListState extends State<_QuranVerseList> {
+class _QuranVerseListState extends State<_QuranVerseList> with ReaderDisplayMode<_QuranVerseList> {
   final ItemScrollController _itemScrollController = ItemScrollController();
   final ItemPositionsListener _positions = ItemPositionsListener.create();
   int _initialIndex = 0;
@@ -402,6 +404,12 @@ class _QuranVerseListState extends State<_QuranVerseList> {
   void initState() {
     super.initState();
     unawaited(_load());
+  }
+
+  @override
+  void dispose() {
+    disposeReaderDisplay();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -514,7 +522,10 @@ class _QuranVerseListState extends State<_QuranVerseList> {
       preferences: _preferences,
       onPreferencesChanged: (value) => setState(() => _preferences = value),
       showAppearanceLabel: true,
+      fullScreen: readerFullScreen,
+      overlay: readerDisplayOverlay(context),
       actions: <Widget>[
+        readerDisplayActions(context, color: palette.accent),
         TextButton.icon(
           onPressed: () => showQuranJump(context, widget.library),
           style: TextButton.styleFrom(
@@ -536,7 +547,10 @@ class _QuranVerseListState extends State<_QuranVerseList> {
           side: BorderSide(color: palette.border),
         ),
         icon: Icon(_mushafMode ? Icons.check_circle_rounded : Icons.auto_stories_rounded, size: 18),
-        label: Text(_mushafMode ? 'مصحف موڈ • صرف عربی متن' : 'مصحف موڈ', style: const TextStyle(fontSize: 13)),
+        label: Text(
+          _mushafMode ? 'مصحف موڈ • آیت پر ٹیپ کریں' : 'مصحف موڈ',
+          style: const TextStyle(fontSize: 13),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -554,6 +568,7 @@ class _QuranVerseListState extends State<_QuranVerseList> {
                             ? ScrollablePositionedList.builder(
                                 key: PageStorageKey<String>('${widget.storageKey}-mushaf'),
                                 itemScrollController: _itemScrollController,
+                                scrollOffsetController: scrollOffsetController,
                                 itemPositionsListener: _positions,
                                 initialScrollIndex: _initialIndex,
                                 initialAlignment: 0.04,
@@ -569,12 +584,14 @@ class _QuranVerseListState extends State<_QuranVerseList> {
                                     group: _mushafGroups[index],
                                     palette: palette,
                                     fontScale: _preferences.fontScale,
+                                    onVerseTap: _showVerseSheet,
                                   );
                                 },
                               )
                             : ScrollablePositionedList.builder(
                           key: PageStorageKey(widget.storageKey),
                           itemScrollController: _itemScrollController,
+                          scrollOffsetController: scrollOffsetController,
                           itemPositionsListener: _positions,
                           initialScrollIndex: _initialIndex,
                           initialAlignment: 0.04,
@@ -602,6 +619,27 @@ class _QuranVerseListState extends State<_QuranVerseList> {
                       ),
                     ),
     );
+  }
+
+  /// The mushaf is Arabic only by design; a tap on an ayah opens its Urdu
+  /// translation and, when the database has one, its tafseer note with its own
+  /// show/hide control.
+  void _showVerseSheet(Passage verse) {
+    final palette = _preferences.palette;
+    unawaited(showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: palette.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (_) => _QuranVerseSheet(
+        verse: verse,
+        palette: palette,
+        fontScale: _preferences.fontScale,
+        surahTitle: widget.title,
+      ),
+    ));
   }
 
   void _goToVerse(int index) {
@@ -736,5 +774,185 @@ Future<void> showQuranJump(BuildContext context, LibraryRepository library) asyn
       library: library, surah: target.surah, initialRecordId: verse.recordId)));
   } catch (error) {
     if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error')));
+  }
+}
+
+
+/// One ayah, opened from the mushaf: the Arabic stays the hero, the Urdu
+/// translation is always visible, and tafseer is folded behind its own button.
+class _QuranVerseSheet extends StatefulWidget {
+  const _QuranVerseSheet({
+    required this.verse,
+    required this.palette,
+    required this.fontScale,
+    required this.surahTitle,
+  });
+
+  final Passage verse;
+  final ReaderPalette palette;
+  final double fontScale;
+  final String surahTitle;
+
+  @override
+  State<_QuranVerseSheet> createState() => _QuranVerseSheetState();
+}
+
+class _QuranVerseSheetState extends State<_QuranVerseSheet> {
+  bool _showTafseer = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = widget.palette;
+    final verse = widget.verse;
+    final hasTafseer = verse.commentary.trim().isNotEmpty;
+    final header = verse.locator.trim().isEmpty ? widget.surahTitle : verse.locator;
+    return SafeArea(
+      top: false,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.82),
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 22),
+          children: <Widget>[
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 14),
+                  decoration: BoxDecoration(
+                    color: palette.border,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      widget.surahTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: palette.accent),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: palette.accent.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      header,
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: palette.accent),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                verse.arabic,
+                textDirection: TextDirection.rtl,
+                textAlign: TextAlign.justify,
+                style: TextStyle(
+                  fontFamily: kArabicFont,
+                  fontSize: 27 * widget.fontScale,
+                  height: 1.9,
+                  color: palette.foreground,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Divider(color: palette.border),
+              const SizedBox(height: 8),
+              Row(
+                children: <Widget>[
+                  Icon(Icons.translate_rounded, size: 17, color: palette.accent),
+                  const SizedBox(width: 6),
+                  Text(
+                    'ترجمہ',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: palette.accent),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                verse.urdu.trim().isEmpty ? 'اس آیت کا ترجمہ دستیاب نہیں۔' : verse.urdu,
+                textDirection: TextDirection.rtl,
+                style: TextStyle(
+                  fontFamily: kUrduFont,
+                  fontSize: 18 * widget.fontScale,
+                  height: 1.75,
+                  color: palette.foreground,
+                ),
+              ),
+              if (hasTafseer) ...<Widget>[
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  key: const ValueKey<String>('quran-tafseer-toggle'),
+                  onPressed: () => setState(() => _showTafseer = !_showTafseer),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: palette.accent,
+                    side: BorderSide(color: palette.border),
+                    alignment: AlignmentDirectional.centerStart,
+                  ),
+                  icon: Icon(_showTafseer ? Icons.expand_less : Icons.expand_more, size: 19),
+                  label: Text(
+                    _showTafseer ? 'تفسیر چھپائیں' : 'تفسیر دکھائیں',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                if (_showTafseer)
+                  Container(
+                    key: const ValueKey<String>('quran-tafseer-body'),
+                    margin: const EdgeInsets.only(top: 10),
+                    padding: const EdgeInsets.all(13),
+                    decoration: BoxDecoration(
+                      color: palette.accent.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: palette.border),
+                    ),
+                    child: Text(
+                      verse.commentary,
+                      textDirection: TextDirection.rtl,
+                      style: TextStyle(
+                        fontFamily: kUrduFont,
+                        fontSize: 16.5 * widget.fontScale,
+                        height: 1.8,
+                        color: palette.foreground,
+                      ),
+                    ),
+                  ),
+              ],
+              const SizedBox(height: 16),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        await Clipboard.setData(ClipboardData(
+                          text: '${verse.arabic}\n\n${verse.urdu}\n\n${widget.surahTitle} • $header',
+                        ));
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('آیت کاپی ہو گئی۔')),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.copy_rounded, size: 18),
+                      label: const Text('کاپی کریں'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('بند کریں'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+    );
   }
 }

@@ -487,7 +487,11 @@ class _TimingGlassRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final window = schedule.window(now);
     final next = schedule.nextEntry(now);
-    final running = !window.previousNight && now.isBefore(window.endsAt);
+    // Between midnight and Fajr the running window is the previous night's
+    // Isha (window.previousNight); it is still the prayer the reader is in, so
+    // it carries the active mark. It no longer went blank for that half of
+    // the night.
+    final running = now.isBefore(window.endsAt);
     // A translucent strip rather than a blurred one: a blur over an animated
     // sky would be recomputed on every frame.
     return Container(
