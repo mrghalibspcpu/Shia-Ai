@@ -279,9 +279,9 @@ void main() {
       await tester.pump();
     }
     expect(tapped, <HomeDockItem>[
-      HomeDockItem.qibla,
       HomeDockItem.settings,
       HomeDockItem.bookmarks,
+      HomeDockItem.qibla,
       HomeDockItem.lastSeen,
       HomeDockItem.xplore,
     ]);
@@ -306,14 +306,16 @@ void main() {
     expect(first.top - canvas.top, lessThan(7));
     expect(search.bottom, closeTo(fatawa.bottom, 0.1));
     expect(dock.top - search.bottom, lessThan(8));
+    // The dock is laid out right-to-left, so the first of the five is the
+    // square on the right and the last is the one on the left.
     final firstIcon = tester.getRect(find.byKey(const ValueKey<String>('dock-icon-settings')));
     final lastIcon = tester.getRect(find.byKey(const ValueKey<String>('dock-icon-xplore')));
-    expect(firstIcon.left, closeTo(search.left, 0.1));
-    expect(lastIcon.right, closeTo(fatawa.right, 0.1));
+    expect(firstIcon.right, closeTo(fatawa.right, 0.1));
+    expect(lastIcon.left, closeTo(search.left, 0.1));
     // Qibla is the middle of the five, and it wears the Kaaba itself.
     expect(HomeDockItem.values[HomeDockItem.values.length ~/ 2], HomeDockItem.qibla);
     final qiblaIcon = tester.getRect(find.byKey(const ValueKey<String>('dock-icon-qibla')));
-    expect(qiblaIcon.center.dx, closeTo((firstIcon.left + lastIcon.right) / 2, 1.0));
+    expect(qiblaIcon.center.dx, closeTo((search.left + fatawa.right) / 2, 1.0));
     expect(
       tester
           .widget<Image>(find.descendant(
@@ -364,7 +366,11 @@ void main() {
     await settle(tester);
     expect(find.text('اس سال کے ایام'), findsOneWidget);
     expect(find.text('3 جمادی الاول 1448ھ — G-11، اسلام آباد'), findsOneWidget);
+    // The nearest day of the year first: 3 Jumada al-Thani 1448, a month off.
+    expect(find.text('شہادتِ حضرت فاطمہ زہرا س'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('یومِ عاشورہ'), 200);
     expect(find.text('یومِ عاشورہ'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('عیدِ غدیر'), 200);
     expect(find.text('عیدِ غدیر'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await shoot(tester, 'islamic-calendar');
