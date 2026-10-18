@@ -26,7 +26,7 @@ mixin ReaderDisplayMode<T extends StatefulWidget> on State<T> {
 
   Timer? _autoScrollTimer;
 
-  static const double _tickMillis = 220;
+  static const int _tickMillis = 220;
   static const double _basePixelsPerTick = 18;
 
   /// Starts or stops the auto-scroll. Safe to call without a mounted list.
@@ -42,7 +42,7 @@ mixin ReaderDisplayMode<T extends StatefulWidget> on State<T> {
     _autoScrollTimer?.cancel();
     autoScrolling = true;
     _autoScrollTimer = Timer.periodic(
-      const Duration(milliseconds: 220),
+      const Duration(milliseconds: _tickMillis),
       (_) => _autoScrollTick(),
     );
     if (mounted) setState(() {});
@@ -71,7 +71,7 @@ mixin ReaderDisplayMode<T extends StatefulWidget> on State<T> {
       try {
         await scrollOffsetController.animateScroll(
           offset: pixels,
-          duration: const Duration(milliseconds: _tickMillis.round()),
+          duration: const Duration(milliseconds: _tickMillis),
           curve: Curves.linear,
         );
       } catch (_) {

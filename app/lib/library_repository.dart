@@ -973,7 +973,7 @@ class LibraryRepository {
     if (book == null || !_installed.contains(book.key)) return const [];
     try {
       final db = await _openBook(book);
-      return db.rawQuery('''
+      return await db.rawQuery('''
         SELECT i.imam_number AS number, a.id AS article_id, a.title_ur AS title,
                a.character_count AS count
         FROM imams AS i JOIN articles AS a ON a.id = i.article_id
@@ -991,7 +991,7 @@ class LibraryRepository {
     if (book == null || !_installed.contains(book.key)) return const [];
     try {
       final db = await _openBook(book);
-      return db.rawQuery('''
+      return await db.rawQuery('''
         SELECT t.id AS id, t.title_ur AS title, a.id AS article_id, a.title_ur AS article_title,
                (SELECT COUNT(*) FROM topic_articles ta WHERE ta.topic_id = t.id) AS related
         FROM topics AS t JOIN articles AS a ON a.id = t.primary_article_id
