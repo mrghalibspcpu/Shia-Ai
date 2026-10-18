@@ -39,7 +39,7 @@ Future<void> pushReaderFor(
     case CorpusSource.sahifa:
     case CorpusSource.fatwa:
     case CorpusSource.hadith:
-    case CorpusSource.wiki:
+    case CorpusSource.encyclopedia:
       await navigator.push(MaterialPageRoute(
         builder: (_) => ReaderScreen(
           library: library,

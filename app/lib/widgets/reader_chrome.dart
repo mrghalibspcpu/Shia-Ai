@@ -13,7 +13,7 @@ Color readerCollectionColor(BookDefinition book) => switch (book.source) {
       CorpusSource.balagha => const Color(0xFF23563F),
       CorpusSource.fatwa => const Color(0xFF4A2260),
       // Deep aubergine, distinct from the fatawa plum and the hadith teal.
-      CorpusSource.wiki => const Color(0xFF4B3B78),
+      CorpusSource.encyclopedia => const Color(0xFF4B3B78),
     };
 
 IconData _collectionIcon(BookDefinition book) => switch (book.source) {
@@ -22,7 +22,7 @@ IconData _collectionIcon(BookDefinition book) => switch (book.source) {
       CorpusSource.dua || CorpusSource.sahifa => Icons.mosque_rounded,
       CorpusSource.balagha => Icons.auto_stories_rounded,
       CorpusSource.fatwa => Icons.gavel_rounded,
-      CorpusSource.wiki => Icons.travel_explore_rounded,
+      CorpusSource.encyclopedia => Icons.travel_explore_rounded,
     };
 
 /// Shared, quiet chrome for ALL readers. Only the presentation is shared: each

@@ -43,11 +43,15 @@ void main() {
 
   group('corpus catalogue', () {
     test('lists the 14 hadith books plus the four new collections', () {
-      // 1.18 added the Shia Urdu Wikipedia collection (نئی کتابیں).
+      // The curated encyclopaedia is the extra collection (نئی کتابیں).
       expect(BookDefinition.all, hasLength(21));
       expect(BookDefinition.hadithBooks, hasLength(14));
-      expect(BookDefinition.newBooks.map((book) => book.key), <String>['shia_wiki']);
-      expect(BookDefinition.byKey('shia_wiki')?.source, CorpusSource.wiki);
+      expect(
+        BookDefinition.newBooks.map((book) => book.key),
+        <String>['athna_ashari_encyclopedia'],
+      );
+      expect(BookDefinition.byKey('athna_ashari_encyclopedia')?.source,
+          CorpusSource.encyclopedia);
       expect(BookDefinition.byKey('tahzeeb')?.fileName, 'Tahzeeb.db');
       expect(BookDefinition.byKey('quran')?.source, CorpusSource.quran);
       expect(BookDefinition.byKey('mafatih')?.fileName, 'mafatihdb-v4.db');

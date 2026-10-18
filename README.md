@@ -1,36 +1,49 @@
 # ShiaVerse
 
-## New in 1.18 — wallpapers, a Qibla-up map, and the Wikipedia collection
+## New in 1.19 — the encyclopaedia, paper inside the cards, a clearer Qibla
 
-- **نئی کتابیں** in **Xplore** opens the Shia Urdu Wikipedia collection
-  (`shia_urdu_wikipedia.db`, 1,588 articles / 11,737 sections / 16,929 source
-  references, CC BY-SA 4.0). It is a normal library book: a cover card, the 11
-  categories, the twelve Imams, curated topics, in-book search, bookmarks,
-  notes and the same reader. Every article and every section card carries a
-  small **ماخذ** button that opens the exact `oldid` Wikipedia revision the
-  words came from, and the article list has the same button beside each title.
-- **Every متن page** (Quran, all hadith books, Mafatih, Nahj al-Balagha and
-  now the Wikipedia collection) gains a full-screen mode and a smooth,
-  adjustable auto-scroll: one play button in the app bar, −/＋ steps the pace
-  from 0.50× to 4.00×, and the strip stays at the bottom-left while the text
-  moves.
+- **نئی کتابیں** in **Xplore** now opens **اثنا عشری انسائکلوپیڈیا (منتخب)**
+  (`athna_ashari_encyclopedia.db`, 574 curated articles / 3,320 prose sections /
+  8,142 references, CC BY-SA 4.0). It ships as a normal library book: ten
+  chapters (ائمہ، اہل بیت و کربلا، عقائد، عبادات، کتب و دعائیں، علما، مقامات،
+  تاریخ، ادارے، دیگر), a shelf of the twelve Imams, six curated topics,
+  in-book search, bookmarks, notes and the same reader. Every section card
+  carries a small **ماخذ** button that opens the exact `oldid` revision, each
+  article closes with a numbered **ماخذ و حوالہ جات** card, and a
+  **مزید پڑھیں** row links only to articles this edition really contains. The
+  previous Shia Urdu Wikipedia collection is removed from the model, the
+  repository, the manifest, the scripts, the tests and the release assets.
+- **The four section wallpapers** (تسبیح، قبلہ نما، چاند کی رویت، اسلامی تقویم)
+  are now painted **inside every glass container** rather than behind the page,
+  which is what readers asked for. The page keeps a calm dark backdrop.
+- **Auto-scroll** gains much slower paces: the ladder now starts at **0.10×**
+  (0.10 → 0.15 → 0.20 → 0.25 → 0.30 → 0.35 → 0.40 → 0.50 → … → 4.00×), so
+  careful reading no longer needs the 0.50× floor that still felt fast.
+- The **mini prayer card** highlights the running prayer with a solid **emerald**
+  tile, never the rejected gold/yellow fill; the next prayer keeps its gold
+  outline.
+- **قبلہ نما**'s map is now an honest north-up diagram: north marked at the top,
+  a thick emerald arrow from «آپ» to a Kaaba mark, the bearing in degrees and
+  the distance right underneath. No tile downloads, no procedural streets, no
+  rotating map — it reads the same offline.
+- The **آیت / حکمتِ وقت** card also draws from **ہدایۃ العلم**: those lines show
+  the Urdu sentence and its reference only, in noticeably larger type.
+
+## New in 1.18 — reader polish
+
+- **Every متن page** (Quran, all hadith books, Mafatih, Nahj al-Balagha and the
+  encyclopaedia) gains a full-screen mode and a smooth, adjustable auto-scroll.
 - **مصحف موڈ** has become a reading surface: tapping any ayah (or its ﴿n﴾
   marker) opens the ayah with its Urdu translation, and **تفسیر دکھائیں /
   چھپائیں** folds the tafseer note in and out.
-- **قبلہ نما** now opens with the map already turned **قبلہ اوپر**: face the top
-  of the phone and that is the Qibla — no compass, angle or gesture. One tap
-  switches to the classic **شمال اوپر** map with the true-north ray.
-- The **mini prayer card** marks the running prayer with a solid gold tile in
-  both themes, and keeps Isha marked after midnight (until Fajr) instead of
-  going blank for the second half of the night.
-- **تسبیح**, **قبلہ نما**, **چاند کی رویت** and **اسلامی تقویم** are now painted
-  over their own full-page wallpaper — edge to edge behind the app bar and the
-  list — instead of a flat header image.
+- The **mini prayer card** keeps Isha marked after midnight (until Fajr) instead
+  of going blank for the second half of the night.
 
-The APK still downloads databases on first launch: the Wikipedia edition is
+The APK still downloads databases on first launch: the encyclopaedia edition is
 published gzipped with the rest of the corpus and verified against its SHA-256
-before it is installed. `assets/shia_urdu_wikipedia.db.gz` is the committed
-packaged copy; `google_drive/` (the raw 47 MB Drive ZIP) is git-ignored.
+before it is installed. `assets/athna_ashari_encyclopedia.db.gz` is the committed
+packaged copy (built by `scripts/build_encyclopedia_db.py`); `google_drive/` (the
+raw Drive ZIP) is git-ignored.
 
 ## New in 1.13 — reading and home polish
 
@@ -66,10 +79,12 @@ all run on the device.
 - `assets/quran.db`, `assets/mafatihdb-v4.db`, `assets/nahjul_balagha.db` — the
   three standalone collections, normalised to the same SQLite settings as the
   other books.
+- `assets/athna_ashari_encyclopedia.db.gz` — the prose-only encyclopaedia
+  edition (~2.5 MB gzipped / ~10 MB expanded), rebuilt from the Drive corpus by
+  `scripts/build_encyclopedia_db.py`.
 - `assets/database-manifest.json` — sizes, SHA-256 digests, row counts, titles,
-  and download locations for all 21 databases (the 1.18 Wikipedia edition
-  included). `app/assets/database-manifest.json` is the identical copy bundled
-  into the APK.
+  and download locations for all 21 databases (the encyclopaedia included).
+  `app/assets/database-manifest.json` is the identical copy bundled into the APK.
 - `scripts/` — normalisation, packaging, publishing, and verification tools.
 - `docs/apk-analysis.md` — findings and signing/licensing limits of the supplied
   compiled APK.

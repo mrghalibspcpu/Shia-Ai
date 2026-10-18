@@ -308,40 +308,76 @@ def fatwa(name: str):
     return check_book
 
 
-def wiki(connection: sqlite3.Connection) -> None:
-    """The Shia Urdu Wikipedia collection reads exactly like the other books."""
-    categories = run(connection, "FROM categories AS c\n        ORDER BY c.id")
-    check("wiki: eleven navigation groups", len(categories) == 11, f"{len(categories)}")
-    articles = run(
-        connection,
-        "JOIN article_categories AS ac ON ac.article_id = a.id\n        WHERE ac.category_id = ?",
-        (1,),
+def encyclopedia(connection: sqlite3.Connection) -> None:
+    """The encyclopaedia reads exactly like the other books."""
+    groups = connection.execute(
+        "SELECT title_ur, sort_order, article_count FROM groups ORDER BY sort_order"
+    ).fetchall()
+    check("encyclopedia: ten curated chapters", len(groups) == 10, f"{len(groups)}")
+    check(
+        "encyclopedia: every chapter has articles",
+        all((row[2] or 0) > 0 for row in groups),
+        f"{[row[2] for row in groups]}",
     )
-    check("wiki: one category lists its articles", len(articles) > 5, f"{len(articles)} articles")
+    check(
+        "encyclopedia: chapters are in a deliberate reading order",
+        [row[1] for row in groups] == sorted(row[1] for row in groups),
+        str([row[1] for row in groups]),
+    )
     # One article rendered as its ordered sections, which is what the reader
     # shows and every source chip is attached to.
+    article = connection.execute(
+        "SELECT a.id, a.title_ur FROM articles AS a ORDER BY a.character_count DESC LIMIT 1"
+    ).fetchone()
     sections = connection.execute(
         f"SELECT record_id, section_id, urdu, locator, source_url, article_url, ordinal "
         f"FROM ({extract_query('s.heading_ur AS locator')})",
-        (articles[0][0],),
+        (article[0],),
     ).fetchall()
-    check("wiki: an article opens as ordered sections", len(sections) >= 1, f"{len(sections)} sections")
+    check("encyclopedia: an article opens as ordered sections", len(sections) >= 1, f"{len(sections)} sections")
     ordered = [row[6] for row in sections]
-    check("wiki: sections arrive in reading order", ordered == sorted(ordered), str(ordered[:8]))
+    check("encyclopedia: sections arrive in reading order", ordered == sorted(ordered), str(ordered[:8]))
     with_text = [row for row in sections if str(row[2] or "").strip()]
-    check("wiki: every section carries Urdu text", len(with_text) == len(sections), f"{len(sections) - len(with_text)} blank")
+    check(
+        "encyclopedia: every section carries Urdu text",
+        len(with_text) == len(sections),
+        f"{len(sections) - len(with_text)} blank",
+    )
     # The reader falls back from the section URL to the article URL.
     sourced = [row for row in sections if str(row[4] or row[5] or "").startswith("https://")]
-    check("wiki: every section can open its source", len(sourced) == len(sections), f"{len(sections) - len(sourced)} without a URL")
+    check(
+        "encyclopedia: every section can open its source",
+        len(sourced) == len(sections),
+        f"{len(sections) - len(sourced)} without a URL",
+    )
     imams = run(connection, "FROM imams AS i JOIN articles AS a ON a.id = i.article_id\n        ORDER BY i.imam_number")
-    check("wiki: twelve Imam biographies", len(imams) == 12, f"{len(imams)}")
-    topics = run(connection, "FROM topics AS t JOIN articles AS a ON a.id = t.primary_article_id\n        ORDER BY t.id")
-    check("wiki: curated topics resolve to articles", len(topics) >= 5, f"{len(topics)}")
+    check("encyclopedia: twelve Imam biographies", len(imams) == 12, f"{len(imams)}")
+    topics = run(connection, "FROM topics AS t JOIN articles AS a ON a.id = t.article_id\n        ORDER BY t.id")
+    check("encyclopedia: curated topics resolve to articles", len(topics) >= 5, f"{len(topics)}")
     # The small «ماخذ» chip must have a real page for every reference it shows.
     blank_refs = connection.execute(
         "SELECT COUNT(*) FROM source_references WHERE source_url NOT LIKE 'https://%'"
     ).fetchone()[0]
-    check("wiki: references keep their permanent URLs", blank_refs == 0, f"{blank_refs} without a URL")
+    check("encyclopedia: references keep their permanent URLs", blank_refs == 0, f"{blank_refs} without a URL")
+    # Every article must give the reader at least one paragraph and one ماخذ.
+    empty_articles = connection.execute(
+        "SELECT COUNT(*) FROM articles a WHERE NOT EXISTS "
+        "(SELECT 1 FROM sections s WHERE s.article_id = a.id AND LENGTH(TRIM(s.plain_text)) > 0)"
+    ).fetchone()[0]
+    check("encyclopedia: no article is an empty shell", empty_articles == 0, f"{empty_articles} empty articles")
+    # «مزید پڑھیں» only ever points at an article that exists in this edition.
+    dangling = connection.execute(
+        "SELECT COUNT(*) FROM related_articles WHERE target_article_id IS NOT NULL "
+        "AND target_article_id NOT IN (SELECT id FROM articles)"
+    ).fetchone()[0]
+    check("encyclopedia: related links resolve", dangling == 0, f"{dangling} dangling links")
+    # The builder already strips wiki furniture; guard the reader against it.
+    furniture = connection.execute(
+        "SELECT COUNT(*) FROM sections WHERE plain_text LIKE '%{{%' "
+        "OR plain_text LIKE '%[[%' OR plain_text LIKE '%]]' "
+        "OR plain_text LIKE '%==%' OR plain_text LIKE '%|'"
+    ).fetchone()[0]
+    check("encyclopedia: no wiki markup reaches the reader", furniture == 0, f"{furniture} sections")
 
 
 def build_index(paths: dict[str, Path]) -> sqlite3.Connection:
@@ -365,7 +401,7 @@ def build_index(paths: dict[str, Path]) -> sqlite3.Connection:
         "sahifa": "SELECT d.ID AS record_id, d.t_id * 10000",
         "khamenei": "SELECT q.rowid AS record_id, q.category_id AS section_id",
         "sistani": "SELECT q.rowid AS record_id, q.category_id AS section_id",
-        "shia_wiki": "FROM sections AS s JOIN articles AS a ON a.id = s.article_id\n          ORDER BY s.article_id, s.ordinal",
+        "athna_ashari_encyclopedia": "FROM sections AS s JOIN articles AS a ON a.id = s.article_id\n          ORDER BY s.article_id, s.ordinal",
     }
     total = 0
     for source_key, fragment in fragments.items():
@@ -424,7 +460,7 @@ def search_probe(index: sqlite3.Connection) -> None:
 
 
 def run_checks(paths: dict[str, Path]) -> None:
-    needed = ("alkafi", "quran", "mafatih", "nahjul_balagha", "shia_wiki")
+    needed = ("alkafi", "quran", "mafatih", "nahjul_balagha", "athna_ashari_encyclopedia")
     missing = [key for key in needed if key not in paths]
     if missing:
         raise SystemExit(f"Missing databases for client SQL check: {missing}")
@@ -437,7 +473,7 @@ def run_checks(paths: dict[str, Path]) -> None:
         ("sahifa", sahifa),
         ("khamenei", fatwa("khamenei")),
         ("sistani", fatwa("sistani")),
-        ("shia_wiki", wiki),
+        ("athna_ashari_encyclopedia", encyclopedia),
     ):
         connection = sqlite3.connect(f"file:{paths[key]}?mode=ro", uri=True)
         try:

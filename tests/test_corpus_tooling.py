@@ -22,7 +22,7 @@ class DatabaseSpecTests(unittest.TestCase):
     def test_catalogue_covers_twenty_one_databases(self):
         self.assertEqual(len(DATABASES), 21)
         self.assertEqual(len([spec for spec in DATABASES if spec.source == "hadith"]), 14)
-        # 5 curated standalones + the 1.18 Wikipedia collection.
+        # 5 curated standalones + the curated encyclopaedia.
         self.assertEqual(len(EXTRA_DATABASES), 7)
 
     def test_keys_and_file_names_are_unique(self):
@@ -134,7 +134,7 @@ class ValidationTests(unittest.TestCase):
     """The three standalone collections are checked in, so validate them here."""
 
     def test_standalone_databases_open_and_match_their_spec(self):
-        # collect_databases() expands the gzipped Wikipedia edition into a
+        # collect_databases() expands the gzipped encyclopaedia edition into a
         # scratch copy, exactly as the release pipeline does.
         with prepare_databases.collect_databases(include_bundle=False) as collected:
             for spec, path in collected:
@@ -155,9 +155,10 @@ class ValidationTests(unittest.TestCase):
                     self.assertEqual(
                         connection.execute("PRAGMA page_size").fetchone()[0],
                         # safiha/fatwa are the publisher's own files; the
-                        # Wikipedia edition is a 57 MB corpus whose pages are
-                        # kept at 4 KiB (1 KiB pages would inflate it).
-                        4096 if spec.source in {"sahifa", "fatwa", "wiki"} else TARGET_PAGE_SIZE
+                        # encyclopaedia edition is built from a 79 MB corpus
+                        # whose pages are kept at 4 KiB (1 KiB pages would
+                        # inflate it), like the other large collections.
+                        4096 if spec.source in {"sahifa", "fatwa", "encyclopedia"} else TARGET_PAGE_SIZE
                     )
                     self.assertEqual(
                         str(connection.execute("PRAGMA encoding").fetchone()[0]).lower(), "utf-8"

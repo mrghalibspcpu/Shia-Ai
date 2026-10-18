@@ -567,7 +567,7 @@ class _PassageCardState extends State<PassageCard> {
                   // A Wikipedia section gets the small chip: the heading on the
                   // card is already the section, and a full-width box under
                   // every paragraph would bury the article.
-                  compact: widget.book.source == CorpusSource.wiki,
+                  compact: widget.book.source == CorpusSource.encyclopedia,
                 ),
               ],
             ],

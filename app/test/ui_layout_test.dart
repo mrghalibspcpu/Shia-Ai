@@ -359,6 +359,7 @@ void main() {
     expect(find.text('ننگی آنکھ سے دکھائی دے گا'), findsWidgets);
     expect(tester.takeException(), isNull);
     expect(find.byType(SectionBackground), findsOneWidget);
+    expectWallpaperInsidePanels(tester);
     await shoot(tester, 'crescent');
     await finish(tester, prayer, tasbeeh);
   });
@@ -389,6 +390,7 @@ void main() {
     await reveal('عیدِ غدیر');
     expect(tester.takeException(), isNull);
     expect(find.byType(SectionBackground), findsOneWidget);
+    expectWallpaperInsidePanels(tester);
     await shoot(tester, 'islamic-calendar');
     await finish(tester, prayer, tasbeeh);
   });
@@ -614,14 +616,14 @@ void main() {
     final resized = marker.image as ResizeImage;
     expect((resized.imageProvider as AssetImage).assetName, 'assets/images/kaaba_icon.png');
     expect(find.text('نقشے پر سمتِ قبلہ'), findsOneWidget);
-    // The map opens Qibla-up: the reader faces the top of the screen and needs
-    // no compass, angle or gesture. شمال اوپر switches to the north-up map.
-    expect(find.textContaining('نقشہ خود قبلہ کی سمت گھما ہوا ہے'), findsOneWidget);
-    expect(find.textContaining('تیر اسی طرف ہے'), findsOneWidget);
+    // The card is a north-up diagram, not a tile map: one thick arrow from
+    // «آپ» to the Kaaba, with the degrees spelled out underneath.
+    expect(find.byKey(const ValueKey<String>('qibla-map-diagram')), findsOneWidget);
+    expect(find.textContaining('نقشہ شمال اوپر ہے'), findsOneWidget);
+    expect(find.textContaining('اسی رخ منہ کر کے نماز پڑھیں'), findsOneWidget);
+    expect(find.text('شمال اوپر'), findsNothing);
     expect(find.byType(SectionBackground), findsOneWidget);
-    await tester.tap(find.text('شمال اوپر'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('سنہری تیر شمالِ حقیقی سے قبلہ کی طرف ہے'), findsOneWidget);
+    expectWallpaperInsidePanels(tester);
     expect(tester.takeException(), isNull);
     await shoot(tester, 'qibla-3d');
     await finish(tester, prayer, tasbeeh);
@@ -639,6 +641,7 @@ void main() {
     await settle(tester);
     expect(find.text('تعداد (ہدف)'), findsOneWidget);
     expect(find.byType(SectionBackground), findsOneWidget);
+    expectWallpaperInsidePanels(tester);
     await shoot(tester, 'tasbeeh-screen');
     await finish(tester, prayer, tasbeeh);
   });
@@ -711,4 +714,26 @@ class _PreviewReaderLibrary extends LibraryRepository {
 
   @override
   Future<List<Passage>> getBalaghaEntry(int type, int typeNo) async => _layoutText;
+}
+
+/// The section photograph must live INSIDE the glass containers now, not behind
+/// the page: at least one panel paints a `DecorationImage`, and no full-page
+/// wallpaper image is built.
+void expectWallpaperInsidePanels(WidgetTester tester) {
+  expect(find.byType(SectionWallpaper), findsOneWidget,
+      reason: 'the section must publish its wallpaper to the panels');
+  final papered = tester.widgetList<Container>(find.byType(Container)).where((container) {
+    final decoration = container.decoration;
+    return decoration is BoxDecoration && decoration.image != null;
+  });
+  expect(papered, isNotEmpty,
+      reason: 'the wallpaper must be painted inside the containers');
+  expect(
+    find.byWidgetPredicate((widget) =>
+        widget is Image &&
+        widget.key is ValueKey<String> &&
+        (widget.key! as ValueKey<String>).value.startsWith('section-background-')),
+    findsNothing,
+    reason: 'the page itself must not be painted with the wallpaper',
+  );
 }

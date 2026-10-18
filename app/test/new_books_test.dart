@@ -6,42 +6,57 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shia_ai/data_packages.dart';
 import 'package:shia_ai/models.dart';
 
-/// The **نئی کتابیں** shelf and its first book, the Shia Urdu Wikipedia
-/// collection. These checks run without any database: they pin the wiring
+/// The **نئی کتابیں** shelf and its first book, **اثنا عشری انسائکلوپیڈیا
+/// (منتخب)**. These checks run without any database: they pin the wiring
 /// (model, manifest, packaged asset) so a broken download can never ship.
 void main() {
   final manifestFile = File('assets/database-manifest.json');
-  final packedFile = File('../assets/shia_urdu_wikipedia.db.gz');
+  final packedFile = File('../assets/athna_ashari_encyclopedia.db.gz');
 
-  test('the Wikipedia collection is a normal library book', () {
-    final wiki = BookDefinition.byKey('shia_wiki');
-    expect(wiki, isNotNull);
-    expect(wiki!.titleUrdu, 'شیعہ اردو ویکیپیڈیا');
-    expect(wiki.fileName, 'shia_urdu_wikipedia.db');
-    expect(wiki.source, CorpusSource.wiki);
-    expect(wiki.source.label, 'نئی کتابیں');
+  test('the encyclopaedia is a normal library book', () {
+    final book = BookDefinition.byKey('athna_ashari_encyclopedia');
+    expect(book, isNotNull);
+    expect(book!.titleUrdu, 'اثنا عشری انسائکلوپیڈیا');
+    expect(book.fileName, 'athna_ashari_encyclopedia.db');
+    expect(book.source, CorpusSource.encyclopedia);
+    expect(book.source.label, 'نئی کتابیں');
     // It must not leak into the hadith shelf (that list drives the library
     // page and the per-book download prompts).
-    expect(BookDefinition.hadithBooks.map((book) => book.key), isNot(contains('shia_wiki')));
-    expect(BookDefinition.newBooks.map((book) => book.key), <String>['shia_wiki']);
-    expect(BookDefinition.all.where((book) => book.key == 'shia_wiki'), hasLength(1));
+    expect(BookDefinition.hadithBooks.map((book) => book.key),
+        isNot(contains('athna_ashari_encyclopedia')));
+    expect(BookDefinition.newBooks.map((book) => book.key),
+        <String>['athna_ashari_encyclopedia']);
+    expect(BookDefinition.all.where((book) => book.key == 'athna_ashari_encyclopedia'),
+        hasLength(1));
     // Appended last, so every existing book keeps the accent colour it had.
-    expect(BookDefinition.all.last.key, 'shia_wiki');
-    expect(BookDefinition.bookFor(CorpusSource.wiki)!.key, 'shia_wiki');
+    expect(BookDefinition.all.last.key, 'athna_ashari_encyclopedia');
+    expect(BookDefinition.bookFor(CorpusSource.encyclopedia)!.key,
+        'athna_ashari_encyclopedia');
+  });
+
+  test('the retired Wikipedia collection is gone from the catalogue', () {
+    expect(BookDefinition.byKey('shia_wiki'), isNull);
+    expect(BookDefinition.newBooks.map((book) => book.key), isNot(contains('shia_wiki')));
+    expect(CorpusSource.values.map((source) => source.wire), isNot(contains('wiki')));
+    final manifest = manifestFile.readAsStringSync();
+    expect(manifest.contains('shia_urdu_wikipedia'), isFalse);
+    expect(manifest.contains('"wiki"'), isFalse);
   });
 
   test('the manifest publishes the reader edition with a real digest', () {
     final catalog = DataCatalog.parse(manifestFile.readAsStringSync());
-    final package = catalog.byKey('shia_wiki');
+    final package = catalog.byKey('athna_ashari_encyclopedia');
     expect(package, isNotNull);
-    expect(package!.fileName, 'shia_urdu_wikipedia.db');
-    expect(package.titleUrdu, 'شیعہ اردو ویکیپیڈیا');
-    expect(package.source, 'wiki');
+    expect(package!.fileName, 'athna_ashari_encyclopedia.db');
+    expect(package.titleUrdu, 'اثنا عشری انسائکلوپیڈیا');
+    expect(package.source, 'encyclopedia');
     expect(package.sha256, hasLength(64));
     expect(package.sha256, matches(RegExp(r'^[0-9a-f]{64}$')));
-    expect(package.sizeBytes, greaterThan(50 * 1024 * 1024));
+    // The prose-only edition is around 10 MB; a manifest line advertising a
+    // small or empty file would mean the build silently lost the corpus.
+    expect(package.sizeBytes, greaterThan(5 * 1024 * 1024));
     expect(package.isDownloadable, isTrue);
-    // The app packages every database gzipped; the Wikipedia edition is no
+    // The app packages every database gzipped; the encyclopaedia is no
     // exception, and the installer unpacks and hashes it like the rest.
     expect(catalog.extension, '.gz');
     // The checked-in app copy of the manifest is the same document.
@@ -49,15 +64,13 @@ void main() {
         File('../assets/database-manifest.json').readAsStringSync());
   });
 
-  test('the committed .gz expands to exactly the published edition', () async {
+  test('the committed .gz expands to exactly the published edition', () {
     expect(packedFile.existsSync(), isTrue,
-        reason: 'assets/shia_urdu_wikipedia.db.gz must be committed');
+        reason: 'assets/athna_ashari_encyclopedia.db.gz must be committed');
     final manifest = jsonDecode(manifestFile.readAsStringSync()) as Map<String, dynamic>;
     final entry = (manifest['databases'] as List)
         .cast<Map<String, dynamic>>()
-        .firstWhere((item) => item['key'] == 'shia_wiki');
-    // 57 MB: fine for a test runner, and it proves the committed asset is
-    // byte-for-byte the database the manifest promises to every phone.
+        .firstWhere((item) => item['key'] == 'athna_ashari_encyclopedia');
     final bytes = gzip.decode(packedFile.readAsBytesSync());
     expect(bytes.length, entry['size_bytes']);
     // A real SQLite database, not a text file or a truncated download.

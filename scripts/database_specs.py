@@ -93,29 +93,34 @@ HADITH_BOOKS: tuple[tuple[str, str, str], ...] = (
 )
 
 EXTRA_DATABASES: tuple[DatabaseSpec, ...] = (
-    # 1.18 — the Shia Urdu Wikipedia collection. The checked-in file is the
-    # gzipped reader edition built by scripts/build_wikipedia_db.py; the plain
-    # .db is materialised by collect_databases() (and is git-ignored, like the
-    # other expanded database files).
+    # The curated encyclopaedia. The checked-in file is the gzipped reader
+    # edition built by scripts/build_encyclopedia_db.py from the Drive corpus;
+    # the plain .db is materialised by collect_databases() (and is git-ignored,
+    # like the other expanded database files).
     DatabaseSpec(
-        name="shia_urdu_wikipedia.db",
-        source="wiki",
-        key="shia_wiki",
-        title_urdu="شیعہ اردو ویکیپیڈیا",
-        title_latin="Shia Urdu Wikipedia",
+        name="athna_ashari_encyclopedia.db",
+        source="encyclopedia",
+        key="athna_ashari_encyclopedia",
+        title_urdu="اثنا عشری انسائکلوپیڈیا",
+        title_latin="Twelver Shia Encyclopedia",
         origin="assets",
         tables={
-            "articles": {"id", "wikipedia_page_id", "title_ur", "source_url",
-                         "history_url", "current_revision_id", "character_count",
-                         "license_id", "attribution", "verification_status"},
+            "articles": {"id", "title_ur", "group_id", "source_url", "history_url",
+                         "revision_id", "character_count", "excerpt", "license_id",
+                         "attribution"},
+            "groups": {"id", "slug", "title_ur", "sort_order", "article_count"},
             "sections": {"id", "article_id", "ordinal", "heading_ur",
-                         "heading_level", "source_url", "plain_text"},
-            "categories": {"id", "name_en", "name_ur"},
+                         "heading_level", "anchor", "source_url", "plain_text"},
+            "source_references": {"id", "article_id", "reference_anchor",
+                                  "reference_text", "source_url"},
             "imams": {"imam_number", "article_id"},
+            "topics": {"id", "slug", "title_ur", "article_id", "article_count"},
+            "related_articles": {"source_article_id", "target_article_id", "target_title"},
         },
         indexes=(
-            "CREATE INDEX IF NOT EXISTS shia_wiki_sections_article ON sections(article_id, ordinal)",
-            "CREATE INDEX IF NOT EXISTS shia_wiki_articles_title ON articles(title_ur)",
+            "CREATE INDEX IF NOT EXISTS shia_encyclopedia_sections_article ON sections(article_id, ordinal)",
+            "CREATE INDEX IF NOT EXISTS shia_encyclopedia_articles_title ON articles(title_ur)",
+            "CREATE INDEX IF NOT EXISTS shia_encyclopedia_articles_group ON articles(group_id, title_ur)",
         ),
         record_label="مضمون",
     ),

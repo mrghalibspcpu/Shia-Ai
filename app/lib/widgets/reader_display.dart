@@ -5,8 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 /// Full-screen reading and a smooth, speed-adjustable auto-scroll, shared by
-/// every متن reader (Quran, hadiths, Mafatih, Nahj al-Balagha and the new
-/// Wikipedia collection).
+/// every متن reader (Quran, hadiths, Mafatih, Nahj al-Balagha and the
+/// encyclopaedia).
 ///
 /// The readers all use `ScrollablePositionedList`.  Its own
 /// [ScrollOffsetController] can move the underlying scroll position by pixels,
@@ -21,8 +21,16 @@ mixin ReaderDisplayMode<T extends StatefulWidget> on State<T> {
   bool readerFullScreen = false;
   bool autoScrolling = false;
 
-  /// Multiplier on the base reading pace (~80 px/s). 0.5 is slow, 4 is fast.
+  /// Multiplier on the base reading pace (~80 px/s). 0.10× is a crawl for
+  /// careful reading, 4× is a skim.
   double autoScrollSpeed = 1.0;
+
+  /// The pace ladder the −/＋ buttons walk. It starts far below the old 0.50×
+  /// floor because that was still too fast for Urdu prose on a phone.
+  static const List<double> autoScrollSpeeds = <double>[
+    0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.50, 0.60, 0.75,
+    1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 4.00,
+  ];
 
   Timer? _autoScrollTimer;
 
@@ -56,10 +64,27 @@ mixin ReaderDisplayMode<T extends StatefulWidget> on State<T> {
   }
 
   void setAutoScrollSpeed(double value) {
-    final next = value.clamp(0.5, 4.0).toDouble();
+    final next = value.clamp(autoScrollSpeeds.first, autoScrollSpeeds.last).toDouble();
     if (next == autoScrollSpeed) return;
     setState(() => autoScrollSpeed = next);
   }
+
+  /// Walks the pace ladder one notch up or down.
+  void stepAutoScrollSpeed(int direction) {
+    var index = autoScrollSpeeds
+        .indexWhere((speed) => (speed - autoScrollSpeed).abs() < 0.001);
+    if (index < 0) {
+      // A speed saved by an older build (e.g. 0.90) snaps onto the ladder.
+      index = autoScrollSpeeds.indexWhere((speed) => speed >= autoScrollSpeed);
+      if (index < 0) index = autoScrollSpeeds.length - 1;
+    }
+    final next = (index + direction).clamp(0, autoScrollSpeeds.length - 1).toInt();
+    setAutoScrollSpeed(autoScrollSpeeds[next]);
+  }
+
+  /// True when the pace is already at the slowest end of the ladder.
+  bool get autoScrollAtSlowest => autoScrollSpeed <= autoScrollSpeeds.first;
+  bool get autoScrollAtFastest => autoScrollSpeed >= autoScrollSpeeds.last;
 
   void _autoScrollTick() {
     if (!autoScrolling || !mounted) return;
@@ -166,9 +191,9 @@ mixin ReaderDisplayMode<T extends StatefulWidget> on State<T> {
                   icon: Icon(autoScrolling ? Icons.pause_rounded : Icons.play_arrow_rounded),
                 ),
                 IconButton(
-                  tooltip: 'آہستہ',
+                  tooltip: 'آہستہ تر',
                   visualDensity: VisualDensity.compact,
-                  onPressed: () => setAutoScrollSpeed(autoScrollSpeed - 0.25),
+                  onPressed: autoScrollAtSlowest ? null : () => stepAutoScrollSpeed(-1),
                   icon: const Icon(Icons.remove_circle_outline_rounded, size: 20),
                 ),
                 SizedBox(
@@ -186,9 +211,9 @@ mixin ReaderDisplayMode<T extends StatefulWidget> on State<T> {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'تیز',
+                  tooltip: 'تیز تر',
                   visualDensity: VisualDensity.compact,
-                  onPressed: () => setAutoScrollSpeed(autoScrollSpeed + 0.25),
+                  onPressed: autoScrollAtFastest ? null : () => stepAutoScrollSpeed(1),
                   icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
                 ),
                 if (readerFullScreen)

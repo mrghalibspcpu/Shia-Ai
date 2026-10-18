@@ -442,7 +442,7 @@ class SectionListScreen extends StatelessWidget {
               final row = sections[index];
               final secid = _toInt(row['Secid']);
               final title = (row['title'] ?? '').toString();
-              final isWiki = book.source == CorpusSource.wiki;
+              final isEncyclopedia = book.source == CorpusSource.encyclopedia;
               final sourceUrl = (row['source_url'] ?? '').toString();
               final length = _toInt(row['count']) ?? 0;
               return ChapterWallpaperCard(
@@ -451,18 +451,20 @@ class SectionListScreen extends StatelessWidget {
                   leading: const Icon(Icons.article_outlined),
                   title: JustifiedText(title, style: const TextStyle(fontSize: 16)),
                   subtitle: JustifiedText(
-                    isWiki ? _wikiSubtitle(length) : 'فصل ${index + 1}',
+                    isEncyclopedia
+                        ? _articleSubtitle(length, partCount: _toInt(row['part_count']) ?? 0)
+                        : 'فصل ${index + 1}',
                     style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      // A Wikipedia article always keeps its own page one tap
-                      // away, right here in the list: the reader can check the
-                      // wording without opening the متن first.
-                      if (isWiki && sourceUrl.startsWith('http'))
+                      // An encyclopaedia article always keeps its own page one
+                      // tap away, right here in the list: the reader can check
+                      // the wording without opening the متن first.
+                      if (isEncyclopedia && sourceUrl.startsWith('http'))
                         IconButton(
-                          tooltip: 'اصل ویکیپیڈیا صفحہ کھولیں',
+                          tooltip: 'اصل صفحہ کھولیں',
                           visualDensity: VisualDensity.compact,
                           constraints: const BoxConstraints.tightFor(width: 34, height: 38),
                           padding: EdgeInsets.zero,
@@ -493,8 +495,8 @@ class SectionListScreen extends StatelessWidget {
   }
 }
 
-/// Opens a permanent Wikipedia revision in the browser; failures are spoken in
-/// Urdu instead of silently doing nothing.
+/// Opens a permanent source page in the browser; failures are spoken in Urdu
+/// instead of silently doing nothing.
 Future<void> _openVerifiedSource(BuildContext context, String url) async {
   final uri = Uri.tryParse(url);
   if (uri == null) return;
@@ -505,11 +507,12 @@ Future<void> _openVerifiedSource(BuildContext context, String url) async {
   );
 }
 
-/// "مضمون • تقریباً ۳ منٹ" for a Wikipedia article of [characters] characters.
-String _wikiSubtitle(int characters) {
+/// «مضمون • ۱۲ حصے • تقریباً ۳ منٹ» for an encyclopaedia article.
+String _articleSubtitle(int characters, {int partCount = 0}) {
   if (characters <= 0) return 'مضمون';
   final minutes = (characters / 900).ceil().clamp(1, 90).toInt();
-  return 'مضمون • تقریباً ${arabicNumerals(minutes)} منٹ';
+  final parts = partCount > 0 ? ' • ${arabicNumerals(partCount)} حصے' : '';
+  return 'مضمون$parts • تقریباً ${arabicNumerals(minutes)} منٹ';
 }
 
 class ReaderScreen extends StatefulWidget {
@@ -699,19 +702,37 @@ class _ReaderScreenState extends State<ReaderScreen> with ReaderDisplayMode<Read
                         if (index >= _passages.length) {
                           final navIndex = _navIndex;
                           final hasSectionNav = navIndex >= 0 && _navSections.length > 1;
-                          if (!hasSectionNav) return const SizedBox.shrink();
+                          final articleId = _currentSectionId;
+                          final related = widget.book.source == CorpusSource.encyclopedia &&
+                              articleId != null;
+                          if (!hasSectionNav && !related) {
+                            return const SizedBox.shrink();
+                          }
                           // Passage-by-passage buttons were removed from the
                           // end of the reader. Keep only the useful jump to a
-                          // different text/chapter when one exists.
-                          return ReaderPrevNextBar(
-                            key: const ValueKey<String>('reader-section-prev-next'),
-                            hasPrevious: navIndex > 0,
-                            hasNext: navIndex < _navSections.length - 1,
-                            onPrevious: () => _openAdjacentSection(-1),
-                            onNext: () => _openAdjacentSection(1),
-                            previousLabel: 'پچھلا متن',
-                            nextLabel: 'اگلا متن',
-                            label: 'متن ${navIndex + 1} از ${_navSections.length}',
+                          // different text/chapter when one exists, preceded by
+                          // the collection's own closing block.
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              if (related)
+                                EncyclopediaRelatedStrip(
+                                  library: widget.library,
+                                  book: widget.book,
+                                  articleId: articleId!,
+                                ),
+                              if (hasSectionNav)
+                                ReaderPrevNextBar(
+                                  key: const ValueKey<String>('reader-section-prev-next'),
+                                  hasPrevious: navIndex > 0,
+                                  hasNext: navIndex < _navSections.length - 1,
+                                  onPrevious: () => _openAdjacentSection(-1),
+                                  onNext: () => _openAdjacentSection(1),
+                                  previousLabel: 'پچھلا متن',
+                                  nextLabel: 'اگلا متن',
+                                  label: 'متن ${navIndex + 1} از ${_navSections.length}',
+                                ),
+                            ],
                           );
                         }
                         return PassageCard(
@@ -721,9 +742,9 @@ class _ReaderScreenState extends State<ReaderScreen> with ReaderDisplayMode<Read
                         passage: _passages[index],
                         palette: palette,
                         fontScale: _preferences.fontScale,
-                        // Wikipedia articles are Urdu prose; the Arabic-only
-                        // reader option would leave them blank.
-                        script: widget.book.source == CorpusSource.wiki
+                        // Encyclopaedia articles are Urdu prose; the
+                        // Arabic-only reader option would leave them blank.
+                        script: widget.book.source == CorpusSource.encyclopedia
                             ? 'urdu'
                             : (widget.searchQuery.isEmpty ? _preferences.script : 'both'),
                         searchQuery: widget.searchQuery,
@@ -738,6 +759,75 @@ class _ReaderScreenState extends State<ReaderScreen> with ReaderDisplayMode<Read
                       },
                       ),
                     ),
+    );
+  }
+}
+
+/// The «مزید پڑھیں» row at the end of an encyclopaedia article.
+///
+/// Only links that resolve to an article inside this edition are shown, so a
+/// tap never hits a dead end. The next article replaces the open one, keeping
+/// the back button pointed at the list the reader came from.
+class EncyclopediaRelatedStrip extends StatelessWidget {
+  const EncyclopediaRelatedStrip({
+    super.key,
+    required this.library,
+    required this.book,
+    required this.articleId,
+  });
+
+  final LibraryRepository library;
+  final BookDefinition book;
+  final int articleId;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return FutureBuilder<List<({int id, String title})>>(
+      future: library.getEncyclopediaRelated(book, articleId),
+      builder: (context, snapshot) {
+        final related = snapshot.data ?? const <({int id, String title})>[];
+        if (related.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(Icons.link_rounded, size: 17, color: scheme.secondary),
+                  const SizedBox(width: 6),
+                  const JustifiedText(
+                    'مزید پڑھیں',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 7),
+              Wrap(
+                spacing: 7,
+                runSpacing: 7,
+                children: <Widget>[
+                  for (final item in related)
+                    ActionChip(
+                      label: JustifiedText(item.title, style: const TextStyle(fontSize: 12.5)),
+                      onPressed: () => Navigator.of(context).pushReplacement(
+                        MaterialPageRoute<void>(
+                          builder: (_) => ReaderScreen(
+                            library: library,
+                            book: book,
+                            sectionId: item.id,
+                            sectionTitle: item.title,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

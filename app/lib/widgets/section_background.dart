@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../app_theme.dart';
+import 'glass_panel.dart';
 
 /// The four daily-utility sections — تسبیح و ذکر, قبلہ نما, چاند کی رویت and
-/// اسلامی تقویم — share one full-page wallpaper instead of a flat colour.
+/// اسلامی تقویم — share one **container** wallpaper per section.
 ///
-/// The image is painted edge to edge behind `child`; a vertical scrim keeps
-/// every glass panel and every line of text readable in both themes, and the
-/// status-bar icons are forced light because the wallpaper is always dark.
-/// The page's own [Scaffold] must use a transparent background (the screens
-/// pass `Colors.transparent`); nothing else about their layout changes.
+/// The photograph is no longer painted behind the page. It is published through
+/// [SectionWallpaper] and every [GlassPanel] below paints it as its own
+/// background, which is what readers asked for ("container ke andar"). The page
+/// keeps a calm, dark backdrop so the glass edges still read, and the dark
+/// palette keeps every label's contrast exactly as before.
 class SectionBackground extends StatelessWidget {
   const SectionBackground({
     super.key,
@@ -19,60 +20,45 @@ class SectionBackground extends StatelessWidget {
     this.dim = 0.52,
   });
 
-  /// Bundled wallpaper (`assets/images/wall_*.jpg`).
+  /// Bundled wallpaper (`assets/images/wall_*.jpg`) handed to each panel.
   final String asset;
 
-  /// The page itself. It is built INSIDE the dark theme and the wallpaper
-  /// stack, so `GlassPalette.of(context)` returns the dark glass palette and
-  /// every panel is legible over the photograph even in the light theme.
+  /// The page itself. It is built INSIDE the dark theme, so
+  /// `GlassPalette.of(context)` returns the dark glass palette and every panel
+  /// is legible in both app themes.
   final WidgetBuilder builder;
 
-  /// 0…1 — how much of the wallpaper's brightness is taken away behind the
-  /// content. 0.45 keeps a bright wallpaper calm; the night skies use less.
+  /// 0…1 — retained for call sites; it now tunes the page backdrop's depth.
   final double dim;
 
   @override
   Widget build(BuildContext context) {
-    final top = Colors.black.withValues(alpha: (dim * 0.55).clamp(0.0, 1.0));
-    final bottom = Colors.black.withValues(alpha: dim.clamp(0.0, 1.0));
+    final depth = dim.clamp(0.0, 1.0);
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
         statusBarColor: Colors.transparent,
         systemNavigationBarColor: const Color(0xFF0B1B14),
         systemNavigationBarIconBrightness: Brightness.light,
       ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: <Widget>[
-          Image.asset(
-            asset,
-            key: ValueKey<String>('section-background-$asset'),
-            fit: BoxFit.cover,
-            // 900 px is more than a 360 dp phone needs at 3× and keeps the
-            // decoded bitmap at ~5 MB instead of the full 1600 px file.
-            cacheWidth: 900,
-            filterQuality: FilterQuality.medium,
-            errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFF0F2A1E)),
+      child: DecoratedBox(
+        key: ValueKey<String>('section-backdrop-$asset'),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: <Color>[
+              Color.lerp(const Color(0xFF0E1A15), const Color(0xFF050B09), depth)!,
+              Color.lerp(const Color(0xFF12251D), const Color(0xFF0A1611), depth)!,
+            ],
           ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: <Color>[top, bottom],
-              ),
-            ),
-          ),
-          // The wallpaper is always a dark, photographic page. These four
-          // sections therefore use the same dark glass panels in both app
-          // themes, so the wallpaper is genuinely visible instead of being
-          // covered by a near-opaque light scrim, and every label keeps the
-          // contrast it had before.
-          Theme(
-            data: buildDarkTheme().copyWith(scaffoldBackgroundColor: Colors.transparent),
+        ),
+        child: Theme(
+          data: buildDarkTheme().copyWith(scaffoldBackgroundColor: Colors.transparent),
+          child: SectionWallpaper(
+            asset: asset,
             child: Builder(builder: builder),
           ),
-        ],
+        ),
       ),
     );
   }

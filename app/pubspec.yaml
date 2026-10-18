@@ -1,7 +1,7 @@
 name: shia_ai
 publish_to: "none"
 description: Offline Shia library — Quran, Mafatih al-Jinan, Nahj al-Balagha, and 14 hadith books.
-version: 1.18.0+23
+version: 1.19.0+24
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -66,9 +66,10 @@ flutter:
     - assets/images/sky_day.jpg
     - assets/images/sky_evening.jpg
     - assets/images/sky_night.jpg
-    # 1.18 — one full-page wallpaper behind each of the four utility sections
-    # (تسبیح، قبلہ نما، چاند کی رویت، اسلامی تقویم). ~1 MB together, cropped to
-    # 900x1600 and decoded at 900 px wide.
+    # One wallpaper per utility section (تسبیح، قبلہ نما، چاند کی رویت، اسلامی
+    # تقویم). Since 1.19 it is painted INSIDE each glass container instead of
+    # behind the page. ~1 MB together, cropped to 900x1600 and decoded at 900 px
+    # wide.
     - assets/images/wall_tasbeeh.jpg
     - assets/images/wall_qibla.jpg
     - assets/images/wall_crescent.jpg

@@ -98,6 +98,25 @@ class GlassPalette {
   );
 }
 
+/// Provides the section wallpaper to every [GlassPanel] below it.
+///
+/// The four utility sections (تسبیح، قبلہ نما، چاند کی رویت، اسلامی تقویم) used
+/// to paint their wallpaper over the whole page. Readers asked for the paper
+/// **inside each container** instead, so the page now provides the asset here
+/// and every glass panel paints it as its own background.
+class SectionWallpaper extends InheritedWidget {
+  const SectionWallpaper({super.key, required this.asset, required super.child});
+
+  /// Bundled wallpaper (`assets/images/wall_*.jpg`).
+  final String asset;
+
+  static String? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<SectionWallpaper>()?.asset;
+
+  @override
+  bool updateShouldNotify(SectionWallpaper oldWidget) => oldWidget.asset != asset;
+}
+
 /// A frosted container: translucent fill, hairline border, soft elevation.
 ///
 /// [blur] is deliberately small — a large sigma on a light background turns
@@ -113,6 +132,8 @@ class GlassPanel extends StatelessWidget {
     this.border,
     this.shadow = true,
     this.margin,
+    this.wallpaper,
+    this.wallpaperOpacity = 0.30,
   });
 
   final Widget child;
@@ -124,10 +145,26 @@ class GlassPanel extends StatelessWidget {
   final bool shadow;
   final EdgeInsetsGeometry? margin;
 
+  /// Paper painted **inside** this panel. When null, the surrounding
+  /// [SectionWallpaper] supplies it; outside those sections the panel stays
+  /// plain glass.
+  final String? wallpaper;
+
+  /// How strongly the paper shows through the glass fill.
+  final double wallpaperOpacity;
+
+  /// True when a paper really was found for this panel (for tests and for
+  /// callers that want to skip a paper on a tiny chip).
+  bool hasWallpaper(BuildContext context) => (wallpaper ?? SectionWallpaper.of(context)) != null;
+
   @override
   Widget build(BuildContext context) {
     final palette = GlassPalette.of(context);
     final radiusValue = BorderRadius.circular(radius);
+    final paper = wallpaper ?? SectionWallpaper.of(context);
+    // Dark glass swallows a photo; light glass needs a lighter hand, so the
+    // same paper reads as texture in both palettes without hiding the text.
+    final paperOpacity = palette.isDark ? wallpaperOpacity : wallpaperOpacity * 0.82;
     return Container(
       margin: margin,
       decoration: BoxDecoration(
@@ -152,6 +189,14 @@ class GlassPanel extends StatelessWidget {
               color: fill ?? palette.fill,
               borderRadius: radiusValue,
               border: Border.all(color: border ?? palette.border, width: 1),
+              image: paper == null
+                  ? null
+                  : DecorationImage(
+                      image: AssetImage(paper),
+                      fit: BoxFit.cover,
+                      opacity: paperOpacity,
+                      filterQuality: FilterQuality.medium,
+                    ),
             ),
             child: child,
           ),

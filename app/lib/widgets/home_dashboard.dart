@@ -468,7 +468,7 @@ class HomeDashboard extends StatelessWidget {
       // The dial is width-limited on tall phones. Give its otherwise-empty
       // space to the moment card, so that card reaches almost to the dial's
       // upper edge without pulling the dial away from the search bar.
-      final minimumMoment = (height * 0.12).clamp(60.0, 78.0).toDouble();
+      final minimumMoment = (height * 0.13).clamp(66.0, 88.0).toDouble();
       final roomForDial = height - prayerHeight - minimumMoment - 2 * _rowGap - _searchHeight;
       final dialDiameter = math.min(constraints.maxWidth, roomForDial) * 0.99;
       final momentHeight = height - prayerHeight - 2 * _rowGap - _searchHeight - dialDiameter;
@@ -827,14 +827,14 @@ class _MiniPrayerCell extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 1.5),
         padding: EdgeInsets.symmetric(vertical: active ? 3 : 1, horizontal: 2),
         decoration: BoxDecoration(
-          // The running prayer is a solid gold tile with dark ink, not a faint
-          // white wash: on a bright sky the old 24%-white fill was almost
-          // invisible, which is exactly what readers reported.
+          // The running prayer gets a solid emerald tile: strong enough to read
+          // at a glance on the sky, but deliberately NOT the gold/yellow fill
+          // readers rejected — gold stays for the *next* prayer's outline.
           gradient: active
-              ? LinearGradient(
+              ? const LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: <Color>[gold, Color(0xFFE9B45C)],
+                  colors: <Color>[_activeEmerald, _activeEmeraldDeep],
                 )
               : null,
           color: active
@@ -849,7 +849,7 @@ class _MiniPrayerCell extends StatelessWidget {
           ),
           boxShadow: active
               ? <BoxShadow>[
-                  BoxShadow(color: gold.withValues(alpha: 0.55), blurRadius: 10, offset: const Offset(0, 3)),
+                  BoxShadow(color: _activeEmerald.withValues(alpha: 0.55), blurRadius: 10, offset: const Offset(0, 3)),
                 ]
               : null,
         ),
@@ -863,7 +863,7 @@ class _MiniPrayerCell extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.clip,
                 style: _onSky(active ? 16 : 14.5, weight: lit ? FontWeight.w800 : FontWeight.w700, height: 1.25,
-                    color: active ? const Color(0xFF4A2A05) : Colors.white),
+                    color: Colors.white),
               ),
               FittedBox(
                 fit: BoxFit.scaleDown,
@@ -871,7 +871,7 @@ class _MiniPrayerCell extends StatelessWidget {
                   formatClockDigitsUrdu(entry.time),
                   textDirection: TextDirection.ltr,
                   style: _onSky(active ? 16 : 14.5, weight: FontWeight.w800, digits: true, height: 1,
-                      color: active ? const Color(0xFF3A2003) : (upcoming ? gold : Colors.white)),
+                      color: active ? Colors.white : (upcoming ? gold : Colors.white)),
                 ),
               ),
               const SizedBox(height: 1),
@@ -899,7 +899,7 @@ class _MiniPrayerCell extends StatelessWidget {
   }
 }
 
-/// The small gold **Now** badge on the prayer that is running.
+/// The small white **Now** badge on the prayer that is running.
 class _NowTag extends StatelessWidget {
   const _NowTag();
 
@@ -908,7 +908,7 @@ class _NowTag extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 0.5),
       decoration: BoxDecoration(
-        color: const Color(0xFF4A2A05),
+        color: Colors.white.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(7),
       ),
       child: const Text(
@@ -918,13 +918,17 @@ class _NowTag extends StatelessWidget {
           fontFamily: kDigitFont,
           fontSize: 8.5,
           height: 1.2,
-          fontWeight: FontWeight.w800,
-          color: Color(0xFFFFE9C4),
+          fontWeight: FontWeight.w900,
+          color: _activeEmeraldDeep,
         ),
       ),
     );
   }
 }
+
+/// The running prayer's tile: emerald, never gold.
+const Color _activeEmerald = Color(0xFF0E9AA7);
+const Color _activeEmeraldDeep = Color(0xFF0A6E62);
 
 /// 8 — **آیت / حدیثِ وقت**: one short verse with its translation, or a short
 /// narration from Mizan al-Hikmah, rolled once per app start and changed by the
@@ -991,6 +995,9 @@ class _MomentCardState extends State<_MomentCard> {
     final palette = DashboardPalette.of(context);
     final source = _lines.isEmpty ? kFallbackMoments : _lines;
     final line = source[_index % source.length];
+    // Hidayat al-Ilm arrives as Urdu only (it is already a translation), so
+    // the card drops the Arabic row and gives the sentence the freed space.
+    final hasArabic = line.arabic.trim().isNotEmpty;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1034,32 +1041,36 @@ class _MomentCardState extends State<_MomentCard> {
                             // One line always: a short ayah is still longer
                             // than the card on a small phone, so it scales
                             // down instead of clipping half a word.
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: AlignmentDirectional.centerStart,
-                              child: Text(
-                                line.arabic,
-                                maxLines: 1,
-                                textDirection: TextDirection.rtl,
-                                style: TextStyle(
-                                  fontFamily: kArabicFont,
-                                  fontSize: 14,
-                                  height: 1.35,
-                                  color: palette.momentInk,
+                            if (hasArabic)
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: AlignmentDirectional.centerStart,
+                                child: Text(
+                                  line.arabic,
+                                  maxLines: 1,
+                                  textDirection: TextDirection.rtl,
+                                  style: TextStyle(
+                                    fontFamily: kArabicFont,
+                                    fontSize: 14,
+                                    height: 1.35,
+                                    color: palette.momentInk,
+                                  ),
                                 ),
                               ),
-                            ),
                             Text(
                               line.urdu,
-                              maxLines: 2,
+                              maxLines: hasArabic ? 2 : 3,
                               overflow: TextOverflow.ellipsis,
                               textDirection: TextDirection.rtl,
                               style: TextStyle(
                                 fontFamily: kUrduFont,
-                                fontSize: 12,
-                                height: 1.35,
-                                fontWeight: FontWeight.w600,
-                                color: palette.momentInk.withValues(alpha: 0.88),
+                                // Urdu-only lines are the point of the card:
+                                // no Arabic row, so the sentence is larger and
+                                // comfortable to read at a glance.
+                                fontSize: hasArabic ? 12 : 15.5,
+                                height: hasArabic ? 1.35 : 1.5,
+                                fontWeight: hasArabic ? FontWeight.w600 : FontWeight.w700,
+                                color: palette.momentInk.withValues(alpha: 0.9),
                               ),
                             ),
                             Text(

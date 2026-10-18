@@ -1,4 +1,4 @@
-enum CorpusSource { hadith, quran, dua, balagha, sahifa, fatwa, wiki }
+enum CorpusSource { hadith, quran, dua, balagha, sahifa, fatwa, encyclopedia }
 
 extension CorpusSourceX on CorpusSource {
   /// Urdu label used by the search filter and library sections.
@@ -9,7 +9,7 @@ extension CorpusSourceX on CorpusSource {
         CorpusSource.balagha => 'نہج البلاغہ',
         CorpusSource.sahifa => 'صحیفہ سجادیہ',
         CorpusSource.fatwa => 'فتاویٰ',
-        CorpusSource.wiki => 'نئی کتابیں',
+        CorpusSource.encyclopedia => 'نئی کتابیں',
       };
 
   /// Wire value stored in the search index and the manifest.
@@ -20,7 +20,7 @@ extension CorpusSourceX on CorpusSource {
         CorpusSource.balagha => 'balagha',
         CorpusSource.sahifa => 'sahifa',
         CorpusSource.fatwa => 'fatwa',
-        CorpusSource.wiki => 'wiki',
+        CorpusSource.encyclopedia => 'encyclopedia',
       };
 }
 
@@ -63,7 +63,7 @@ CorpusSource corpusSourceFromWire(String? value) => switch (value) {
       'balagha' => CorpusSource.balagha,
       'sahifa' => CorpusSource.sahifa,
       'fatwa' => CorpusSource.fatwa,
-      'wiki' => CorpusSource.wiki,
+      'encyclopedia' => CorpusSource.encyclopedia,
       _ => CorpusSource.hadith,
     };
 
@@ -150,16 +150,16 @@ class BookDefinition {
       source: CorpusSource.balagha,
       recordLabel: 'فقرا',
     ),
-    // 1.18 — the Shia Urdu Wikipedia collection. It is appended LAST on
-    // purpose: `bookAccent` indexes this list, so no existing book changes
-    // colour, and every older key/file name stays exactly where it was.
+    // The curated encyclopaedia. It is appended LAST on purpose:
+    // `bookAccent` indexes this list, so no existing book changes colour, and
+    // every older key/file name stays exactly where it was.
     BookDefinition(
-      key: 'shia_wiki',
-      fileName: 'shia_urdu_wikipedia.db',
-      titleUrdu: 'شیعہ اردو ویکیپیڈیا',
-      titleLatin: 'Shia Urdu Wikipedia',
-      description: 'شیعہ عقائد، ائمہ، تاریخ، کتب اور مقامات — ہر مضمون کے اصل ماخذ کے ساتھ',
-      source: CorpusSource.wiki,
+      key: 'athna_ashari_encyclopedia',
+      fileName: 'athna_ashari_encyclopedia.db',
+      titleUrdu: 'اثنا عشری انسائکلوپیڈیا',
+      titleLatin: 'Twelver Shia Encyclopedia',
+      description: 'ائمہ، اہل بیت، عقائد، عبادات، کتب اور مقامات — منتخب مضامین، اصل ماخذ کے ساتھ',
+      source: CorpusSource.encyclopedia,
       recordLabel: 'مضمون',
     ),
   ];
@@ -168,10 +168,10 @@ class BookDefinition {
       all.where((book) => book.source == CorpusSource.hadith).toList();
 
   /// Books added after the original corpus, shown under **Xplore → نئی کتابیں**
-  /// instead of the home rail. The Shia Urdu Wikipedia collection is the first
-  /// of them; adding another is one more entry here.
+  /// instead of the home rail. The encyclopaedia is the first of them; adding
+  /// another is one more entry here.
   static List<BookDefinition> get newBooks =>
-      all.where((book) => book.source == CorpusSource.wiki).toList();
+      all.where((book) => book.source == CorpusSource.encyclopedia).toList();
 
   static BookDefinition? bookFor(CorpusSource source) {
     for (final book in all) {

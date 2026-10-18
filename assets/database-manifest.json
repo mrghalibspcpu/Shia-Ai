@@ -235,6 +235,25 @@
       }
     },
     {
+      "name": "athna_ashari_encyclopedia.db",
+      "key": "athna_ashari_encyclopedia",
+      "source": "encyclopedia",
+      "title_urdu": "اثنا عشری انسائکلوپیڈیا",
+      "title_latin": "Twelver Shia Encyclopedia",
+      "record_label": "مضمون",
+      "size_bytes": 10625024,
+      "sha256": "86f138156722a6ad5a4555dfab74d3947bc727d0c6e4b262e162395e632c524b",
+      "records": {
+        "articles": 574,
+        "groups": 10,
+        "sections": 3320,
+        "source_references": 8142,
+        "imams": 12,
+        "topics": 6,
+        "related_articles": 4093
+      }
+    },
+    {
       "name": "khamenei_urdu_fatawa.sqlite",
       "key": "khamenei",
       "source": "fatwa",
@@ -304,22 +323,6 @@
       "records": {
         "saheefa_data": 4993,
         "saheefa_index": 148
-      }
-    },
-    {
-      "name": "shia_urdu_wikipedia.db",
-      "key": "shia_wiki",
-      "source": "wiki",
-      "title_urdu": "شیعہ اردو ویکیپیڈیا",
-      "title_latin": "Shia Urdu Wikipedia",
-      "record_label": "مضمون",
-      "size_bytes": 57389056,
-      "sha256": "1c9de11f08d4ebb0a4a768e6e926ca3500f91bfafa8d81d094d77f73e6eafc96",
-      "records": {
-        "articles": 1588,
-        "sections": 11737,
-        "categories": 11,
-        "imams": 12
       }
     },
     {

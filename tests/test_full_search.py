@@ -19,7 +19,7 @@ class FullSearchCoverageTests(unittest.TestCase):
             'balagha': 'UNION ALL\n          SELECT -h.ID',
             'sahifa': 'SELECT d.ID AS record_id, d.t_id * 10000',
             'fatwa': 'SELECT q.rowid AS record_id, q.category_id AS section_id',
-            'wiki': 'FROM sections AS s JOIN articles AS a ON a.id = s.article_id\n          ORDER BY s.article_id, s.ordinal',
+            'encyclopedia': 'FROM sections AS s JOIN articles AS a ON a.id = s.article_id\n          ORDER BY s.article_id, s.ordinal',
         }
         with collect_databases() as collected:
             self.assertEqual(len(collected), 21)
@@ -32,7 +32,7 @@ class FullSearchCoverageTests(unittest.TestCase):
                                    for t in ({'hadith': ['Parags'], 'quran': ['Quran'], 'dua': ['M_items'],
                                               'balagha': ['balaghatext', 'balaghatext_hawashi', 'balaghatext_muqadamat'],
                                               'sahifa': ['saheefa_data'], 'fatwa': ['question_answers'],
-                                              'wiki': ['sections']}[spec.source]))
+                                              'encyclopedia': ['sections']}[spec.source]))
                     if spec.source == 'hadith':
                         expected = db.execute("SELECT COUNT(*) FROM Parags WHERE LENGTH(COALESCE(txt,''))>0 OR LENGTH(COALESCE(mean,''))>0").fetchone()[0]
                     elif spec.source == 'sahifa':

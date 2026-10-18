@@ -136,7 +136,7 @@ void main() {
     expect(find.text('1.00×'), findsOneWidget);
     // The strip's own +/- controls change the pace; they are practical enough
     // to use with a thumb while the text is moving.
-    await tester.tap(find.byTooltip('تیز'));
+    await tester.tap(find.byTooltip('تیز تر'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('1.25×'), findsOneWidget);
     await tester.tap(find.byTooltip('روکیں'));
