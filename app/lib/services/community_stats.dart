@@ -110,15 +110,15 @@ class CommunityStatsService {
   Future<CommunityStats> refresh() async {
     try {
       final response = await _client.get(statsUrl).timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200) return cached();
+      if (response.statusCode != 200) return await cached();
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
-      if (decoded is! Map) return cached();
+      if (decoded is! Map) return await cached();
       final stats = CommunityStats.fromJson(decoded.cast<String, dynamic>());
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_statsKey, jsonEncode(stats.toJson()));
       return stats;
     } catch (_) {
-      return cached();
+      return await cached();
     }
   }
 }

@@ -12,7 +12,9 @@ import '../services/place_names.dart';
 import '../services/prayer_controller.dart';
 import '../services/prayer_locations.dart';
 import '../services/prayer_scope.dart';
+import '../astro/sky_phase.dart';
 import '../widgets/glass_panel.dart';
+import '../widgets/sky_backdrop.dart';
 import 'qibla_screen.dart';
 import 'tasbeeh_screen.dart';
 
@@ -130,6 +132,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
             const SizedBox(height: 12),
           ],
           _HeroHeader(schedule: schedule, controller: controller),
+          const SizedBox(height: 12),
+          _LocationDetailsContainer(controller: controller),
           const SizedBox(height: 12),
           _NextPrayerCard(controller: controller, schedule: schedule),
           const SizedBox(height: 12),
