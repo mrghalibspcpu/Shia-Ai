@@ -138,17 +138,24 @@ Future<void> openHomeSection(
 /// The collections already have their own side rail. The dock is for the
 /// reader's personal tools instead, with English names on every button.
 enum HomeDockItem {
-  qibla('Qibla', Icons.explore_rounded, Color(0xFF00897B)),
   settings('Settings', Icons.settings_rounded, Color(0xFF19654C)),
   bookmarks('Bookmarks', Icons.bookmark_rounded, Color(0xFF146B70)),
+  qibla('Qibla', Icons.explore_rounded, Color(0xFF00897B),
+      'assets/images/kaaba_center.png'),
   lastSeen('Last seen', Icons.history_rounded, Color(0xFF135C78)),
   xplore('Xplore', Icons.apps_rounded, Color(0xFF45225C));
 
-  const HomeDockItem(this.label, this.icon, this.color);
+  const HomeDockItem(this.label, this.icon, this.color, [this.asset = '']);
 
   final String label;
   final IconData icon;
   final Color color;
+
+  /// A drawn image to stand in the square instead of the icon: the Kaaba
+  /// itself, on the Qibla button, which is the middle of the five.
+  final String asset;
+
+  bool get hasAsset => asset.isNotEmpty;
 }
 
 /// Large glass icon containers on one true-black dock. Their names remain
@@ -272,7 +279,17 @@ class _DockSquare extends StatelessWidget {
                   fit: StackFit.expand,
                   children: <Widget>[
                     const _GlassSheen(radius: 20),
-                    Center(child: Icon(item.icon, size: 29, color: Colors.white)),
+                    Center(
+                      child: item.hasAsset
+                          ? Image.asset(
+                              item.asset,
+                              width: 42,
+                              height: 42,
+                              fit: BoxFit.contain,
+                              filterQuality: FilterQuality.high,
+                            )
+                          : Icon(item.icon, size: 29, color: Colors.white),
+                    ),
                   ],
                 ),
               ),
@@ -628,6 +645,12 @@ class _MiniPrayerCard extends StatelessWidget {
           (schedule.entryFor(PrayerMarker.midnight), 'نصف شب'),
         ];
         final prayers = miniEntries;
+        // The running window may be Asr or Isha, which the mini card folds
+        // into ظہرین and مغربین. The highlight follows the reader's own clock
+        // either way, so the card is never left without one.
+        final activeGroup = _miniGroup(window.marker);
+        final nextGroup = _miniGroup(next.marker);
+        final runningNow = running;
         return Container(
           key: const ValueKey<String>('home-prayer-card'),
           decoration: BoxDecoration(
@@ -653,9 +676,10 @@ class _MiniPrayerCard extends StatelessWidget {
                           child: _MiniPrayerCell(
                             entry: entry,
                             displayLabel: displayLabel,
-                            active: running && window.marker == entry.marker,
-                            upcoming: !(running && window.marker == entry.marker) && next.marker == entry.marker,
-                            remaining: next.marker == entry.marker ? next.time.difference(now) : null,
+                            active: runningNow && activeGroup == entry.marker,
+                            upcoming: !(runningNow && activeGroup == entry.marker) &&
+                                nextGroup == entry.marker,
+                            remaining: nextGroup == entry.marker ? next.time.difference(now) : null,
                           ),
                         ),
                     ],
@@ -756,6 +780,14 @@ class _MiniPrayerCard extends StatelessWidget {
     );
   }
 }
+
+/// Which of the mini card's five cells a marker belongs to: Asr is part of
+/// ظہرین's window and Isha of مغربین's, the way the card itself reads them.
+PrayerMarker _miniGroup(PrayerMarker marker) => switch (marker) {
+      PrayerMarker.asr => PrayerMarker.dhuhr,
+      PrayerMarker.isha => PrayerMarker.maghrib,
+      _ => marker,
+    };
 
 /// One of the five prayers on the mini card: its name, its time, and either the
 /// **Now** tag or the time left until it.

@@ -11,7 +11,9 @@ import 'package:shia_ai/data_installer.dart';
 import 'package:shia_ai/main.dart' show HomeShell;
 import 'package:shia_ai/screens/settings_screen.dart';
 import 'package:shia_ai/screens/quran_screen.dart';
+import 'package:shia_ai/screens/islamic_calendar_screen.dart';
 import 'package:shia_ai/screens/library_screen.dart';
+import 'package:shia_ai/screens/crescent_screen.dart';
 import 'package:shia_ai/screens/duas_screen.dart';
 import 'package:shia_ai/screens/balagha_screen.dart';
 import 'package:shia_ai/widgets/reader_chrome.dart';
@@ -304,10 +306,24 @@ void main() {
     expect(first.top - canvas.top, lessThan(7));
     expect(search.bottom, closeTo(fatawa.bottom, 0.1));
     expect(dock.top - search.bottom, lessThan(8));
-    final homeIcon = tester.getRect(find.byKey(const ValueKey<String>('dock-icon-qibla')));
-    final moreIcon = tester.getRect(find.byKey(const ValueKey<String>('dock-icon-xplore')));
-    expect(homeIcon.right, closeTo(fatawa.right, 0.1));
-    expect(moreIcon.left, closeTo(search.left, 0.1));
+    final firstIcon = tester.getRect(find.byKey(const ValueKey<String>('dock-icon-settings')));
+    final lastIcon = tester.getRect(find.byKey(const ValueKey<String>('dock-icon-xplore')));
+    expect(firstIcon.left, closeTo(search.left, 0.1));
+    expect(lastIcon.right, closeTo(fatawa.right, 0.1));
+    // Qibla is the middle of the five, and it wears the Kaaba itself.
+    expect(HomeDockItem.values[HomeDockItem.values.length ~/ 2], HomeDockItem.qibla);
+    final qiblaIcon = tester.getRect(find.byKey(const ValueKey<String>('dock-icon-qibla')));
+    expect(qiblaIcon.center.dx, closeTo((firstIcon.left + lastIcon.right) / 2, 1.0));
+    expect(
+      tester
+          .widget<Image>(find.descendant(
+            of: find.byKey(const ValueKey<String>('dock-icon-qibla')),
+            matching: find.byType(Image),
+          ))
+          .image,
+      isA<AssetImage>().having((image) => image.assetName, 'the Kaaba',
+          'assets/images/kaaba_center.png'),
+    );
     for (final item in HomeDockItem.values) {
       final icon = tester.getRect(find.byKey(ValueKey<String>('dock-icon-${item.name}')));
       final label = tester.getRect(find.byKey(ValueKey<String>('dock-label-${item.name}')));
@@ -320,6 +336,38 @@ void main() {
     expect(find.text('دعائیں'), findsNothing);
     expect(tester.takeException(), isNull);
     await shoot(tester, 'home-status-bar');
+    await finish(tester, prayer, tasbeeh);
+  });
+
+  testWidgets('the crescent page reads the sky the reader lives under', (tester) async {
+    phone(tester);
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(20, 10));
+    await tester.pumpWidget(host(prayer, tasbeeh, const CrescentScreen()));
+    await settle(tester);
+    // 15 October 2026 is 3 Jumada al-Awwal 1448 in Islamabad, and the
+    // crescent that opened the month was sighted on the evening of the 12th
+    // — six and a half on Odeh's scale, plain to the eye.
+    expect(find.text('جاری مہینہ'), findsOneWidget);
+    expect(find.text('یکم جمادی الاول 1448ھ'), findsOneWidget);
+    expect(find.textContaining('13 اکتوبر 2026'), findsWidgets);
+    expect(find.text('رویت کی شام'), findsOneWidget);
+    expect(find.text('ننگی آنکھ سے دکھائی دے گا'), findsWidgets);
+    expect(tester.takeException(), isNull);
+    await shoot(tester, 'crescent');
+    await finish(tester, prayer, tasbeeh);
+  });
+
+  testWidgets('the Islamic calendar dates this year\'s days for this city', (tester) async {
+    phone(tester);
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(12, 10));
+    await tester.pumpWidget(host(prayer, tasbeeh, const IslamicCalendarScreen()));
+    await settle(tester);
+    expect(find.text('اس سال کے ایام'), findsOneWidget);
+    expect(find.text('3 جمادی الاول 1448ھ — G-11، اسلام آباد'), findsOneWidget);
+    expect(find.text('یومِ عاشورہ'), findsOneWidget);
+    expect(find.text('عیدِ غدیر'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await shoot(tester, 'islamic-calendar');
     await finish(tester, prayer, tasbeeh);
   });
 
@@ -363,7 +411,7 @@ void main() {
     })));
     expect((await ReaderPreferences.load()).palette.background, Colors.white);
     expect(HomeDockItem.values.map((item) => item.label).toList(),
-        <String>['Qibla', 'Settings', 'Bookmarks', 'Last seen', 'Xplore']);
+        <String>['Settings', 'Bookmarks', 'Qibla', 'Last seen', 'Xplore']);
   });
 
   for (final (name, palette, scale) in <(String, String, double)>[

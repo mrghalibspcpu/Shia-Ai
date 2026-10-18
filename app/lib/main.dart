@@ -10,7 +10,9 @@ import 'data_installer.dart';
 import 'library_repository.dart';
 import 'models.dart';
 import 'reader_navigation.dart';
+import 'screens/crescent_screen.dart';
 import 'screens/data_screen.dart';
+import 'screens/islamic_calendar_screen.dart';
 import 'screens/library_screen.dart';
 import 'screens/prayer_times_screen.dart';
 import 'screens/qibla_screen.dart';
@@ -27,7 +29,9 @@ import 'widgets/more_features.dart';
 import 'widgets/reading_hub.dart';
 
 /// Set once the 1.10 light-by-default rule has run on this phone.
-const String _kLightDefaultKey = 'light_default_applied';
+/// The first start of this version moves the reader to the dark look; a
+/// choice made afterwards in the settings is kept.
+const String _kDarkDefaultKey = 'dark_default_applied';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,7 +68,9 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
   ReaderTarget? _pendingTarget;
   String? _lastHandledLink;
   DateTime? _lastHandledAt;
-  ThemeMode _themeMode = ThemeMode.light;
+  /// Dark until the reader's own choice arrives from storage — the first
+  /// frame is already dark.
+  ThemeMode _themeMode = ThemeMode.dark;
   bool _amoled = false;
   // How many pages sit on top of the home screen, and the observer that counts
   // them: the circular hub is shown while the count is above zero.
@@ -92,24 +98,24 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    // Light is the default look. The first start of this version moves anyone
-    // still on the old "system" default to light, once; a choice made in the
-    // settings (light or dark) is always kept.
-    if (!prefs.containsKey(_kLightDefaultKey)) {
+    // Dark is the app's look. The first start of this version moves the
+    // reader to it — from light, from "system", or from no choice at all —
+    // once; anything chosen afterwards in the settings is always kept.
+    if (!prefs.containsKey(_kDarkDefaultKey)) {
       final previous = prefs.getString('theme_mode');
-      if (previous == null || previous == 'system') {
-        await prefs.setString('theme_mode', 'light');
+      if (previous == null || previous == 'system' || previous == 'light') {
+        await prefs.setString('theme_mode', 'dark');
       }
-      await prefs.setBool(_kLightDefaultKey, true);
+      await prefs.setBool(_kDarkDefaultKey, true);
     }
     final stored = prefs.getString('theme_mode');
     if (!mounted) return;
     setState(() {
       _amoled = stored == 'amoled';
       _themeMode = switch (stored) {
-        'dark' || 'amoled' => ThemeMode.dark,
+        'light' => ThemeMode.light,
         'system' => ThemeMode.system,
-        _ => ThemeMode.light,
+        _ => ThemeMode.dark, // 'dark', 'amoled', or nothing stored yet
       };
     });
   }
@@ -266,11 +272,22 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
           onOpen: () => _homeShellKey.currentState?.openData(),
         ),
         MoreFeature(
-          title: 'ترتیبات',
-          subtitle: 'تھیم، قرات اور اطلاع کی ترتیبات',
-          icon: Icons.settings_rounded,
-          color: const Color(0xFF5C6BC0),
-          onOpen: () => _homeShellKey.currentState?.openSettings(),
+          title: 'چاند کی رویت',
+          subtitle: 'ہجری مہینے کا آغاز، آپ ہی کے شہر کے حساب سے',
+          icon: Icons.nightlight_round,
+          color: const Color(0xFF8A6A2F),
+          onOpen: () => unawaited(_navigatorKey.currentState?.push(MaterialPageRoute<void>(
+            builder: (_) => const CrescentScreen(),
+          ))),
+        ),
+        MoreFeature(
+          title: 'اسلامی تقویم',
+          subtitle: 'محرم سے ذو الحجہ تک، اس سال کی تاریخوں کے ساتھ',
+          icon: Icons.calendar_month_rounded,
+          color: const Color(0xFF146B70),
+          onOpen: () => unawaited(_navigatorKey.currentState?.push(MaterialPageRoute<void>(
+            builder: (_) => const IslamicCalendarScreen(),
+          ))),
         ),
       ];
 

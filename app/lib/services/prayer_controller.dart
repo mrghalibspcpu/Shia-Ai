@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../astro/hijri_calendar.dart';
+import '../astro/lunar_hijri.dart';
 import '../astro/prayer_calculator.dart';
 import 'alerts.dart';
 import 'place_names.dart';
@@ -129,6 +130,17 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
   /// Days added to the Hijri date; null means "automatic for this location".
   int? _hijriAdjustment;
 
+  /// The Hijri calendar of the reader's own sky: the new crescent, watched
+  /// from their latitude and longitude, opens every month. Nothing about the
+  /// date needs setting by hand.
+  ///
+  /// Made again whenever the coordinates change; the months it has already
+  /// worked out travel with it.
+  LunarHijri _lunarHijri = LunarHijri(
+    latitude: PrayerLocations.fallback.latitude,
+    longitude: PrayerLocations.fallback.longitude,
+  );
+
   PrayerLocation get location => _location;
 
   /// Why the last GPS attempt failed (null when it worked or never ran).
@@ -150,9 +162,9 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
     final eve = sameDay && !at.isBefore(maghrib);
     final civil = DateTime.utc(at.year, at.month, at.day);
     return HijriDay(
-      HijriDate.fromGregorian(
+      _lunarHijri.dateFor(
         eve ? civil.add(const Duration(days: 1)) : civil,
-        adjustDays: effectiveHijriAdjustment,
+        adjustDays: _hijriAdjustment ?? 0,
       ),
       eve: eve,
     );
@@ -160,6 +172,10 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Today's Hijri date at the live clock.
   HijriDay get hijriToday => hijriFor(now.value);
+
+  /// The crescent of the reader's own sky: the evening that opened this
+  /// month, and what the next one will do.
+  LunarHijri get lunarHijri => _lunarHijri;
   PrayerSchedule get schedule => _schedule;
   bool get loadingLocation => _loadingLocation;
   bool get alertsEnabled => _alertsEnabled;
@@ -198,6 +214,9 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
     _rebuildSchedule();
     _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) => _tick());
     notifyListeners();
+    // The first Hijri date costs a few lunations of the Moon's series; it is
+    // paid here, off the first frame, and cached for the rest of the day.
+    _lunarHijri.dateFor(DateTime.utc(now.value.year, now.value.month, now.value.day));
 
     final stored = await PrayerLocations.loadStored();
     if (stored != null) {
@@ -394,6 +413,10 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _applyLocation(PrayerLocation location, {required bool persist}) async {
     _location = location;
+    if (_lunarHijri.latitude != location.latitude ||
+        _lunarHijri.longitude != location.longitude) {
+      _lunarHijri = LunarHijri(latitude: location.latitude, longitude: location.longitude);
+    }
     _rebuildSchedule();
     if (persist) await PrayerLocations.store(location);
     notifyListeners();

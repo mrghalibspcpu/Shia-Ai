@@ -390,7 +390,8 @@ void main() {
     test('the Hijri date turns at Maghrib and follows the reader\'s shift', () async {
       var device = DateTime.utc(2026, 10, 15, 6);
       final controller = await controllerFor(() => device);
-      // Islamabad starts one day behind Umm al-Qura: 4 → 3 Jumada al-Awwal.
+      // The crescent, not a printed table: read from Islamabad it opens
+      // Jumada al-Awwal on 13 October 2026, a day behind Umm al-Qura.
       expect(controller.hijriAdjustment, isNull);
       expect(controller.effectiveHijriAdjustment, -1);
       expect(controller.hijriToday.date, const HijriDate(1448, 5, 3));
@@ -404,7 +405,11 @@ void main() {
       expect(controller.hijriToday.date, const HijriDate(1448, 5, 4));
       expect(controller.hijriToday.labelUrdu, startsWith('شبِ'));
 
+      // Nothing needs shifting: the sighting has already been read. A shift
+      // is only for a reader whose own calendar differs by a day or two.
       controller.setHijriAdjustment(0);
+      expect(controller.hijriToday.date, const HijriDate(1448, 5, 4));
+      controller.setHijriAdjustment(1);
       expect(controller.hijriToday.date, const HijriDate(1448, 5, 5));
       controller.setHijriAdjustment(7);
       expect(controller.hijriAdjustment, 2);

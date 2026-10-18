@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
 import '../astro/compass_math.dart' show compassPointUrdu;
-import '../astro/hijri_calendar.dart' show autoHijriAdjustment;
 import '../astro/prayer_calculator.dart';
 import '../astro/prayer_format.dart';
 import '../services/city_index.dart';
@@ -1111,7 +1110,6 @@ class _AlertControls extends StatelessWidget {
   }
 
   Future<void> _pickHijriShift(BuildContext context) async {
-    final auto = autoHijriAdjustment(controller.location.latitude, controller.location.longitude);
     final chosen = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1141,12 +1139,13 @@ class _AlertControls extends StatelessWidget {
                   const GlassSectionHeader(title: 'ہجری تاریخ کی درستگی'),
                   const SizedBox(height: 6),
                   Text(
-                    'چاند نظر آنے کے مطابق تاریخ آگے یا پیچھے کریں۔ آج: '
+                    'ہر مہینے کا پہلا دن آپ ہی کے شہر سے چاند نظر آنے پر رکھا '
+                    'جاتا ہے — دستی درستگی ضروری نہیں، مگر رکھی جا سکتی ہے۔ آج: '
                     '${controller.hijriToday.labelUrdu}',
                     style: TextStyle(fontSize: 13, height: 1.5, color: palette.muted),
                   ),
                   const SizedBox(height: 6),
-                  option('auto', 'خودکار (اس مقام کے لیے ${signed(auto)} دن)', current == null),
+                  option('auto', 'خودکار (چاند کی رویت)', current == null),
                   for (final days in const <int>[-2, -1, 0, 1, 2])
                     option('$days', '${signed(days)} دن', current == days),
                 ],
@@ -1217,7 +1216,7 @@ class _AlertControls extends StatelessWidget {
           const SizedBox(height: 8),
           GlassChip(
             label: shift == null
-                ? 'ہجری تاریخ: خودکار درستگی'
+                ? 'ہجری تاریخ: خودکار (چاند کی رویت)'
                 : 'ہجری تاریخ: ${shift > 0 ? '+$shift' : '$shift'} دن',
             icon: Icons.nightlight_outlined,
             onTap: () => unawaited(_pickHijriShift(context)),

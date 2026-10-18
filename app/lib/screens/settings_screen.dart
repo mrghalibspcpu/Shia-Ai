@@ -338,7 +338,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: TextStyle(fontSize: 14, height: 1.8),
                 ),
                 const SizedBox(height: 14),
-                const _SectionTitle('کریڈٹس (Credits)'),
+                const _SectionTitle('کریڈٹس'),
                 Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
@@ -356,17 +356,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       children: [
                         Text('HashTech', textDirection: TextDirection.ltr, textAlign: TextAlign.center,
                             style: TextStyle(fontFamily: kDigitFont, fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 1.1)),
-                        SizedBox(height: 2),
-                        JustifiedText('وہ کمپنی جس کی چھتری تلے ShiaVerse نے جنم لیا — جہاں ٹیکنالوجی کو علم و عقیدت کی خدمت میں پیش کرنا ہی منشور ہے۔ HashTech کا ہر پروڈکٹ اسی سوچ کی جھلک ہے: جدید سافٹ ویئر، صاف ڈیزائن، اور قاری کے وقت و اعتماد کی مکمل قدر۔',
+                        SizedBox(height: 6),
+                        JustifiedText(
+                          'جس ادارے کے زیرِ سایہ شیعہ ورس کی تیاری ممکن ہوئی۔ مقصد یہ ہے کہ جدید سافٹ ویئر، سادہ ڈیزائن اور قاری کے وقت و اعتماد کا احترام یکجا ہو کر علم و عقیدت کی خدمت میں آئیں۔',
                             style: TextStyle(fontSize: 13.5, height: 1.7, color: Color(0xFFF3EAD2))),
                         Divider(height: 26, color: Color(0x66FFE1A1)),
-                        JustifiedText('Syed Sakhir Hashmi', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFFFFE1A1))),
-                        SizedBox(height: 4),
-                        JustifiedText('بانی و مالک (Owner) • ماسٹر مائنڈ (Mastermind) • ڈویلپر (Developer) • محقق (Researcher) • مؤلف (Author) • شاعر (Poet)',
+                        Text('Syed Sakhir Hashmi', textDirection: TextDirection.ltr, textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFFFFE1A1))),
+                        SizedBox(height: 2),
+                        Text('سید ساخِر ہاشمی', textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFFF3EAD2))),
+                        SizedBox(height: 8),
+                        JustifiedText('بانی و مالک • نگرانِ منصوبہ • پروگرامر • محقق • مصنف • شاعر',
                             style: TextStyle(fontSize: 13, height: 1.6, color: Colors.white)),
                         SizedBox(height: 8),
                         JustifiedText(
-                          'ShiaVerse کسی ٹیم کے ہاتھوں بنی روایتی ایپ نہیں — یہ ایک ہی ذہین و محنتی انسان کے وژن کی تکمیل ہے۔ اس کا بنیادی تصور سوچنے سے لے کر کتب کی تحقیق و انتخاب، متن کی تدوین و تحریر، کوڈ کی ہر سطر، ڈیزائن کی ہر جھلک اور اشعار کی لطافت تک — ہر مرحلہ Syed Sakhir Hashmi کی ذاتی کاوش ہے۔ انہوں نے اس ایپ کو محض سافٹ ویئر نہیں بنایا، بلکہ اس میں ایک محقق کی امانت، ایک مؤلف کی ذمہ داری، ایک ڈویلپر کی مہارت اور ایک شاعر کی روح پھونک دی۔ یہی وجہ ہے کہ ShiaVerse پڑھنے والے کو صرف معلومات نہیں دیتی، ایک تجربہ دیتی ہے۔',
+                          'شیعہ ورس کا بنیادی تصور، کتب کی تحقیق و انتخاب، متن کی تدوین اور ہر سطرِ کوڈ و ڈیزائن کا فیصلہ — یہ سب سید ساخِر ہاشمی کی ذاتی کاوش ہے۔ تحریر سے لے کر ترتیب و پیشکش تک ہر مرحلے میں ان ہی کی رہنمائی شامل رہی ہے۔',
                           style: TextStyle(fontSize: 13.5, height: 1.8, color: Color(0xFFF3EAD2)),
                         ),
                       ],
