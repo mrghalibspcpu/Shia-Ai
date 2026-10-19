@@ -615,8 +615,16 @@ void main() {
     final marker = tester.widget<Image>(find.byKey(const ValueKey<String>('qibla-kaaba-marker')));
     final resized = marker.image as ResizeImage;
     expect((resized.imageProvider as AssetImage).assetName, 'assets/images/kaaba_icon.png');
-    // 1.20: the real street map is the first card, and its Qibla line is drawn
-    // even when the compass never reports a heading.
+    // 1.21 returns the live compass to the top of the page; the street map is
+    // the card underneath it, and its Qibla line is drawn even when the
+    // compass never reports a heading.
+    expect(find.byKey(const ValueKey<String>('qibla-compass-card')), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey<String>('qibla-street-map')),
+      260,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await settle(tester);
     expect(find.byKey(const ValueKey<String>('qibla-street-map')), findsOneWidget);
     expect(find.text('اصل نقشہ — کعبہ کی سمت'), findsOneWidget);
     expect(find.textContaining('© OpenStreetMap'), findsOneWidget);

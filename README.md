@@ -1,5 +1,37 @@
 # ShiaVerse
 
+## New in 1.21 — one corpus, a compass first, a real Xplore
+
+- **قبلہ نما**: the live **compass is back at the top** of the page, where the
+  thumb reaches it, followed by the street map and then the offline diagram.
+- **The map no longer shows «Access blocked».** `tile.openstreetmap.org` answers
+  apps it considers outside its tile policy with a *successful* PNG of a block
+  page — so the old `errorBuilder` could never catch it. Tiles now come from
+  CARTO's CDN first (same OpenStreetMap data, attribution shown on the card),
+  then the German OSM mirror, then Esri; the offline graticule is only painted
+  when all three fail.
+- **آیت / حدیثِ وقت actually rolls.** The card used to cache its very first
+  answer — usually the empty one, because the home screen paints before the
+  library finishes scanning — in a `static` field, so a phone with books
+  installed still showed the built-in lines for the whole session. It now
+  re-rolls on every `catalogVersion` change, retries while the library is
+  still starting, and opens on a line chosen by the clock.
+- **The encyclopaedia is one corpus again**: **574 articles, 3,320 sections,
+  8,142 references**, built straight from
+  «اثنا عشری انسائکلوپیڈیا (منتخب).zip». The Wikishia notes merged in 1.20 are
+  **removed** (their source pages were not reachable for readers), and every
+  «ماخذ» link is an `ur.wikipedia.org` revision.
+- **نہج البلاغہ** ships the newly uploaded Drive database (the same 3,742
+  paragraphs, 2,352 footnotes, 504 introductions, normalised to the 1 KiB page
+  size the other assets use).
+- **Xplore is now a page, not a sheet**: a gradient header, one hero card for
+  **نئی کتابیں**, then a two-column grid of the remaining five features — the
+  same visual language as the home screen, without its prayer strip or dial.
+- **Whole-surah bookmarks**: every row of **قرآن کریم** carries a bookmark
+  button, the surah reader repeats it in the app bar, and saved surahs appear
+  as a shelf above the verse bookmarks in **محفوظات**.
+- The **universal 76 MB APK** is published again next to the per-CPU builds.
+
 ## New in 1.20 — the real Qibla map, the merged encyclopaedia, calmer cards
 
 - **قبلہ نما** now opens on a **real OpenStreetMap street map**, not just a

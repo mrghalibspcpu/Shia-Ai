@@ -230,12 +230,12 @@ if __name__ == "__main__":
     unittest.main()
 
 
-class MergedEncyclopediaTests(unittest.TestCase):
-    """1.20 merged the Wikishia topic notes into the encyclopaedia read here.
+class SelectedEncyclopediaTests(unittest.TestCase):
+    """The reader edition is built from «اثنا عشری انسائکلوپیڈیا (منتخب).zip».
 
-    The reader edition ships gzipped; these checks expand it once and pin the
-    promises the UI makes (a revision URL on every imported section, a merged
-    article that carries both sources, and a title without «(منتخب)»).
+    1.21 dropped the Wikishia topic notes that 1.20 had merged in: the app must
+    show the selected Urdu-Wikipedia corpus alone, and every «ماخذ» link must be
+    a ur.wikipedia.org revision of that corpus.
     """
 
     @classmethod
@@ -256,60 +256,51 @@ class MergedEncyclopediaTests(unittest.TestCase):
         cls.db.close()
         cls._directory.cleanup()
 
-    def test_title_dropped_the_selected_suffix(self):
-        title = self.db.execute(
-            "SELECT value FROM metadata WHERE key = 'title_ur'"
-        ).fetchone()[0]
-        self.assertEqual(title, "اثنا عشری انسائکلوپیڈیا")
-        self.assertNotIn("منتخب", title)
-
-    def test_article_count_is_the_merge_of_both_corpora(self):
+    def test_article_count_is_the_selected_corpus(self):
         articles = self.db.execute("SELECT COUNT(*) FROM articles").fetchone()[0]
-        self.assertGreaterEqual(articles, 620)
+        self.assertEqual(articles, 574)
 
-    def test_wikishia_sections_keep_their_revision_url(self):
+    def test_every_section_keeps_a_wikipedia_revision_url(self):
         rows = self.db.execute(
-            "SELECT COUNT(*) FROM sections WHERE source_url LIKE 'https://ur.wikishia.net/%'"
+            "SELECT COUNT(*) FROM sections WHERE source_url LIKE 'https://ur.wikipedia.org/%'"
         ).fetchone()[0]
-        self.assertGreaterEqual(rows, 280)
-        blank = self.db.execute(
-            "SELECT COUNT(*) FROM sections WHERE source_url = ''"
-        ).fetchone()[0]
+        total = self.db.execute("SELECT COUNT(*) FROM sections").fetchone()[0]
+        self.assertEqual(rows, total)
+        blank = self.db.execute("SELECT COUNT(*) FROM sections WHERE source_url = ''").fetchone()[0]
         self.assertEqual(blank, 0)
 
-    def test_a_wikishia_only_topic_became_an_article(self):
-        row = self.db.execute(
-            "SELECT a.id, a.group_id, g.slug FROM articles a JOIN groups g ON g.id = a.group_id "
-            "WHERE a.title_ur = 'مرجع تقلید'"
-        ).fetchone()
-        self.assertIsNotNone(row)
-        self.assertEqual(row["slug"], "scholars")
+    def test_no_wikishia_material_survives(self):
         sections = self.db.execute(
-            "SELECT COUNT(*) FROM sections WHERE article_id = ?", (row["id"],)
+            "SELECT COUNT(*) FROM sections WHERE source_url LIKE '%wikishia%'"
         ).fetchone()[0]
-        self.assertEqual(sections, 3)
+        references = self.db.execute(
+            "SELECT COUNT(*) FROM source_references WHERE source_url LIKE '%wikishia%'"
+        ).fetchone()[0]
+        self.assertEqual(sections + references, 0)
+        # «مرجع تقلید» arrived only with the retired notes.
+        row = self.db.execute(
+            "SELECT COUNT(*) FROM articles WHERE title_ur = 'مرجع تقلید'"
+        ).fetchone()[0]
+        self.assertEqual(row, 0)
 
-    def test_a_shared_topic_keeps_both_sources(self):
+    def test_a_central_article_is_still_readable(self):
         article = self.db.execute(
-            "SELECT id FROM articles WHERE title_ur = 'حسین بن علی'"
+            "SELECT id, group_id FROM articles WHERE title_ur = 'حسین بن علی'"
+        ).fetchone()
+        self.assertIsNotNone(article)
+        sections = self.db.execute(
+            "SELECT COUNT(*) FROM sections WHERE article_id = ?", (article["id"],)
         ).fetchone()[0]
+        self.assertGreater(sections, 0)
         hosts = {
             row[0]
             for row in self.db.execute(
                 "SELECT DISTINCT rtrim(substr(source_url, 1, instr(source_url, '/w/')), '/') "
                 "FROM sections WHERE article_id = ?",
-                (article,),
+                (article["id"],),
             )
         }
-        self.assertIn("https://ur.wikipedia.org", hosts)
-        self.assertIn("https://ur.wikishia.net", hosts)
-        # The Iran-sourced citations of the notes are real links too.
-        external = self.db.execute(
-            "SELECT COUNT(*) FROM source_references WHERE article_id = ? "
-            "AND (source_url LIKE 'http://%' OR source_url LIKE 'https://%')",
-            (article,),
-        ).fetchone()[0]
-        self.assertGreater(external, 0)
+        self.assertEqual(hosts, {"https://ur.wikipedia.org"})
 
     def test_related_links_never_dangle(self):
         dangling = self.db.execute(

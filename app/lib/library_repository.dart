@@ -846,7 +846,7 @@ class LibraryRepository {
     try {
       if (book.source == CorpusSource.encyclopedia) {
         // The shelf counts articles (مضامین), not prose sections: after the
-        // 1.20 Wikishia merge that is 635 articles the reader can open.
+        // a 574-article edition the reader can open.
         final db = await _openBook(book);
         final rows = await db.rawQuery('SELECT COUNT(*) AS count FROM articles');
         return (rows.first['count'] as int?) ?? 0;
@@ -1028,7 +1028,7 @@ class LibraryRepository {
   ///
   /// The closing ماخذ card lists the same lines as text; this list is what the
   /// reader taps to open the exact page in the browser. Duplicate URLs are
-  /// folded (the merged Wikishia notes cite the same page from several
+  /// folded (a revision page is often cited from several
   /// sections) and the list is capped so a heavily-referenced biography cannot
   /// build a thousand-row widget.
   Future<List<({String text, String url})>> getEncyclopediaReferences(
@@ -2224,6 +2224,53 @@ class LibraryRepository {
       final parts = value.split(':');
       return ReaderTarget(book: parts.first, recordId: int.tryParse(parts.last) ?? 0);
     }).where((target) => target.recordId != 0).toList();
+  }
+
+  // ------------------------------------------------- whole-surah bookmarks
+  //
+  // A verse bookmark stores `quran:<recordId>`, which is one card in the
+  // reader. Readers also asked to keep an entire surah on the shelf — that is
+  // a different thing (it opens the reader at verse 1, not at one passage), so
+  // it gets its own list under its own key and never collides with the verse
+  // bookmarks above.
+
+  Set<int>? _surahBookmarkCache;
+
+  Future<Set<int>> _surahBookmarkSet() async {
+    final cached = _surahBookmarkCache;
+    if (cached != null) return cached;
+    final prefs = await SharedPreferences.getInstance();
+    return _surahBookmarkCache = (prefs.getStringList('surah_bookmarks') ?? const <String>[])
+        .map(int.tryParse)
+        .whereType<int>()
+        .toSet();
+  }
+
+  Future<bool> isSurahBookmarked(int number) async =>
+      (await _surahBookmarkSet()).contains(number);
+
+  /// Same answer without the `await`, for a list that paints 114 rows.
+  bool isSurahBookmarkedNow(int number) =>
+      _surahBookmarkCache?.contains(number) ?? false;
+
+  Future<void> toggleSurahBookmark(int number) async {
+    final saved = await _surahBookmarkSet();
+    if (!saved.remove(number)) saved.add(number);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      'surah_bookmarks',
+      saved.toList()..sort(),
+    );
+  }
+
+  /// The saved surah numbers, in mushaf order.
+  Future<List<int>> getSurahBookmarks() async =>
+      (await _surahBookmarkSet()).toList()..sort();
+
+  /// Loads the surah bookmarks into the cache before a list renders, so the
+  /// first frame already shows the right icons instead of flickering.
+  Future<void> warmSurahBookmarks() async {
+    await _surahBookmarkSet();
   }
 
   Future<String?> getNote(String bookKey, int recordId) async =>

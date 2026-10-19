@@ -975,11 +975,6 @@ class _MomentCard extends StatefulWidget {
 
   final LibraryRepository library;
 
-  /// One roll per app start, shared by every rebuild of the home screen. The
-  /// list is thrown away when the process ends, which is what "a new line
-  /// every time the app opens" means.
-  static Future<List<MomentPassage>>? _rolled;
-
   @override
   State<_MomentCard> createState() => _MomentCardState();
 }
@@ -988,27 +983,69 @@ class _MomentCardState extends State<_MomentCard> {
   List<MomentPassage> _lines = const <MomentPassage>[];
   int _index = 0;
 
+  /// A fresh install opens the home screen before the repository has finished
+  /// scanning the books, and downloading a book changes the answer later. The
+  /// old code cached the *first* (usually empty) result in a static and never
+  /// asked again, so the card stayed on its built-in lines for the whole
+  /// session — the "engine is not working" report. Now every catalog change
+  /// re-opens the question, and an empty answer is retried a few times.
+  int _attempt = 0;
+  Timer? _retry;
+
   @override
   void initState() {
     super.initState();
+    widget.library.catalogVersion.addListener(_onCatalogChanged);
     unawaited(_roll());
   }
 
+  @override
+  void dispose() {
+    widget.library.catalogVersion.removeListener(_onCatalogChanged);
+    _retry?.cancel();
+    super.dispose();
+  }
+
+  void _onCatalogChanged() {
+    // Books were installed/removed: a real ayah may be available now.
+    if (_lines.isEmpty) unawaited(_roll());
+  }
+
   Future<void> _roll() async {
-    // A fresh install has no books yet (or a book may fail to open): the card
-    // falls back to its built-in lines and never shows an empty box.
-    final rolled = _MomentCard._rolled ??= widget.library
-        .momentPassages(limit: 6)
+    _retry?.cancel();
+    _retry = null;
+    final lines = await widget.library
+        .momentPassages(limit: 12)
         .catchError((Object _) => const <MomentPassage>[]);
-    final lines = await rolled;
-    if (!mounted || lines.isEmpty) return;
+    if (!mounted) return;
+    if (lines.isEmpty) {
+      // Still starting up (or no book installed yet). Retry a few times so a
+      // slow first scan cannot leave the card on the fallback lines forever.
+      if (!widget.library.isInitialized && _attempt < 8) {
+        _attempt++;
+        _retry = Timer(Duration(milliseconds: 400 * _attempt), () {
+          if (mounted) unawaited(_roll());
+        });
+      }
+      return;
+    }
     setState(() {
       _lines = lines;
-      _index = math.Random().nextInt(lines.length);
+      // "Of the moment": the opening line follows the clock, so the card has
+      // moved on by the time the reader comes back after a few hours, while a
+      // single session still opens on the same line.
+      final slot = DateTime.now().hour * 60 + DateTime.now().minute;
+      _index = slot % lines.length;
     });
   }
 
   void _next() {
+    if (_lines.isEmpty) {
+      // Tapping before the first roll finished retries instead of doing
+      // nothing at all.
+      unawaited(_roll());
+      return;
+    }
     setState(() => _index++);
   }
 

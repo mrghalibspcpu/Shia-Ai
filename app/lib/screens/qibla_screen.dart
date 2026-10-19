@@ -211,9 +211,17 @@ class _QiblaScreenState extends State<QiblaScreen> {
             ),
             const SizedBox(height: 12),
           ],
-          // The real map comes first: it is the one view that still gives an
-          // exact direction when the magnetometer is missing or uncalibrated,
-          // which is the case readers kept writing in about.
+          // The live compass stays at the very top: it is the one control the
+          // reader turns while walking, and 1.21 moved it back above the map
+          // (readers kept scrolling down to it). The map still answers "which
+          // wall do I face" when the magnetometer is missing.
+          _CompassCard(
+            reading: reading,
+            status: _status,
+            continuousHeading: _continuousHeading,
+            palette: palette,
+          ),
+          const SizedBox(height: 12),
           QiblaStreetMapCard(
             location: controller.location,
             bearing: bearing,
@@ -223,13 +231,6 @@ class _QiblaScreenState extends State<QiblaScreen> {
             onRefreshLocation: () async {
               await controller.refreshLocation();
             },
-          ),
-          const SizedBox(height: 12),
-          _CompassCard(
-            reading: reading,
-            status: _status,
-            continuousHeading: _continuousHeading,
-            palette: palette,
           ),
           const SizedBox(height: 12),
           mapFallback,
@@ -279,6 +280,7 @@ class _CompassCard extends StatelessWidget {
     final turns = -(continuousHeading ?? reading.heading) / 360.0;
 
     return GlassPanel(
+      key: const ValueKey<String>('qibla-compass-card'),
       radius: 24,
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
       child: Column(

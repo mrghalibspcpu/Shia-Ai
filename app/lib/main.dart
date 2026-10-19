@@ -12,6 +12,7 @@ import 'models.dart';
 import 'reader_navigation.dart';
 import 'screens/crescent_screen.dart';
 import 'screens/data_screen.dart';
+import 'screens/explore_screen.dart';
 import 'screens/islamic_calendar_screen.dart';
 import 'screens/library_screen.dart';
 import 'screens/new_books_screen.dart';
@@ -236,7 +237,9 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
           builder: (_) => SavedItemsScreen(library: _library),
         )));
       case HubDestination.more:
-        unawaited(showMoreFeaturesSheet(homeContext, features: _moreFeatures(homeContext)));
+        unawaited(navigator.push(MaterialPageRoute<void>(
+          builder: (_) => ExploreScreen(features: _moreFeatures(homeContext)),
+        )));
       case HubDestination.settings:
         _homeShellKey.currentState?.openSettings();
     }

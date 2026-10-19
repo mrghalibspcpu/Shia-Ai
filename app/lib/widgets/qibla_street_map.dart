@@ -199,7 +199,7 @@ class _QiblaStreetMapCardState extends State<QiblaStreetMapCard> {
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                             child: Text(
-                              '© OpenStreetMap contributors',
+                              '© OpenStreetMap · © CARTO',
                               textDirection: TextDirection.ltr,
                               style: TextStyle(
                                 fontSize: 8.5,
@@ -340,24 +340,12 @@ class _TileLayer extends StatelessWidget {
               top: y * _tileSize - top,
               width: _tileSize,
               height: _tileSize,
-              child: Image.network(
-                'https://tile.openstreetmap.org/$zoom/${_wrap(x, tiles)}/$y.png',
-                key: ValueKey<String>('osm-$zoom-${_wrap(x, tiles)}-$y'),
-                fit: BoxFit.cover,
-                gaplessPlayback: true,
-                filterQuality: FilterQuality.low,
-                headers: const <String, String>{
-                  'User-Agent': 'ShiaVerse/1.20 (Android Qibla map; offline-first Islamic library)',
-                },
-                loadingBuilder: (context, child, progress) => progress == null
-                    ? child
-                    : ColoredBox(
-                        color: shading ? const Color(0xFF101C17) : const Color(0xFFE3EBE1),
-                      ),
-                errorBuilder: (context, error, stack) => ColoredBox(
-                  color: shading ? const Color(0xFF101C17) : const Color(0xFFE3EBE1),
-                  child: CustomPaint(painter: _TileGridPainter(shading: shading)),
-                ),
+              child: _MapTile(
+                key: ValueKey<String>('map-tile-$zoom-${_wrap(x, tiles)}-$y'),
+                zoom: zoom,
+                x: _wrap(x, tiles),
+                y: y,
+                shading: shading,
               ),
             ),
       ],
@@ -365,6 +353,85 @@ class _TileLayer extends StatelessWidget {
   }
 
   static int _wrap(int value, int tiles) => ((value % tiles) + tiles) % tiles;
+}
+
+/// One 256 px map square, tried against several tile services in order.
+///
+/// `tile.openstreetmap.org` is the obvious first choice and the one that
+/// answered with an «Access blocked» PNG on a real phone: their volunteer
+/// tile servers block apps that do not follow the tile usage policy, and the
+/// block page arrives as a *successful* image, so `errorBuilder` never fires.
+/// The first provider here is CARTO's CDN (same OpenStreetMap data, no block
+/// page, attribution required and shown on the card); the German OSM mirror
+/// and Esri's street map are the fall-backs. Only when every provider fails
+/// does the widget paint the offline graticule.
+class _MapTile extends StatefulWidget {
+  const _MapTile({
+    super.key,
+    required this.zoom,
+    required this.x,
+    required this.y,
+    required this.shading,
+  });
+
+  final int zoom;
+  final int x;
+  final int y;
+  final bool shading;
+
+  @override
+  State<_MapTile> createState() => _MapTileState();
+}
+
+class _MapTileState extends State<_MapTile> {
+  /// Ordered fall-backs. Keeping the list here (not in the parent) means one
+  /// provider going down only repaints the squares that failed.
+  static const List<String> _providers = <String>[
+    'https://a.basemaps.cartocdn.com/rastertiles/voyager',
+    'https://tile.openstreetmap.de',
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile',
+  ];
+
+  /// Esri serves `{z}/{y}/{x}`; the other two `{z}/{x}/{y}`.
+  static String _urlFor(int index, int zoom, int x, int y) {
+    if (index == 2) return '${_providers[index]}/$zoom/$y/$x';
+    return '${_providers[index]}/$zoom/$x/$y.png';
+  }
+
+  int _provider = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = ColoredBox(
+      color: widget.shading ? const Color(0xFF101C17) : const Color(0xFFE3EBE1),
+      child: CustomPaint(painter: _TileGridPainter(shading: widget.shading)),
+    );
+    if (_provider >= _providers.length) return fallback;
+    return Image.network(
+      _urlFor(_provider, widget.zoom, widget.x, widget.y),
+      fit: BoxFit.cover,
+      gaplessPlayback: true,
+      filterQuality: FilterQuality.low,
+      headers: const <String, String>{
+        'User-Agent': 'ShiaVerse/1.21 (Android Qibla map; offline-first Islamic library)',
+      },
+      loadingBuilder: (context, child, progress) => progress == null
+          ? child
+          : ColoredBox(
+              color: widget.shading ? const Color(0xFF101C17) : const Color(0xFFE3EBE1),
+            ),
+      errorBuilder: (context, error, stack) {
+        // Move to the next service. Scheduling the rebuild keeps the provider
+        // advance out of the build phase.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _provider < _providers.length) {
+            setState(() => _provider++);
+          }
+        });
+        return fallback;
+      },
+    );
+  }
 }
 
 /// A faint graticule used while tiles load, when offline, and in tests.

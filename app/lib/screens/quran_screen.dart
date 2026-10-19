@@ -155,15 +155,46 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
   }
 }
 
-class _SurahList extends StatelessWidget {
+class _SurahList extends StatefulWidget {
   const _SurahList({required this.library});
 
   final LibraryRepository library;
 
   @override
+  State<_SurahList> createState() => _SurahListState();
+}
+
+class _SurahListState extends State<_SurahList> {
+  @override
+  void initState() {
+    super.initState();
+    // Warm the cache so the first frame already shows the saved surahs.
+    unawaited(widget.library.warmSurahBookmarks().then((_) {
+      if (mounted) setState(() {});
+    }));
+  }
+
+  Future<void> _toggle(QuranSurah surah) async {
+    await widget.library.toggleSurahBookmark(surah.number);
+    if (!mounted) return;
+    setState(() {});
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+        content: JustifiedText(
+          widget.library.isSurahBookmarkedNow(surah.number)
+              ? 'مکمل سورة محفوظات میں محفوظ ہو گئی۔'
+              : 'سورة محفوظات سے ہٹا دی گئی۔',
+          style: const TextStyle(fontSize: 13),
+        ),
+        duration: const Duration(seconds: 2),
+      ));
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<QuranSurah>>(
-      future: library.getSurahs(),
+      future: widget.library.getSurahs(),
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
@@ -179,6 +210,7 @@ class _SurahList extends StatelessWidget {
           separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final surah = surahs[index];
+            final saved = widget.library.isSurahBookmarkedNow(surah.number);
             return ChapterWallpaperCard(
               child: ListTile(
                 leading: CircleAvatar(
@@ -195,9 +227,26 @@ class _SurahList extends StatelessWidget {
                   style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   maxLines: 1,
                 ),
-                trailing: const Icon(Icons.chevron_left),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    // The whole surah, not one verse: the button sits on the
+                    // row so it never opens the reader by accident.
+                    IconButton(
+                      key: ValueKey<String>('surah-bookmark-${surah.number}'),
+                      tooltip: saved ? 'محفوظات سے ہٹائیں' : 'مکمل سورة محفوظ کریں',
+                      visualDensity: VisualDensity.compact,
+                      icon: Icon(
+                        saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                        color: saved ? kGold : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      onPressed: () => unawaited(_toggle(surah)),
+                    ),
+                    const Icon(Icons.chevron_left),
+                  ],
+                ),
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => SurahReaderScreen(library: library, surah: surah),
+                  builder: (_) => SurahReaderScreen(library: widget.library, surah: surah),
                 )),
               ),
             );
@@ -303,6 +352,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
       searchQuery: widget.searchQuery,
       storageKey: 'quran-surah-${widget.surah.number}',
       startInMushaf: widget.startInMushaf,
+      surahNumber: widget.surah.number,
     );
   }
 }
@@ -366,6 +416,7 @@ class _QuranVerseList extends StatefulWidget {
     this.onNextSection,
     this.onPreviousSection,
     this.sectionNavLabel = '',
+    this.surahNumber,
   });
 
   final LibraryRepository library;
@@ -373,6 +424,10 @@ class _QuranVerseList extends StatefulWidget {
   final String subtitle;
   final Future<List<Passage>> Function() loader;
   final String storageKey;
+
+  /// Set only by the surah reader: a bookmark button for the whole surah then
+  /// sits in the app bar (juz and page readers have no single surah to save).
+  final int? surahNumber;
   final bool bismillah;
   final int? initialRecordId;
   final String searchQuery;
@@ -525,6 +580,36 @@ class _QuranVerseListState extends State<_QuranVerseList> with ReaderDisplayMode
       fullScreen: readerFullScreen,
       overlay: readerDisplayOverlay(context),
       actions: <Widget>[
+        if (widget.surahNumber != null)
+          // The whole surah, not one verse. `setState` after the toggle keeps
+          // the icon honest; the repository answers from memory.
+          Builder(builder: (context) {
+            final saved = widget.library.isSurahBookmarkedNow(widget.surahNumber!);
+            return IconButton(
+              key: const ValueKey<String>('surah-reader-bookmark'),
+              tooltip: saved ? 'محفوظات سے ہٹائیں' : 'مکمل سورة محفوظ کریں',
+              icon: Icon(
+                saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                color: saved ? kGold : palette.accent,
+              ),
+              onPressed: () async {
+                await widget.library.toggleSurahBookmark(widget.surahNumber!);
+                if (!mounted) return;
+                setState(() {});
+                ScaffoldMessenger.of(context)
+                  ..clearSnackBars()
+                  ..showSnackBar(SnackBar(
+                    content: JustifiedText(
+                      widget.library.isSurahBookmarkedNow(widget.surahNumber!)
+                          ? 'مکمل سورة محفوظات میں محفوظ ہو گئی۔'
+                          : 'سورة محفوظات سے ہٹا دی گئی۔',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    duration: const Duration(seconds: 2),
+                  ));
+              },
+            );
+          }),
         readerDisplayActions(context, color: palette.accent),
         TextButton.icon(
           onPressed: () => showQuranJump(context, widget.library),

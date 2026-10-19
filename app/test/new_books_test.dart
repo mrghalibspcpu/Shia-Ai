@@ -8,10 +8,10 @@ import 'package:shiaverse/models.dart';
 
 /// The **نئی کتابیں** shelf and its first book, **اثنا عشری انسائکلوپیڈیا**.
 ///
-/// Since 1.20 the edition is the Urdu-Wikipedia corpus **merged** with the
-/// Wikishia topic notes, so these checks also pin that merge: the shipped
-/// database must contain both sources, the merged article count, and a
-/// revision URL on every imported section.
+/// The shipped edition is built straight from
+/// «اثنا عشری انسائکلوپیڈیا (منتخب).zip»: 574 curated Urdu-Wikipedia articles
+/// and nothing else. These checks pin that — no second corpus may creep back
+/// in, and every reference must point at ur.wikipedia.org.
 void main() {
   final manifestFile = File('assets/database-manifest.json');
   final packedFile = File('../assets/athna_ashari_encyclopedia.db.gz');
@@ -57,7 +57,7 @@ void main() {
     expect(package.sha256, matches(RegExp(r'^[0-9a-f]{64}$')));
     // The prose-only edition is around 10 MB; a manifest line advertising a
     // small or empty file would mean the build silently lost the corpus.
-    // Wikipedia (574 articles) + Wikishia notes (61 new articles) is ~11 MB.
+    // 574 articles across ten groups is 10,625,024 bytes.
     expect(package.sizeBytes, greaterThan(9 * 1024 * 1024));
     expect(package.isDownloadable, isTrue);
     // The app packages every database gzipped; the encyclopaedia is no
@@ -68,19 +68,18 @@ void main() {
         File('../assets/database-manifest.json').readAsStringSync());
   });
 
-  test('the shipped edition really contains the merged Wikishia notes', () {
-    // The merge lives in scripts/merge_wikishia_notes.py. This pins the bytes
-    // committed here: the Wikishia revision pages and a note-only topic are in
-    // the same database as the Wikipedia articles, and the title has no
-    // «(منتخب)» suffix any more.
+  test('the shipped edition carries only the selected Wikipedia corpus', () {
+    // scripts/build_encyclopedia_db.py turns the Drive ZIP into the reader
+    // edition. This pins the bytes committed here: every source page is an
+    // ur.wikipedia.org revision, and the retired Wikishia notes are gone.
     final bytes = gzip.decode(packedFile.readAsBytesSync());
     final text = utf8.decode(bytes, allowMalformed: true);
-    expect(text.contains('https://ur.wikishia.net/w/index.php?title='), isTrue,
-        reason: 'every imported section keeps its Wikishia revision URL');
     expect(text.contains('ur.wikipedia.org'), isTrue,
-        reason: 'the Wikipedia articles must survive the merge');
-    expect(text.contains('مرجع تقلید'), isTrue,
-        reason: 'a topic that only the Wikishia notes carry');
+        reason: 'the Wikipedia articles are the edition');
+    expect(text.contains('wikishia'), isFalse,
+        reason: 'the Wikishia notes were removed in 1.21');
+    expect(text.contains('(منتخب)'), isFalse,
+        reason: 'the app title stays «اثنا عشری انسائکلوپیڈیا»');
     final manifest = jsonDecode(manifestFile.readAsStringSync()) as Map<String, dynamic>;
     final entry = (manifest['databases'] as List)
         .cast<Map<String, dynamic>>()

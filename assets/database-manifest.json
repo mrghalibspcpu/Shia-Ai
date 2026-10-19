@@ -241,16 +241,16 @@
       "title_urdu": "اثنا عشری انسائکلوپیڈیا",
       "title_latin": "Twelver Shia Encyclopedia",
       "record_label": "مضمون",
-      "size_bytes": 11186176,
-      "sha256": "e35b74c7dd5e7d9f13d4601ff7aad1c9d1a6189bdbe582c541ea547687c79193",
+      "size_bytes": 10625024,
+      "sha256": "2c64ff87ddb2b5d72a49c12176a8903f6a9d360ce8da13232921c389749d4084",
       "records": {
-        "articles": 635,
+        "articles": 574,
         "groups": 10,
-        "sections": 3615,
-        "source_references": 8325,
+        "sections": 3320,
+        "source_references": 8142,
         "imams": 12,
         "topics": 6,
-        "related_articles": 6459
+        "related_articles": 4093
       }
     },
     {

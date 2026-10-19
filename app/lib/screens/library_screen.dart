@@ -15,6 +15,7 @@ import '../widgets/reader_kit.dart';
 import '../widgets/reader_chrome.dart';
 import '../widgets/chapter_wallpaper.dart';
 import '../widgets/resume_card.dart';
+import 'quran_screen.dart';
 import 'search_screen.dart';
 
 class LibraryHomeScreen extends StatefulWidget {
@@ -1049,6 +1050,17 @@ class BookmarksScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Surahs are saved whole («مکمل سورة محفوظ کریں» on the Quran list), so
+    // they live above the verse bookmarks instead of inside one book's grid.
+    return Column(
+      children: <Widget>[
+        _SavedSurahsStrip(library: library),
+        Expanded(child: _verseBookmarks(context)),
+      ],
+    );
+  }
+
+  Widget _verseBookmarks(BuildContext context) {
     return FutureBuilder<List<(BookDefinition, Passage)>>(
       future: _load(),
       builder: (context, snapshot) {
@@ -1124,6 +1136,135 @@ class BookmarksScreen extends StatelessWidget {
               ),
             );
           },
+        );
+      },
+    );
+  }
+}
+
+/// The whole surahs the reader saved, as a horizontal shelf above the verse
+/// bookmarks. Tapping one opens it at the first ayah; the small × removes it.
+class _SavedSurahsStrip extends StatefulWidget {
+  const _SavedSurahsStrip({required this.library});
+
+  final LibraryRepository library;
+
+  @override
+  State<_SavedSurahsStrip> createState() => _SavedSurahsStripState();
+}
+
+class _SavedSurahsStripState extends State<_SavedSurahsStrip> {
+  late Future<(List<int>, List<QuranSurah>)> _load = _loadBoth();
+
+  Future<(List<int>, List<QuranSurah>)> _loadBoth() async {
+    final saved = await widget.library.getSurahBookmarks();
+    if (saved.isEmpty) return (saved, const <QuranSurah>[]);
+    final surahs = await widget.library.getSurahs();
+    return (saved, surahs.where((surah) => saved.contains(surah.number)).toList());
+  }
+
+  Future<void> _remove(int number) async {
+    await widget.library.toggleSurahBookmark(number);
+    if (!mounted) return;
+    setState(() {
+      // Re-read the shelf: the removed chip must disappear immediately.
+      _load = _loadBoth();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<(List<int>, List<QuranSurah>)>(
+      future: _load,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const SizedBox.shrink();
+        }
+        final surahs = snapshot.data?.$2 ?? const <QuranSurah>[];
+        if (surahs.isEmpty) return const SizedBox.shrink();
+        final scheme = Theme.of(context).colorScheme;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 6),
+              child: Row(
+                children: <Widget>[
+                  Icon(Icons.auto_stories_rounded, size: 18, color: kGold),
+                  const SizedBox(width: 6),
+                  const JustifiedText('محفوظ سورتیں',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                  const Spacer(),
+                  Text('${surahs.length}', style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 78,
+              child: ListView.separated(
+                key: const ValueKey<String>('saved-surah-strip'),
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: surahs.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final surah = surahs[index];
+                  return Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => SurahReaderScreen(library: widget.library, surah: surah),
+                      )),
+                      child: Ink(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          gradient: LinearGradient(
+                            begin: Alignment.topRight,
+                            end: Alignment.bottomLeft,
+                            colors: <Color>[
+                              kGold.withValues(alpha: 0.22),
+                              kForest.withValues(alpha: 0.18),
+                            ],
+                          ),
+                          border: Border.all(color: kGold.withValues(alpha: 0.45)),
+                        ),
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+                        child: Row(
+                          children: <Widget>[
+                            IconButton(
+                              key: ValueKey<String>('saved-surah-remove-${surah.number}'),
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                              icon: const Icon(Icons.close_rounded, size: 15),
+                              onPressed: () => unawaited(_remove(surah.number)),
+                            ),
+                            const SizedBox(width: 4),
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                JustifiedText(
+                                  surah.nameUrdu.isEmpty ? surah.nameArabic : surah.nameUrdu,
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                                  maxLines: 1,
+                                ),
+                                Text(
+                                  'سورة ${arabicNumerals(surah.number)} • ${arabicNumerals(surah.verseCount)} آیات',
+                                  style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         );
       },
     );
