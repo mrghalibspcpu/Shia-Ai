@@ -65,4 +65,17 @@ if ! adb shell pidof "$package" | grep -Eq '[0-9]+'; then
   exit 1
 fi
 
+# The release also ships one APK per CPU for slow connections. Install the
+# x86_64 split over the universal build to prove those files are valid too.
+split=app/build/app/outputs/flutter-apk/app-x86_64-release.apk
+if [[ -f "$split" ]]; then
+  printf '\nInstalling the x86_64 split APK (same version, same signer)...\n'
+  adb install -r --no-streaming "$split"
+  if ! adb shell pm path "$package" | grep -q 'base.apk'; then
+    echo '::error title=Split APK installation failed::the package manager rejected the per-ABI APK'
+    exit 1
+  fi
+  echo 'Per-ABI APK installed over the universal build.'
+fi
+
 echo 'Android emulator clean install AND launch verified.'

@@ -220,6 +220,25 @@ jobs:
             exit "$status"
           fi
 
+      # Split builds: one APK per CPU architecture. The universal APK carries
+      # three copies of libflutter/libapp (~57 MiB uncompressed) and lands at
+      # ~76 MiB, which a slow phone connection often truncates mid-download —
+      # the phone then reports "There was a problem while parsing the package".
+      # The arm64 build is roughly half the size and installs on every modern
+      # phone; the universal file stays published as the fallback.
+      - name: Build per-ABI APKs
+        working-directory: app
+        shell: bash
+        env:
+          SHIA_DATA_BASE_URL: ${{ vars.SHIA_DATA_BASE_URL }}
+        run: |
+          set -euo pipefail
+          # Keep the universal build: it is what the emulator smoke test,
+          # the uploaded artifact and the published fallback download use.
+          cp build/app/outputs/flutter-apk/app-release.apk build/app-universal-release.apk
+          flutter build apk --release --split-per-abi --dart-define=SHIA_DATA_BASE_URL="$SHIA_DATA_BASE_URL"
+          cp build/app-universal-release.apk build/app/outputs/flutter-apk/app-release.apk
+
       - name: Report APK size and digest
         run: |
           set -euo pipefail
@@ -353,6 +372,46 @@ jobs:
             if [ -n "$signer" ]; then echo "- $signer"; fi
           } >> "$GITHUB_STEP_SUMMARY"
           echo "Hosted APK is byte-identical to the signed build."
+
+      # One APK per architecture, named after the version so a phone never
+      # reuses a half-downloaded file it already holds.
+      - name: Publish the per-ABI APKs
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version:[[:space:]]*//p' app/pubspec.yaml | tr -d '\r')
+          tag="app-v${version%%+*}"
+          base="ShiaVerse-${version%%+*}"
+          out=app/build/app/outputs/flutter-apk
+          mkdir -p build/apk-abi
+          rows=""
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            src="$out/app-$abi-release.apk"
+            if [ ! -f "$src" ]; then
+              echo "::error title=Missing split APK::$src was not built"
+              exit 1
+            fi
+            asset="$base-$abi.apk"
+            cp "$src" "build/apk-abi/$asset"
+            size=$(stat -c%s "$src")
+            sha=$(sha256sum "$src" | cut -d' ' -f1)
+            echo "$abi $size bytes $sha"
+            rows="${rows}| \`$asset\` | $size | \`$sha\` |"$'\n'
+          done
+          gh release upload "$tag" build/apk-abi/*.apk --clobber
+          {
+            echo
+            echo '### Smaller downloads (one per CPU)'
+            echo
+            echo '| file | size | sha-256 |'
+            echo '| --- | --- | --- |'
+            printf '%s' "$rows"
+            echo
+            echo 'Almost every phone is **arm64-v8a** — pick that one if the 76 MiB universal APK keeps failing to download.'
+          } >> build/apk-release/notes.md
+          gh release edit "$tag" --notes-file build/apk-release/notes.md
 
       # The same APK inside a zip, published next to it: some phones and
       # messengers refuse to download or forward a bare .apk file.
