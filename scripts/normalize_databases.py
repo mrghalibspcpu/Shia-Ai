@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Normalise the standalone collections so they match the original 14-book corpus.
 
-``assets/quran.db``, ``assets/mafatihdb-v4.db`` and ``assets/nahjul_balagha.db``
+``assets/quran.db``, ``assets/mafatihdb-v4.db`` and ``assets/nahjul_balagha_v2.db``
 arrive from their source apps with different page sizes, no indexes, and
 occasionally leftover free pages. This rewrites each file in place so that every
 database the app ships shares one configuration:

@@ -235,22 +235,22 @@
       }
     },
     {
-      "name": "athna_ashari_encyclopedia.db",
+      "name": "athna_ashari_encyclopedia_v2.db",
       "key": "athna_ashari_encyclopedia",
       "source": "encyclopedia",
       "title_urdu": "اثنا عشری انسائکلوپیڈیا",
       "title_latin": "Twelver Shia Encyclopedia",
       "record_label": "مضمون",
-      "size_bytes": 10625024,
-      "sha256": "a9701936373493a2b44a86cabe4721772c198b02b0d7f10b8fed56a5241c4023",
+      "size_bytes": 14618624,
+      "sha256": "94bb5b5f1d531cb6d026d2d61bcfef18fe5dc0676e71b57bdebb30d72598a8bd",
       "records": {
-        "articles": 574,
+        "articles": 651,
         "groups": 10,
-        "sections": 3320,
-        "source_references": 8142,
+        "sections": 3615,
+        "source_references": 8420,
         "imams": 12,
         "topics": 6,
-        "related_articles": 4093
+        "related_articles": 23924
       }
     },
     {
@@ -282,19 +282,20 @@
       }
     },
     {
-      "name": "nahjul_balagha.db",
+      "name": "nahjul_balagha_v2.db",
       "key": "nahjul_balagha",
       "source": "balagha",
       "title_urdu": "نہج البلاغہ",
       "title_latin": "Nahj al-Balagha",
       "record_label": "فقرا",
-      "size_bytes": 6180864,
-      "sha256": "a74f6f6b13a1a63485757113052b85c38edd1bcd64ef140878233c3998069bb2",
+      "size_bytes": 7990272,
+      "sha256": "b70fa47ca1393f28999b246068caa895485f2ea2a7a1b85524ef93a94e954b99",
       "records": {
         "balaghatext": 3742,
         "balaghatoc": 810,
         "balaghatext_hawashi": 2352,
-        "balaghatext_muqadamat": 504
+        "balaghatext_muqadamat": 504,
+        "balagha_replacement_translation": 1100
       }
     },
     {

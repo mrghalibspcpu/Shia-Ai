@@ -5,7 +5,7 @@ The corpus reaches the app in two shapes:
 
 * ``assets/shia-databases.zip`` — the 14 original hadith books (~190 MiB
   expanded). Keeping them compressed avoids committing a second expanded copy.
-* ``assets/quran.db``, ``assets/mafatihdb-v4.db``, ``assets/nahjul_balagha.db``
+* ``assets/quran.db``, ``assets/mafatihdb-v4.db``, ``assets/nahjul_balagha_v2.db``
   — three standalone collections checked in directly.
 
 Builds and CI materialise every file into one directory (``assets/databases`` by

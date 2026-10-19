@@ -53,7 +53,7 @@ All 14 extracted databases passed SQLite `PRAGMA quick_check`. Counts from the s
 | `wasail.db` | 27,232 | 6,906 | 216 |
 | **Total** | **96,513** | **17,855** | **845** |
 
-The compressed bundle `assets/shia-databases.zip` preserves the source databases without checking in the expanded files. Run `python3 scripts/prepare_databases.py` to validate every database against `assets/database-manifest.json`, or add `--output app/assets/databases` to bundle them into the APK. Three further collections (`quran.db`, `mafatihdb-v4.db`, `nahjul_balagha.db`) are checked in directly and normalised by `scripts/normalize_databases.py`; the manifest covers all 17 files with sizes, SHA-256 hashes, row counts, and download locations.
+The compressed bundle `assets/shia-databases.zip` preserves the source databases without checking in the expanded files. Run `python3 scripts/prepare_databases.py` to validate every database against `assets/database-manifest.json`, or add `--output app/assets/databases` to bundle them into the APK. The additional collections (`quran.db`, `mafatihdb-v4.db`, `nahjul_balagha_v2.db`, the two fatawa databases, Sahifa, and the encyclopedia) are validated by `scripts/normalize_databases.py` and `scripts/prepare_databases.py`; the manifest covers all 21 files with sizes, SHA-256 hashes, row counts, and download locations.
 
 ## Client rebuild and remaining limitations
 

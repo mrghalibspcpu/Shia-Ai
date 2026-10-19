@@ -1,4 +1,4 @@
-"""Replay every page of the actual Dart index queries against ALL 20 books."""
+"""Replay every page of the actual Dart index queries against all 21 books."""
 import sqlite3
 import sys
 import unittest
@@ -30,7 +30,7 @@ class FullSearchCoverageTests(unittest.TestCase):
                         query = f'SELECT * FROM ({query}) ORDER BY record_id LIMIT ? OFFSET ?'
                     expected = sum(db.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0]
                                    for t in ({'hadith': ['Parags'], 'quran': ['Quran'], 'dua': ['M_items'],
-                                              'balagha': ['balaghatext', 'balaghatext_hawashi', 'balaghatext_muqadamat'],
+                                              'balagha': ['balaghatext', 'balaghatext_hawashi', 'balaghatext_muqadamat', 'balagha_replacement_translation'],
                                               'sahifa': ['saheefa_data'], 'fatwa': ['question_answers'],
                                               'encyclopedia': ['sections']}[spec.source]))
                     if spec.source == 'hadith':

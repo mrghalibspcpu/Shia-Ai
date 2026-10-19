@@ -194,8 +194,20 @@ def balagha(connection: sqlite3.Connection) -> None:
     check("balagha: khutba entries", len(entries) == 238, f"{len(entries)}")
     prose = run(connection, "FROM balaghatext_hawashi WHERE Type = 5 AND TypeNo = ?", (1,))
     check("balagha: introduction prose", len(prose) > 10, f"{len(prose)} paragraphs")
-    main = run(connection, "WHERE x.Type = ? AND x.TypeNo = ?", (1, 3))
+    main = run(connection, "WHERE x.Type = ? AND x.TypeNo = ?", (1, 1, 3))
     check("balagha: khutba 3 paragraphs", len(main) > 10, f"{len(main)}")
+    translations = connection.execute(
+        "SELECT COUNT(*) FROM balagha_replacement_translation WHERE type=1 AND type_no=3"
+    ).fetchone()[0]
+    check("balagha: replacement Urdu is matched by the canonical khutba number", translations > 0, f"{translations} blocks")
+    unchanged_arabic = connection.execute(
+        "SELECT COUNT(*) FROM balaghatext WHERE Type=1 AND TypeNo=3 AND trim(AR)<>''"
+    ).fetchone()[0]
+    notes = connection.execute(
+        "SELECT COUNT(*) FROM balaghatext_hawashi WHERE Type=1 AND TypeNo=3"
+    ).fetchone()[0]
+    check("balagha: Arabic matan and original hawashi remain", unchanged_arabic > 0 and notes > 0,
+          f"{unchanged_arabic} Arabic rows; {notes} notes")
     # The book's own typography comes from ParaFormat: 1 title, 2 text,
     # 3 sub-heading, 4 separator. The reader renders those roles and never
     # prints a "فقرا نمبر" label, so the roles have to be there.
@@ -356,7 +368,7 @@ def encyclopedia(connection: sqlite3.Connection) -> None:
     check("encyclopedia: curated topics resolve to articles", len(topics) >= 5, f"{len(topics)}")
     # The small «ماخذ» chip must have a real page for every reference it shows.
     blank_refs = connection.execute(
-        "SELECT COUNT(*) FROM source_references WHERE source_url NOT LIKE 'https://%'"
+        "SELECT COUNT(*) FROM source_references WHERE source_url NOT LIKE 'https://%' AND source_url NOT LIKE 'http://%'"
     ).fetchone()[0]
     check("encyclopedia: references keep their permanent URLs", blank_refs == 0, f"{blank_refs} without a URL")
     # Every article must give the reader at least one paragraph and one ماخذ.

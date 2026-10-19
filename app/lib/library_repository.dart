@@ -19,7 +19,7 @@ export 'text_utils.dart'
         normalizeArabicUrdu,
         relevanceScore;
 
-const int _searchIndexVersion = 6;
+const int _searchIndexVersion = 7;
 const int _indexPageSize = 400;
 
 const String _kLastReadKey = 'last_read_v2';
@@ -435,7 +435,8 @@ class LibraryRepository {
         : book.source == CorpusSource.balagha
             ? 'SELECT (SELECT COUNT(*) FROM balaghatext) + '
                 '(SELECT COUNT(*) FROM balaghatext_hawashi) + '
-                '(SELECT COUNT(*) FROM balaghatext_muqadamat) AS count'
+                '(SELECT COUNT(*) FROM balaghatext_muqadamat) + '
+                '(SELECT COUNT(*) FROM balagha_replacement_translation) AS count'
             : 'SELECT COUNT(*) AS count FROM ${_sourceTable(book)}';
     final rows = await source.rawQuery(statement);
     return (rows.first['count'] as int?) ?? 0;
@@ -655,8 +656,12 @@ class LibraryRepository {
         ''', [_indexPageSize, offset]);
       case CorpusSource.balagha:
         return source.rawQuery('''
-          SELECT x.ID AS record_id, x.AR AS arabic, x.UR AS urdu, x.ParaNo AS page_no,
-                 x.Type AS container_type, x.TypeNo AS container_id,
+          SELECT x.ID AS record_id, x.AR AS arabic,
+                 CASE WHEN x.ParaFormat = 2 AND EXISTS (
+                   SELECT 1 FROM balagha_replacement_translation r
+                   WHERE r.type = x.Type AND r.type_no = x.TypeNo
+                 ) THEN '' ELSE x.UR END AS urdu,
+                 x.ParaNo AS page_no, x.Type AS container_type, x.TypeNo AS container_id,
                  COALESCE(t.ShortDesc, t.Description, '') AS section_title
           FROM balaghatext AS x
           LEFT JOIN balaghatoc AS t ON t.TypeID = x.Type AND t.TypeNo = x.TypeNo
@@ -667,6 +672,9 @@ class LibraryRepository {
           UNION ALL
           SELECT -1000000-m.ID, m.mqar, m.mqur, m.ParaNo, m.Type, 0, 'مقدمہ'
           FROM balaghatext_muqadamat m
+          UNION ALL
+          SELECT -2000000-r.id, '', r.urdu, r.sort_order, r.type, r.type_no, 'اردو ترجمہ'
+          FROM balagha_replacement_translation r
           ORDER BY record_id
           LIMIT ? OFFSET ?
         ''', [_indexPageSize, offset]);
@@ -709,6 +717,7 @@ class LibraryRepository {
             'CREATE INDEX IF NOT EXISTS shia_balagha_toc_type ON balaghatoc(TypeID, TypeNo)',
             'CREATE INDEX IF NOT EXISTS shia_balagha_hawashi_locate ON balaghatext_hawashi(Type, TypeNo, ParaNo)',
             'CREATE INDEX IF NOT EXISTS shia_balagha_muqadamat_type ON balaghatext_muqadamat(Type, ParaFormat, ID)',
+            'CREATE INDEX IF NOT EXISTS shia_balagha_replacement_locate ON balagha_replacement_translation(type, type_no, sort_order)',
           ],
         CorpusSource.encyclopedia => const [
             'CREATE INDEX IF NOT EXISTS shia_encyclopedia_sections_article ON sections(article_id, ordinal)',
@@ -1365,13 +1374,18 @@ class LibraryRepository {
           )));
     }
 
+    final hasReplacement = (await db.rawQuery(
+      "SELECT 1 FROM sqlite_master WHERE type='table' AND name='balagha_replacement_translation' LIMIT 1",
+    )).isNotEmpty;
     final rows = await db.rawQuery('''
-      SELECT x.ID AS record_id, x.AR AS arabic, x.UR AS urdu, x.ParaNo AS page_no,
-             x.ParaFormat AS format, x.Type AS container_type, x.TypeNo AS container_id
+      SELECT x.ID AS record_id, x.AR AS arabic,
+             CASE WHEN ? = 1 AND x.ParaFormat = 2 THEN '' ELSE x.UR END AS urdu,
+             x.ParaNo AS page_no, x.ParaFormat AS format,
+             x.Type AS container_type, x.TypeNo AS container_id
       FROM balaghatext AS x
       WHERE x.Type = ? AND x.TypeNo = ?
       ORDER BY (x.ParaNo IS NULL), x.ParaNo, x.ID
-    ''', [type, typeNo]);
+    ''', [hasReplacement ? 1 : 0, type, typeNo]);
     for (final row in rows) {
       final passage = Passage(
         recordId: _asInt(row['record_id']) ?? 0,
@@ -1387,6 +1401,22 @@ class LibraryRepository {
         format: _asInt(row['format']),
       );
       paragraphs.add(passage);
+    }
+
+    if (hasReplacement) {
+      final translations = await db.rawQuery('''
+        SELECT id, urdu FROM balagha_replacement_translation
+        WHERE type = ? AND type_no = ? ORDER BY sort_order
+      ''', [type, typeNo]);
+      paragraphs.addAll(translations.map((row) => Passage(
+            recordId: -2000000 - (_asInt(row['id']) ?? 0),
+            arabic: '',
+            urdu: _compact((row['urdu'] ?? '').toString()),
+            containerType: type,
+            containerId: typeNo,
+            chapterTitle: balaghaSectionTitles[type] ?? 'نہج البلاغہ',
+            sectionTitle: 'اردو ترجمہ',
+          )));
     }
 
     final footnotes = await _footnotesByParagraph(db, type, typeNo);
@@ -1672,6 +1702,24 @@ class LibraryRepository {
           locator: 'دعا',
         );
       case CorpusSource.balagha:
+        if (recordId <= -2000001) {
+          final rows = await db.rawQuery('''
+            SELECT id, type, type_no, urdu FROM balagha_replacement_translation
+            WHERE id = ? LIMIT 1
+          ''', [-2000000 - recordId]);
+          if (rows.isEmpty) return null;
+          final row = rows.first;
+          final type = _asInt(row['type']) ?? 1;
+          return Passage(
+            recordId: recordId,
+            arabic: '',
+            urdu: _compact((row['urdu'] ?? '').toString()),
+            containerType: type,
+            containerId: _asInt(row['type_no']),
+            chapterTitle: balaghaSectionTitles[type] ?? 'نہج البلاغہ',
+            sectionTitle: 'اردو ترجمہ',
+          );
+        }
         if (recordId < -1000000) {
           final rows = await db.rawQuery('''
             SELECT ID AS record_id, mqar AS arabic, mqur AS urdu, Type AS container_type,
@@ -1706,8 +1754,12 @@ class LibraryRepository {
           );
         }
         final rows = await db.rawQuery('''
-          SELECT x.ID AS record_id, x.AR AS arabic, x.UR AS urdu, x.ParaNo AS page_no,
-                 x.Type AS container_type, x.TypeNo AS container_id,
+          SELECT x.ID AS record_id, x.AR AS arabic,
+                 CASE WHEN x.ParaFormat = 2 AND EXISTS (
+                   SELECT 1 FROM balagha_replacement_translation r
+                   WHERE r.type = x.Type AND r.type_no = x.TypeNo
+                 ) THEN '' ELSE x.UR END AS urdu,
+                 x.ParaNo AS page_no, x.Type AS container_type, x.TypeNo AS container_id,
                  COALESCE(t.ShortDesc, t.Description, '') AS section_title
           FROM balaghatext AS x
           LEFT JOIN balaghatoc AS t ON t.TypeID = x.Type AND t.TypeNo = x.TypeNo

@@ -143,7 +143,7 @@ class BookDefinition {
     ),
     BookDefinition(
       key: 'nahjul_balagha',
-      fileName: 'nahjul_balagha.db',
+      fileName: 'nahjul_balagha_v2.db',
       titleUrdu: 'نہج البلاغہ',
       titleLatin: 'Nahj al-Balagha',
       description: 'خطبات، خطوط، حکمت اور مقدمات اردو ترجمہ کے ساتھ',
@@ -155,7 +155,7 @@ class BookDefinition {
     // every older key/file name stays exactly where it was.
     BookDefinition(
       key: 'athna_ashari_encyclopedia',
-      fileName: 'athna_ashari_encyclopedia.db',
+      fileName: 'athna_ashari_encyclopedia_v2.db',
       titleUrdu: 'اثنا عشری انسائکلوپیڈیا',
       titleLatin: 'Twelver Shia Encyclopedia',
       description: 'ائمہ، اہل بیت، عقائد، عبادات، کتب اور مقامات — منتخب مضامین، اصل ماخذ کے ساتھ',

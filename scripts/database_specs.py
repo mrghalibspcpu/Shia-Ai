@@ -73,6 +73,7 @@ BALAGHA_INDEXES = (
     "CREATE INDEX IF NOT EXISTS shia_balagha_toc_type ON balaghatoc(TypeID, TypeNo)",
     "CREATE INDEX IF NOT EXISTS shia_balagha_hawashi_locate ON balaghatext_hawashi(Type, TypeNo, ParaNo)",
     "CREATE INDEX IF NOT EXISTS shia_balagha_muqadamat_type ON balaghatext_muqadamat(Type, ParaFormat, ID)",
+    "CREATE INDEX IF NOT EXISTS shia_balagha_replacement_locate ON balagha_replacement_translation(type, type_no, sort_order)",
 )
 
 HADITH_BOOKS: tuple[tuple[str, str, str], ...] = (
@@ -98,7 +99,7 @@ EXTRA_DATABASES: tuple[DatabaseSpec, ...] = (
     # the plain .db is materialised by collect_databases() (and is git-ignored,
     # like the other expanded database files).
     DatabaseSpec(
-        name="athna_ashari_encyclopedia.db",
+        name="athna_ashari_encyclopedia_v2.db",
         source="encyclopedia",
         key="athna_ashari_encyclopedia",
         title_urdu="اثنا عشری انسائکلوپیڈیا",
@@ -167,7 +168,7 @@ EXTRA_DATABASES: tuple[DatabaseSpec, ...] = (
         record_label="دعا",
     ),
     DatabaseSpec(
-        name="nahjul_balagha.db",
+        name="nahjul_balagha_v2.db",
         source="balagha",
         key="nahjul_balagha",
         title_urdu="نہج البلاغہ",
@@ -178,6 +179,7 @@ EXTRA_DATABASES: tuple[DatabaseSpec, ...] = (
             "balaghatoc": {"ID", "TypeID", "TypeNo", "Description", "ShortDesc"},
             "balaghatext_hawashi": {"ID", "Type", "TypeNo", "ParaNo", "hawashi"},
             "balaghatext_muqadamat": {"ID", "Type", "ParaNo", "ParaFormat", "mqar", "mqur"},
+            "balagha_replacement_translation": {"id", "type", "type_no", "sort_order", "urdu"},
         },
         indexes=BALAGHA_INDEXES,
         record_label="فقرا",

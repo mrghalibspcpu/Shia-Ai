@@ -248,8 +248,8 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
   /// already live on the home screen's own cards.
   List<MoreFeature> _moreFeatures(BuildContext homeContext) => <MoreFeature>[
         MoreFeature(
-          title: 'نئی کتابیں',
-          subtitle: 'شیعہ اردو ویکیپیڈیا — مضامین، ائمہ اور اصل ماخذ کے لنکس',
+          title: 'اثنا عشری انسائکلوپیڈیا',
+          subtitle: 'تفصیلی اردو مضامین، ائمہ اور براہِ راست ماخذ کے لنکس',
           icon: Icons.library_add_rounded,
           color: const Color(0xFF4B3B78),
           onOpen: () => unawaited(_navigatorKey.currentState?.push(MaterialPageRoute<void>(

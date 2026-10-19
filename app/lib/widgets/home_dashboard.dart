@@ -684,7 +684,9 @@ class _MiniPrayerCard extends StatelessWidget {
                             active: runningNow && activeGroup == entry.marker,
                             upcoming: !(runningNow && activeGroup == entry.marker) &&
                                 nextGroup == entry.marker,
-                            remaining: nextGroup == entry.marker ? next.time.difference(now) : null,
+                            remaining: runningNow && activeGroup == entry.marker
+                                ? window.endsAt.difference(now)
+                                : (nextGroup == entry.marker ? next.time.difference(now) : null),
                           ),
                         ),
                     ],
@@ -879,13 +881,13 @@ class _MiniPrayerCell extends StatelessWidget {
                 height: 14,
                 child: Center(
                   child: active
-                      ? const _NowTag()
+                      ? _NowTag(remaining: left)
                       : (left == null
                           ? const SizedBox.shrink()
                           : FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                formatCountdownClock(left),
+                                'باقی ${formatCountdownClock(left)}',
                                 style: _onSky(11.5, weight: FontWeight.w800, color: gold, digits: true),
                               ),
                             )),
@@ -901,7 +903,9 @@ class _MiniPrayerCell extends StatelessWidget {
 
 /// The small white **Now** badge on the prayer that is running.
 class _NowTag extends StatelessWidget {
-  const _NowTag();
+  const _NowTag({required this.remaining});
+
+  final Duration? remaining;
 
   @override
   Widget build(BuildContext context) {
@@ -911,10 +915,12 @@ class _NowTag extends StatelessWidget {
         color: Colors.white.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(7),
       ),
-      child: const Text(
-        'Now',
+      child: Text(
+        remaining == null
+            ? 'اب'
+            : 'اب · ${formatCountdownClock(remaining!)}',
         maxLines: 1,
-        style: TextStyle(
+        style: const TextStyle(
           fontFamily: kDigitFont,
           fontSize: 8.5,
           height: 1.2,

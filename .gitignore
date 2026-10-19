@@ -43,8 +43,8 @@ deliverables/
 
 # The encyclopaedia reader edition is committed gzipped; the expanded .db is a
 # build artefact (scripts/build_encyclopedia_db.py writes it on demand).
-assets/athna_ashari_encyclopedia.db
+assets/athna_ashari_encyclopedia_v2.db
 
 # The raw corpus downloaded from Google Drive (20 MB ZIP). The app edition is
-# assets/athna_ashari_encyclopedia.db.gz; the ZIP is only the builder's input.
+# assets/athna_ashari_encyclopedia_v2.db.gz; the ZIP is only the builder's input.
 google_drive/

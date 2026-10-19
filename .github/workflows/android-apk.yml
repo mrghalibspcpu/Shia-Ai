@@ -65,7 +65,7 @@ jobs:
         run: python scripts/check_dart.py
 
       - name: Unpack databases into the APK (optional)
-        if: ${{ inputs.bundle_databases == true }}
+        if: ${{ inputs.bundle_databases == true || startsWith(github.ref, 'refs/heads/arena/') }}
         run: python scripts/prepare_databases.py --output app/assets/databases
 
       - name: Resolve Flutter packages

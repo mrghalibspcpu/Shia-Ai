@@ -7,20 +7,12 @@ import '../astro/prayer_format.dart';
 import '../services/prayer_locations.dart';
 import 'glass_panel.dart';
 
-/// A north-up schematic map that makes the Qibla direction unmistakable.
-///
-/// The previous version fetched OpenStreetMap tiles, fell back to procedural
-/// "roads" when they failed, and rotated the whole map so the Qibla pointed up.
-/// On a phone that read as a confusing picture: the arrow often ended off
-/// screen and the fake streets looked like a real map. This version paints a
-/// clean, honest diagram instead — no network, no fake geography:
-///
-/// * north is always the top edge, labelled «شمال»;
-/// * a thick emerald arrow runs from «آپ» to a Kaaba mark on the rim;
-/// * the bearing in degrees and the compass point sit right under the map.
-///
-/// The direction comes from the same coordinates as the prayer schedule, so it
-/// works without a magnetometer, a tile server or a data connection.
+/// North-up street map with an exact geodesic Qibla bearing and an offline
+/// diagram fallback. Online, real OpenStreetMap tiles show the selected/GPS
+/// locality; offline, the original clear bearing diagram remains available.
+/// The bearing is computed from coordinates to the Kaaba, not from the phone's
+/// magnetometer, so it remains exact when the compass sensor is unavailable.
+/// A handset's physical facing still cannot be inferred without a heading sensor.
 class QiblaMapCard extends StatefulWidget {
   const QiblaMapCard({
     super.key,
@@ -41,6 +33,7 @@ class QiblaMapCard extends StatefulWidget {
 
 class _QiblaMapCardState extends State<QiblaMapCard> {
   bool _refreshing = false;
+  bool _streetMapAvailable = false;
 
   Future<void> _refreshLocation() async {
     if (_refreshing) return;
@@ -100,15 +93,38 @@ class _QiblaMapCardState extends State<QiblaMapCard> {
             borderRadius: BorderRadius.circular(15),
             child: SizedBox(
               height: 236,
-              child: CustomPaint(
-                key: const ValueKey<String>('qibla-map-diagram'),
-                painter: _QiblaDiagramPainter(
-                  bearing: widget.bearing,
-                  distanceLabel: distance,
-                  palette: palette,
-                  dark: palette.isDark,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(15),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    _StreetMapTiles(
+                      location: widget.location,
+                      onAvailabilityChanged: (available) {
+                        if (mounted && _streetMapAvailable != available) {
+                          setState(() => _streetMapAvailable = available);
+                        }
+                      },
+                    ),
+                    CustomPaint(
+                      key: const ValueKey<String>('qibla-map-diagram'),
+                      painter: _QiblaDiagramPainter(
+                        bearing: widget.bearing,
+                        distanceLabel: distance,
+                        palette: palette,
+                        dark: palette.isDark,
+                        streetMapAvailable: _streetMapAvailable,
+                      ),
+                      child: const SizedBox.expand(),
+                    ),
+                    if (_streetMapAvailable)
+                      const Positioned(
+                        left: 6,
+                        bottom: 5,
+                        child: _MapAttribution(),
+                      ),
+                  ],
                 ),
-                child: const SizedBox.expand(),
               ),
             ),
           ),
@@ -131,9 +147,9 @@ class _QiblaMapCardState extends State<QiblaMapCard> {
           ),
           const SizedBox(height: 5),
           Text(
-            'نقشہ شمال اوپر ہے: موٹا سبز تیر آپ کے مقام سے کعبہ کی طرف ہے۔ '
-            'اسی رخ منہ کر کے نماز پڑھیں — کمپاس یا اینگل کی ضرورت نہیں، '
-            'اور یہ نقشہ انٹرنیٹ کے بغیر بھی چلتا ہے۔',
+            'نقشہ شمال اوپر ہے: سبز تیر آپ کے مقام سے قبلے کے درست جغرافیائی رخ کی طرف ہے۔ '
+            'آن لائن حقیقی نقشہ دکھتا ہے؛ انٹرنیٹ نہ ہو تو تیر والا آف لائن نقشہ رہتا ہے۔ '
+            'کمپاس نہ ہو تب بھی زاویہ درست رہتا ہے، مگر فون کس طرف رخ ہے یہ سینسر کے بغیر معلوم نہیں ہو سکتا۔',
             style: TextStyle(fontSize: 11.5, height: 1.45, color: palette.muted),
           ),
         ],
@@ -154,6 +170,124 @@ String _locationSourceNote(PrayerLocation location) {
   };
 }
 
+/// Small north-up OpenStreetMap mosaic centered on the chosen coordinates.
+/// It is deliberately dependency-free: tiles are ordinary HTTPS images and the
+/// page continues to work with the built-in diagram if they are unreachable.
+class _StreetMapTiles extends StatefulWidget {
+  const _StreetMapTiles({required this.location, required this.onAvailabilityChanged});
+
+  final PrayerLocation location;
+  final ValueChanged<bool> onAvailabilityChanged;
+
+  @override
+  State<_StreetMapTiles> createState() => _StreetMapTilesState();
+}
+
+class _StreetMapTilesState extends State<_StreetMapTiles> {
+  static const int _zoom = 13;
+  static const double _tileSize = 256;
+  String _gridKey = '';
+  bool _reportedAvailable = false;
+  bool _reportedUnavailable = false;
+  int _errors = 0;
+  int _visibleTiles = 0;
+
+  void _loaded() {
+    if (_reportedAvailable) return;
+    _reportedAvailable = true;
+    widget.onAvailabilityChanged(true);
+  }
+
+  void _failed() {
+    if (_reportedAvailable || _reportedUnavailable) return;
+    _errors++;
+    if (_errors >= _visibleTiles) {
+      _reportedUnavailable = true;
+      widget.onAvailabilityChanged(false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, constraints) {
+      final n = 1 << _zoom;
+      final latitude = widget.location.latitude.clamp(-85.05112878, 85.05112878);
+      final latRad = latitude * math.pi / 180;
+      final centerX = (widget.location.longitude + 180) / 360 * n * _tileSize;
+      final centerY = (1 - math.log(math.tan(latRad) + 1 / math.cos(latRad)) / math.pi) / 2 * n * _tileSize;
+      final leftWorld = centerX - constraints.maxWidth / 2;
+      final topWorld = centerY - constraints.maxHeight / 2;
+      final firstX = (leftWorld / _tileSize).floor();
+      final lastX = ((leftWorld + constraints.maxWidth) / _tileSize).floor();
+      final firstY = (topWorld / _tileSize).floor();
+      final lastY = ((topWorld + constraints.maxHeight) / _tileSize).floor();
+      final tiles = <(int x, int y, double left, double top)>[];
+      for (var y = firstY; y <= lastY; y++) {
+        if (y < 0 || y >= n) continue;
+        for (var x = firstX; x <= lastX; x++) {
+          tiles.add((x, y, x * _tileSize - leftWorld, y * _tileSize - topWorld));
+        }
+      }
+      final signature = '${widget.location.latitude.toStringAsFixed(4)}:'
+          '${widget.location.longitude.toStringAsFixed(4)}:${constraints.maxWidth.toInt()}:'
+          '${constraints.maxHeight.toInt()}';
+      if (_gridKey != signature) {
+        _gridKey = signature;
+        _visibleTiles = tiles.length;
+        _errors = 0;
+        _reportedAvailable = false;
+        _reportedUnavailable = false;
+      }
+      return Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          for (final tile in tiles)
+            Positioned(
+              left: tile.left,
+              top: tile.top,
+              width: _tileSize,
+              height: _tileSize,
+              child: Image.network(
+                'https://tile.openstreetmap.org/$_zoom/${((tile.x % n) + n) % n}/${tile.y}.png',
+                fit: BoxFit.cover,
+                headers: const <String, String>{
+                  'User-Agent': 'ShiaVerse/1.20 (https://github.com/mrghalibspcpu/Shia-Ai)',
+                },
+                frameBuilder: (context, child, frame, synchronous) {
+                  if (frame != null || synchronous) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) _loaded();
+                    });
+                  }
+                  return child;
+                },
+                errorBuilder: (context, error, stack) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) _failed();
+                  });
+                  return const ColoredBox(color: Color(0xFFE8E7DE));
+                },
+              ),
+            ),
+        ],
+      );
+    });
+  }
+}
+
+class _MapAttribution extends StatelessWidget {
+  const _MapAttribution();
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.86), borderRadius: BorderRadius.circular(5)),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+          child: Text('© OpenStreetMap contributors', style: TextStyle(fontSize: 8, color: Color(0xFF343434))),
+        ),
+      );
+}
+
 /// The diagram itself: rings, cardinal marks, the reader's dot, the Kaaba and
 /// one thick arrow between them.
 class _QiblaDiagramPainter extends CustomPainter {
@@ -162,12 +296,14 @@ class _QiblaDiagramPainter extends CustomPainter {
     required this.distanceLabel,
     required this.palette,
     required this.dark,
+    required this.streetMapAvailable,
   });
 
   final double bearing;
   final String distanceLabel;
   final GlassPalette palette;
   final bool dark;
+  final bool streetMapAvailable;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -175,27 +311,28 @@ class _QiblaDiagramPainter extends CustomPainter {
     final radius = math.min(size.width, size.height) / 2 - 26;
     if (radius <= 0) return;
 
-    // Paper: a calm ground with the faintest grid, so it reads as a diagram and
-    // never pretends to be satellite imagery.
-    final ground = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topRight,
-        end: Alignment.bottomLeft,
-        colors: dark
-            ? const <Color>[Color(0xFF10201B), Color(0xFF0A1512)]
-            : const <Color>[Color(0xFFF6F1E4), Color(0xFFE9F0E6)],
-      ).createShader(Offset.zero & size);
-    canvas.drawRect(Offset.zero & size, ground);
+    if (!streetMapAvailable) {
+      // The calm paper-and-grid is an honest offline fallback, not fake roads.
+      final ground = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: dark
+              ? const <Color>[Color(0xFF10201B), Color(0xFF0A1512)]
+              : const <Color>[Color(0xFFF6F1E4), Color(0xFFE9F0E6)],
+        ).createShader(Offset.zero & size);
+      canvas.drawRect(Offset.zero & size, ground);
 
-    final grid = Paint()
-      ..color = (dark ? Colors.white : const Color(0xFF145B45)).withValues(alpha: 0.07)
-      ..strokeWidth = 1;
-    const step = 34.0;
-    for (var x = step; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
-    }
-    for (var y = step; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+      final grid = Paint()
+        ..color = (dark ? Colors.white : const Color(0xFF145B45)).withValues(alpha: 0.07)
+        ..strokeWidth = 1;
+      const step = 34.0;
+      for (var x = step; x < size.width; x += step) {
+        canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
+      }
+      for (var y = step; y < size.height; y += step) {
+        canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+      }
     }
 
     // Two range rings: they give the eye a scale and a horizon for the arrow.
@@ -270,29 +407,39 @@ class _QiblaDiagramPainter extends CustomPainter {
       ..close();
     canvas.drawPath(head, Paint()..color = palette.accent);
 
-    // The Kaaba: a black cube with the gold band and its door, sitting exactly
-    // where the arrow ends.
-    final cube = Rect.fromCenter(center: tip - direction * 26, width: 23, height: 23);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(cube, const Radius.circular(4)),
-      Paint()..color = const Color(0xFF14100C),
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(cube.left, cube.top + 8, cube.width, 3.4),
-      Paint()..color = const Color(0xFFE4BC70),
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(cube.left + cube.width / 2 - 2, cube.top + 13, 4, cube.height - 13),
-      Paint()..color = const Color(0xFF3B2C17),
-    );
-
-    _label(
-      canvas,
-      'کعبہ',
-      tip + direction * 6 + Offset(0, 22),
-      background: palette.solid,
-      foreground: palette.ink,
-    );
+    if (streetMapAvailable) {
+      // The Kaaba is thousands of kilometres away, not a point on this local
+      // street map; label the map-edge arrow as a direction, never a fake pin.
+      _label(
+        canvas,
+        'سمتِ قبلہ',
+        tip - direction * 16,
+        background: palette.solid,
+        foreground: palette.ink,
+      );
+    } else {
+      // On the offline schematic only, the Kaaba icon is a symbolic endpoint.
+      final cube = Rect.fromCenter(center: tip - direction * 26, width: 23, height: 23);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(cube, const Radius.circular(4)),
+        Paint()..color = const Color(0xFF14100C),
+      );
+      canvas.drawRect(
+        Rect.fromLTWH(cube.left, cube.top + 8, cube.width, 3.4),
+        Paint()..color = const Color(0xFFE4BC70),
+      );
+      canvas.drawRect(
+        Rect.fromLTWH(cube.left + cube.width / 2 - 2, cube.top + 13, 4, cube.height - 13),
+        Paint()..color = const Color(0xFF3B2C17),
+      );
+      _label(
+        canvas,
+        'کعبہ',
+        tip + direction * 6 + Offset(0, 22),
+        background: palette.solid,
+        foreground: palette.ink,
+      );
+    }
   }
 
   void _drawUser(Canvas canvas, Offset center) {
@@ -352,5 +499,6 @@ class _QiblaDiagramPainter extends CustomPainter {
       oldDelegate.bearing != bearing ||
       oldDelegate.distanceLabel != distanceLabel ||
       oldDelegate.palette != palette ||
-      oldDelegate.dark != dark;
+      oldDelegate.dark != dark ||
+      oldDelegate.streetMapAvailable != streetMapAvailable;
 }

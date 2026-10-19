@@ -10,15 +10,11 @@ import '../widgets/chapter_wallpaper.dart';
 import '../widgets/reader_kit.dart';
 import 'library_screen.dart';
 
-/// **Xplore → نئی کتابیں**: the books that joined the library after the
-/// original corpus.
-///
-/// The first of them is **اثنا عشری انسائکلوپیڈیا (منتخب)**: 574 curated
-/// articles from Urdu Wikipedia, stored as their ordered prose sections with
-/// the exact page revision attached to every card. It browses exactly like a
-/// book — ten curated chapters, a shelf of the twelve Imams, curated topics,
-/// and an in-collection search — and each article ends with its ماخذ list and
-/// a «مزید پڑھیں» row.
+/// **Xplore → اثنا عشری انسائکلوپیڈیا**: the new book shelf, with the
+/// original curated Urdu Wikipedia corpus plus 95 imported Urdu detailed-note
+/// articles (merged by title where appropriate). It browses like the other
+/// books — ten chapters, the twelve Imams, curated topics, search and direct
+/// source links on every imported section.
 class NewBooksScreen extends StatelessWidget {
   const NewBooksScreen({
     super.key,
@@ -32,7 +28,7 @@ class NewBooksScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const JustifiedText('نئی کتابیں')),
+      appBar: AppBar(title: const JustifiedText('اثنا عشری انسائکلوپیڈیا')),
       body: ValueListenableBuilder<int>(
         valueListenable: library.catalogVersion,
         builder: (context, _, __) {
@@ -86,7 +82,7 @@ class _IntroCard extends StatelessWidget {
                 const SizedBox(width: 7),
                 const Expanded(
                   child: JustifiedText(
-                    'کتابوں کی نئی کھیپ',
+                    'اثنا عشری انسائکلوپیڈیا',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),

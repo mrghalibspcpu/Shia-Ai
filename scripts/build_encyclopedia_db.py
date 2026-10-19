@@ -23,7 +23,7 @@ any sentence can be checked at its source.
 
     python3 scripts/build_encyclopedia_db.py \
         --source "google_drive/اثنا عشری انسائکلوپیڈیا (منتخب).zip" \
-        --output assets/athna_ashari_encyclopedia.db
+        --output assets/athna_ashari_encyclopedia_v2.db
 """
 from __future__ import annotations
 
@@ -563,7 +563,7 @@ def main() -> int:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("assets/athna_ashari_encyclopedia.db"),
+        default=Path("assets/athna_ashari_encyclopedia_v2.db"),
     )
     args = parser.parse_args()
     if not args.source.exists():

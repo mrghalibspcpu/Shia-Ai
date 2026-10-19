@@ -1,31 +1,37 @@
 # ShiaVerse
 
-## New in 1.19 — the encyclopaedia, paper inside the cards, a clearer Qibla
+## New in 1.20 — expanded Urdu library and prayer clarity
 
-- **نئی کتابیں** in **Xplore** now opens **اثنا عشری انسائکلوپیڈیا (منتخب)**
-  (`athna_ashari_encyclopedia.db`, 574 curated articles / 3,320 prose sections /
-  8,142 references, CC BY-SA 4.0). It ships as a normal library book: ten
-  chapters (ائمہ، اہل بیت و کربلا، عقائد، عبادات، کتب و دعائیں، علما، مقامات،
-  تاریخ، ادارے، دیگر), a shelf of the twelve Imams, six curated topics,
-  in-book search, bookmarks, notes and the same reader. Every section card
-  carries a small **ماخذ** button that opens the exact `oldid` revision, each
-  article closes with a numbered **ماخذ و حوالہ جات** card, and a
-  **مزید پڑھیں** row links only to articles this edition really contains. The
-  previous Shia Urdu Wikipedia collection is removed from the model, the
-  repository, the manifest, the scripts, the tests and the release assets.
-- **The four section wallpapers** (تسبیح، قبلہ نما، چاند کی رویت، اسلامی تقویم)
-  are now painted **inside every glass container** rather than behind the page,
-  which is what readers asked for. The page keeps a calm dark backdrop.
-- **Auto-scroll** gains much slower paces: the ladder now starts at **0.10×**
-  (0.10 → 0.15 → 0.20 → 0.25 → 0.30 → 0.35 → 0.40 → 0.50 → … → 4.00×), so
-  careful reading no longer needs the 0.50× floor that still felt fast.
-- The **mini prayer card** highlights the running prayer with a solid **emerald**
-  tile, never the rejected gold/yellow fill; the next prayer keeps its gold
-  outline.
-- **قبلہ نما**'s map is now an honest north-up diagram: north marked at the top,
-  a thick emerald arrow from «آپ» to a Kaaba mark, the bearing in degrees and
-  the distance right underneath. No tile downloads, no procedural streets, no
-  rotating map — it reads the same offline.
+- **Xplore** now labels the book **اثنا عشری انسائکلوپیڈیا**. The existing
+  selected collection is preserved and expanded with the Drive SQLite's 95
+  detailed-note records: 77 new titles and 18 title matches merged into 651
+  articles / 3,615 readable sections. Section-level source links and article
+  references open their direct WikiShia pages. The old curated corpus remains
+  intact, and the new numbered chapters and topic structure use the same reader,
+  search, bookmarks and last-read behavior.
+- The Drive Nahj export is keyed to all 797 canonical khutba/letter/wisdom
+  numbers. Its 1,100 Urdu blocks replace the old body translations while all
+  Arabic text, entry headings and 2,352 existing حواشی remain intact. The Drive
+  export's `arabic_matan` field is empty, so the safe deterministic alignment
+  is by category and canonical entry number; no paragraph-level Arabic mapping
+  is fabricated. Updated databases use versioned filenames so prior installs
+  are not silently mistaken for the new files.
+- The mini prayer card now labels the active prayer and shows its remaining time
+  to the current window's end, while the next marker is called out and its own
+  countdown is labelled **باقی**.
+- The four wallpaper-backed utility containers (تسبیح، قبلہ نما، چاند کی رویت،
+  اسلامی تقویم) retain the existing redesigned in-container art. The Qibla page
+  keeps its north-up map diagram and mathematical Kaaba bearing even when no
+  magnetometer is available; without a heading sensor, the app can show the
+  exact north-referenced bearing but cannot infer which way the handset itself
+  is facing.
+- Auto-scroll, the reader, and every pre-existing collection remain unchanged.
+
+The refreshed packaged databases are built from the checked-in encyclopedia
+reader edition plus the ignored Drive export in `google_drive/`. Run
+`scripts/merge_encyclopedia_notes.py` and `scripts/replace_balagha_translation.py`
+to reproduce those database updates, then `scripts/prepare_databases.py` to
+validate and stage the data for the APK.
 - The **آیت / حکمتِ وقت** card also draws from **ہدایۃ العلم**: those lines show
   the Urdu sentence and its reference only, in noticeably larger type.
 
@@ -41,9 +47,8 @@
 
 The APK still downloads databases on first launch: the encyclopaedia edition is
 published gzipped with the rest of the corpus and verified against its SHA-256
-before it is installed. `assets/athna_ashari_encyclopedia.db.gz` is the committed
-packaged copy (built by `scripts/build_encyclopedia_db.py`); `google_drive/` (the
-raw Drive ZIP) is git-ignored.
+before it is installed. `assets/athna_ashari_encyclopedia_v2.db.gz` is the committed
+packaged copy; `google_drive/` (the raw Drive SQLite files) is git-ignored.
 
 ## New in 1.13 — reading and home polish
 
@@ -76,12 +81,11 @@ all run on the device.
   data download manager, and settings.
 - `assets/shia-databases.zip` — the 14 original hadith databases (~222 MiB
   expanded, 43 MiB compressed).
-- `assets/quran.db`, `assets/mafatihdb-v4.db`, `assets/nahjul_balagha.db` — the
+- `assets/quran.db`, `assets/mafatihdb-v4.db`, `assets/nahjul_balagha_v2.db` — the
   three standalone collections, normalised to the same SQLite settings as the
   other books.
-- `assets/athna_ashari_encyclopedia.db.gz` — the prose-only encyclopaedia
-  edition (~2.5 MB gzipped / ~10 MB expanded), rebuilt from the Drive corpus by
-  `scripts/build_encyclopedia_db.py`.
+- `assets/athna_ashari_encyclopedia_v2.db.gz` — the merged reader-edition
+  encyclopedia (~3.5 MB gzipped / ~14.6 MB expanded).
 - `assets/database-manifest.json` — sizes, SHA-256 digests, row counts, titles,
   and download locations for all 21 databases (the encyclopaedia included).
   `app/assets/database-manifest.json` is the identical copy bundled into the APK.
@@ -341,7 +345,7 @@ first-launch unpack.
 |---|---|---|
 | Quran | `quran.db` | 6,236 verses, 114 surahs, Urdu translation (`tr`), tafseer notes (`talighe`), juz/page locators |
 | Mafatih al-Jinan | `mafatihdb-v4.db` | 677 catalogue entries and 5,378 text lines across 6 chapters |
-| Nahj al-Balagha | `nahjul_balagha.db` | 3,742 paragraphs, 810 entries, 2,352 footnotes, 504 introduction paragraphs |
+| Nahj al-Balagha | `nahjul_balagha_v2.db` | 3,742 paragraphs, 810 entries, 2,352 footnotes, 504 introduction paragraphs |
 | Sahifa Sajjadiyya | `Sahifa_Sajjadiyya_full_runtime.sqlite3` | The book's 83 supplications (4,318 of the 4,993 supplied rows; the rest is site furniture) |
 | Khamenei Urdu fatawa | `khamenei_urdu_fatawa.sqlite` | All 428 supplied question/answer records with source references |
 | Sistani Urdu fatawa | `sistani_urdu_fatawa.sqlite` | All 1,619 supplied question/answer records with source references |

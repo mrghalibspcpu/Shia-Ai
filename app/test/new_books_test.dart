@@ -6,18 +6,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shia_ai/data_packages.dart';
 import 'package:shia_ai/models.dart';
 
-/// The **نئی کتابیں** shelf and its first book, **اثنا عشری انسائکلوپیڈیا
-/// (منتخب)**. These checks run without any database: they pin the wiring
+/// The Xplore **اثنا عشری انسائکلوپیڈیا** book. These checks run without any database: they pin the wiring
 /// (model, manifest, packaged asset) so a broken download can never ship.
 void main() {
   final manifestFile = File('assets/database-manifest.json');
-  final packedFile = File('../assets/athna_ashari_encyclopedia.db.gz');
+  final packedFile = File('../assets/athna_ashari_encyclopedia_v2.db.gz');
 
   test('the encyclopaedia is a normal library book', () {
     final book = BookDefinition.byKey('athna_ashari_encyclopedia');
     expect(book, isNotNull);
     expect(book!.titleUrdu, 'اثنا عشری انسائکلوپیڈیا');
-    expect(book.fileName, 'athna_ashari_encyclopedia.db');
+    expect(book.fileName, 'athna_ashari_encyclopedia_v2.db');
     expect(book.source, CorpusSource.encyclopedia);
     expect(book.source.label, 'نئی کتابیں');
     // It must not leak into the hadith shelf (that list drives the library
@@ -47,7 +46,7 @@ void main() {
     final catalog = DataCatalog.parse(manifestFile.readAsStringSync());
     final package = catalog.byKey('athna_ashari_encyclopedia');
     expect(package, isNotNull);
-    expect(package!.fileName, 'athna_ashari_encyclopedia.db');
+    expect(package!.fileName, 'athna_ashari_encyclopedia_v2.db');
     expect(package.titleUrdu, 'اثنا عشری انسائکلوپیڈیا');
     expect(package.source, 'encyclopedia');
     expect(package.sha256, hasLength(64));
@@ -66,7 +65,7 @@ void main() {
 
   test('the committed .gz expands to exactly the published edition', () {
     expect(packedFile.existsSync(), isTrue,
-        reason: 'assets/athna_ashari_encyclopedia.db.gz must be committed');
+        reason: 'assets/athna_ashari_encyclopedia_v2.db.gz must be committed');
     final manifest = jsonDecode(manifestFile.readAsStringSync()) as Map<String, dynamic>;
     final entry = (manifest['databases'] as List)
         .cast<Map<String, dynamic>>()
