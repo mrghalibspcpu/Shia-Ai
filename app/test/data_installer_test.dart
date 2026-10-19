@@ -10,7 +10,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('retries another mirror after a corrupt gzip payload', () async {
-    final source = await File('assets/databases/nahjul_balagha_v2.db').readAsBytes();
+    final source = await File('../assets/nahjul_balagha_v2.db').readAsBytes();
     final validGzip = gzip.encode(source);
     final requests = <Uri>[];
     final client = MockClient((request) async {
