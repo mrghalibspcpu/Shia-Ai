@@ -76,10 +76,10 @@ void main() {
     final text = utf8.decode(bytes, allowMalformed: true);
     expect(text.contains('ur.wikipedia.org'), isTrue,
         reason: 'the Wikipedia articles are the edition');
-    expect(text.contains('wikishia'), isFalse,
-        reason: 'the Wikishia notes were removed in 1.21');
-    expect(text.contains('(منتخب)'), isFalse,
-        reason: 'the app title stays «اثنا عشری انسائکلوپیڈیا»');
+    // Articles may *cite* a Wikishia page (a reference in the Wikipedia text),
+    // but no section may carry a Wikishia revision URL: that was the merge.
+    expect(text.contains('ur.wikishia.net/w/index.php?title='), isFalse,
+        reason: 'the merged Wikishia notes were removed in 1.21');
     final manifest = jsonDecode(manifestFile.readAsStringSync()) as Map<String, dynamic>;
     final entry = (manifest['databases'] as List)
         .cast<Map<String, dynamic>>()

@@ -587,6 +587,12 @@ class _QuranVerseListState extends State<_QuranVerseList> with ReaderDisplayMode
             final saved = widget.library.isSurahBookmarkedNow(widget.surahNumber!);
             return IconButton(
               key: const ValueKey<String>('surah-reader-bookmark'),
+              // The app bar is already tight on a 320 px phone (display
+              // actions, «جائیں», reader controls); a full 48 px target pushed
+              // the row 2 px past its width in the mushaf test.
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
               tooltip: saved ? 'محفوظات سے ہٹائیں' : 'مکمل سورة محفوظ کریں',
               icon: Icon(
                 saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
