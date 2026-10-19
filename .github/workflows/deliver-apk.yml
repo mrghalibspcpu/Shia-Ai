@@ -1,12 +1,12 @@
 name: Deliver APK
 
-# Fetches the APK already published on the app-v* release, zips it, and
-# stores the zip as a git blob. Sandboxed tooling that can only reach
-# api.github.com can then download the exact bytes through the blobs API.
+# Fetches an APK already published on an app-v* release and stores its exact
+# bytes as unreferenced git blobs. Sandboxed tooling that can only reach
+# api.github.com can then download the file through the blobs API.
 #
-# Trigger: push a new tag name into .github/apk-delivery-request (the
-# workflow_dispatch route needs the file on the default branch, which the
-# working branch must not touch).
+# Trigger: write `tag [asset-name]` into .github/apk-delivery-request and push.
+# (workflow_dispatch needs the workflow on the default branch, which this
+# working branch must not touch.)
 on:
   push:
     branches: ['arena/**']
@@ -25,24 +25,36 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
 
-      - name: Download, zip, and stage the APK as a git blob
+      - name: Download the release asset and stage it as git blobs
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG=$(tr -d ' \r\n' < .github/apk-delivery-request)
+          request=$(tr '\n' ' ' < .github/apk-delivery-request)
+          # shellcheck disable=SC2086
+          set -- $request
+          TAG=${1:?request must start with a release tag}
+          ASSET=${2:-}
           mkdir -p /tmp/work && cd /tmp/work
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.apk'
-          apk=$(ls *.apk)
-          zipfile="${apk%.apk}-apk.zip"
-          zip -9 "$zipfile" "$apk"
-          echo "apk sha256   : $(sha256sum "$apk" | cut -d' ' -f1)"
-          echo "zip sha256   : $(sha256sum "$zipfile" | cut -d' ' -f1)"
-          echo "zip size     : $(stat -c%s "$zipfile") bytes"
-          python3 - "$zipfile" > blob.json <<'PY'
+          if [ -n "$ASSET" ]; then
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$ASSET" --clobber
+          else
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.apk' --clobber
+          fi
+          apk=$(ls *.apk 2>/dev/null | head -1)
+          echo "asset        : $apk"
+          echo "size         : $(stat -c%s "$apk") bytes"
+          echo "sha256       : $(sha256sum "$apk" | cut -d' ' -f1)"
+
+          parts=""
+          split -b 10m -d -a 2 "$apk" part-
+          for part in part-??; do
+            python3 - "$part" > "$part.json" <<'PY'
           import base64, json, sys
           data = open(sys.argv[1], 'rb').read()
           print(json.dumps({'content': base64.b64encode(data).decode(), 'encoding': 'base64'}))
           PY
-          sha=$(gh api -X POST "repos/$GITHUB_REPOSITORY/git/blobs" --input blob.json --jq .sha)
-          echo "::notice title=APK zip blob::name=$zipfile sha=$sha sha256=$(sha256sum "$zipfile" | cut -d' ' -f1)"
+            blob=$(gh api -X POST "repos/$GITHUB_REPOSITORY/git/blobs" --input "$part.json" --jq .sha)
+            parts="$parts,$blob"
+          done
+          echo "::notice title=APK blobs::$apk size=$(stat -c%s "$apk") sha256=$(sha256sum "$apk" | cut -d' ' -f1) parts=${parts#,}"

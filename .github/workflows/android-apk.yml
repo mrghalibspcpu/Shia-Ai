@@ -3,6 +3,10 @@ name: Android APK
 on:
   push:
     branches: [main, 'arena/**']
+    # A delivery request only asks for already-published bytes to be copied
+    # into blobs; rebuilding the whole APK for it wastes a runner for 20 min.
+    paths-ignore:
+      - '.github/apk-delivery-request'
   pull_request:
   workflow_dispatch:
     inputs:
