@@ -221,11 +221,11 @@ class _StreetMapTilesState extends State<_StreetMapTiles> {
       final lastX = ((leftWorld + constraints.maxWidth) / _tileSize).floor();
       final firstY = (topWorld / _tileSize).floor();
       final lastY = ((topWorld + constraints.maxHeight) / _tileSize).floor();
-      final tiles = <(int x, int y, double left, double top)>[];
+      final tiles = <({int x, int y, double left, double top})>[];
       for (var y = firstY; y <= lastY; y++) {
         if (y < 0 || y >= n) continue;
         for (var x = firstX; x <= lastX; x++) {
-          tiles.add((x, y, x * _tileSize - leftWorld, y * _tileSize - topWorld));
+          tiles.add((x: x, y: y, left: x * _tileSize - leftWorld, top: y * _tileSize - topWorld));
         }
       }
       final signature = '${widget.location.latitude.toStringAsFixed(4)}:'
