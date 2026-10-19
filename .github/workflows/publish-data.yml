@@ -91,9 +91,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view "$TAG" --json assets \
-            --jq '.assets[] | "\(.name)\t\(.size)"' | sort | tee published-assets.txt
-          expected=$(ls dist/*.gz | wc -l)
-          published=$(grep -Ec '\.(db|sqlite|sqlite3)\.gz[[:space:]]' published-assets.txt || true)
-          echo "expected $expected SQLite gzip assets, published $published"
-          test "$published" -eq "$expected"
-          grep -q '^database-manifest\.json' published-assets.txt
+            --jq '.assets[].name' | sort -u > published-assets.txt
+          for asset in dist/*.gz; do basename "$asset"; done | sort -u > expected-assets.txt
+          comm -23 expected-assets.txt published-assets.txt > missing-assets.txt
+          if [[ -s missing-assets.txt ]]; then
+            echo "Missing release assets:"
+            cat missing-assets.txt
+            exit 1
+          fi
+          grep -qx 'database-manifest.json' published-assets.txt
+          echo "Verified $(wc -l < expected-assets.txt) current database assets; older filenames remain available for existing app versions."
