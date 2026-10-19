@@ -42,6 +42,13 @@ android {
                 storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
                 keyAlias System.getenv("ANDROID_KEY_ALIAS")
                 keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                // Sign with all three schemes. v2 alone is enough for a stock
+                // Android 7+ installer, but several vendor ROMs (MIUI/HyperOS
+                // in particular) refuse an APK that has no v1 Jar signature,
+                // and v3 lets Android rotate/verify keys on Android 9+.
+                enableV1Signing true
+                enableV2Signing true
+                enableV3Signing true
             }
         }
     }
