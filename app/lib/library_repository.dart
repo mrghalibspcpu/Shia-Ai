@@ -2259,7 +2259,7 @@ class LibraryRepository {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
       'surah_bookmarks',
-      saved.toList()..sort(),
+      (saved.toList()..sort()).map((number) => number.toString()).toList(),
     );
   }
 
