@@ -167,26 +167,64 @@ class DataInstaller {
     void Function(DataProgress progress)? onProgress,
   }) async {
     await directory.create(recursive: true);
-    try {
-      final compressed = await _download(package, onProgress: onProgress);
-      onProgress?.call(DataProgress(
-        key: package.key,
-        phase: 'تصدیق اور کشادگی',
-        received: 1,
-        total: 1,
-      ));
-      final installed = await _unpack(compressed, package);
-      compressed.deleteSync();
-      onProgress?.call(DataProgress(
-        key: package.key,
-        phase: 'مکمل',
-        received: installed,
-        total: installed,
-      ));
-    } catch (error) {
-      if (error is DataInstallException) rethrow;
-      throw DataInstallException(error.toString());
+    final urls = downloadUrlsFor(
+      package: package,
+      baseUrls: _catalog.baseUrls,
+      extension: _catalog.extension,
+      overrideBaseUrl: (overrideBaseUrl ?? '').isNotEmpty
+          ? overrideBaseUrl
+          : kCompiledDataBaseUrl,
+    );
+    if (urls.isEmpty) throw const DataInstallException('کوئی ڈاؤن لوڈ پتہ دستیاب نہیں۔');
+
+    final partial = File('${directory.path}/${package.fileName}.part');
+    final staging = File('${directory.path}/${package.fileName}.tmp');
+    Object? lastError;
+    for (var index = 0; index < urls.length; index++) {
+      if (_cancelled) throw const DataInstallException('ڈاؤن لوڈ منسوخ کر دیا گیا۔');
+      // A partial from one mirror must not be appended to bytes from another.
+      if (index > 0) await _deleteQuietly(partial);
+      var downloaded = false;
+      try {
+        final compressed = await _downloadTo(
+          urls[index],
+          partial,
+          package,
+          onProgress: onProgress,
+        );
+        downloaded = true;
+        if (compressed.lengthSync() == 0) {
+          throw const DataInstallException('خالی فائل موصول ہوئی۔');
+        }
+        onProgress?.call(DataProgress(
+          key: package.key,
+          phase: 'تصدیق اور کشادگی',
+          received: 1,
+          total: 1,
+        ));
+        final installed = await _unpack(compressed, package);
+        await _deleteQuietly(compressed);
+        onProgress?.call(DataProgress(
+          key: package.key,
+          phase: 'مکمل',
+          received: installed,
+          total: installed,
+        ));
+        return;
+      } catch (error) {
+        lastError = error;
+        await _deleteQuietly(staging);
+        // A downloaded payload that fails gzip or SHA-256 validation is bad;
+        // discard it so a retry cannot receive HTTP 416 and reuse it forever.
+        // Keep an interrupted final-mirror transfer so it can resume next time.
+        if (downloaded || index < urls.length - 1) {
+          await _deleteQuietly(partial);
+        }
+        if (_cancelled) rethrow;
+      }
     }
+    if (lastError is DataInstallException) throw lastError;
+    throw DataInstallException(lastError?.toString() ?? 'فائل ڈاؤن لوڈ نہیں ہو سکی۔');
   }
 
   /// Installs packages one after another; returns the keys that succeeded.
@@ -234,38 +272,6 @@ class DataInstaller {
     return results;
   }
 
-  Future<File> _download(
-    DataPackage package, {
-    void Function(DataProgress progress)? onProgress,
-  }) async {
-    final urls = downloadUrlsFor(
-      package: package,
-      baseUrls: _catalog.baseUrls,
-      extension: _catalog.extension,
-      overrideBaseUrl: (overrideBaseUrl ?? '').isNotEmpty ? overrideBaseUrl : kCompiledDataBaseUrl,
-    );
-    if (urls.isEmpty) throw const DataInstallException('کوئی ڈاؤن لوڈ پتہ دستیاب نہیں۔');
-
-    final partial = File('${directory.path}/${package.fileName}.part');
-    Object? lastError;
-    for (final url in urls) {
-      if (_cancelled) throw const DataInstallException('ڈاؤن لوڈ منسوخ کر دیا گیا۔');
-      try {
-        final file = await _downloadTo(url, partial, package, onProgress: onProgress);
-        if (file.lengthSync() == 0) {
-          throw const DataInstallException('خالی فائل موصول ہوئی۔');
-        }
-        return file;
-      } catch (error) {
-        lastError = error;
-        continue;
-      }
-    }
-    throw DataInstallException(
-      'فائل ڈاؤن لوڈ نہیں ہو سکی: ${lastError?.toString() ?? 'نامعلوم خرابی'}',
-    );
-  }
-
   Future<File> _downloadTo(
     String url,
     File partial,
@@ -285,13 +291,25 @@ class DataInstaller {
 
     final status = streamed.statusCode;
     if (status == 416) {
-      // The partial file already covers the whole document.
+      // The partial file may already be complete. Installation verifies it;
+      // if corrupt, install() deletes it and retries another source.
       await streamed.stream.drain<void>();
       return partial;
     }
     if (status != 200 && status != 206) {
       await streamed.stream.drain<void>();
       throw DataInstallException('سرور نے $status بھیجا۔');
+    }
+    if (status == 206) {
+      final range = RegExp(r'^bytes (\d+)-').firstMatch(
+        streamed.headers['content-range'] ?? '',
+      );
+      final start = int.tryParse(range?.group(1) ?? '');
+      if (resumeFrom == 0 || start != resumeFrom) {
+        await streamed.stream.drain<void>();
+        await _deleteQuietly(partial);
+        throw const DataInstallException('سرور کا ریزیوم رینج درست نہیں۔');
+      }
     }
     if (status == 200 && resumeFrom > 0) resumeFrom = 0;
 
