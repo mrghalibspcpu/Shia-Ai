@@ -85,7 +85,7 @@ void main() {
     final entry = (manifest['databases'] as List)
         .cast<Map<String, dynamic>>()
         .firstWhere((item) => item['key'] == 'athna_ashari_encyclopedia');
-    expect(entry['title_ur'], 'اثنا عشری انسائکلوپیڈیا');
+    expect(entry['title_urdu'], 'اثنا عشری انسائکلوپیڈیا');
     expect(entry['sha256'], hasLength(64));
   });
 

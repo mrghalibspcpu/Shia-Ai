@@ -885,12 +885,32 @@ class _MiniPrayerCell extends StatelessWidget {
                 height: upcoming ? 15 : 14,
                 child: Center(
                   child: active
-                      ? const _NowTag()
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            const _NowTag(),
+                            // Between Dhuhr and Asr the next prayer belongs to
+                            // this same ظہرین cell, so the countdown rides
+                            // inside the emerald tile instead of disappearing.
+                            if (left != null) ...<Widget>[
+                              const SizedBox(width: 3),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  formatCountdownClock(left),
+                                  key: ValueKey<String>('mini-countdown-${entry.marker.name}'),
+                                  style: _onSky(10.5, weight: FontWeight.w800, color: Colors.white, digits: true),
+                                ),
+                              ),
+                            ],
+                          ],
+                        )
                       : (left == null
                           ? const SizedBox.shrink()
                           : FittedBox(
                               fit: BoxFit.scaleDown,
                               child: Text.rich(
+                                key: ValueKey<String>('mini-countdown-${entry.marker.name}'),
                                 TextSpan(
                                   children: <InlineSpan>[
                                     TextSpan(

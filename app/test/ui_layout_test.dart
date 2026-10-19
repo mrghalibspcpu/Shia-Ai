@@ -615,15 +615,21 @@ void main() {
     final marker = tester.widget<Image>(find.byKey(const ValueKey<String>('qibla-kaaba-marker')));
     final resized = marker.image as ResizeImage;
     expect((resized.imageProvider as AssetImage).assetName, 'assets/images/kaaba_icon.png');
-    expect(find.text('نقشے پر سمتِ قبلہ'), findsOneWidget);
-    // The card is a north-up diagram, not a tile map: one thick arrow from
-    // «آپ» to the Kaaba, with the degrees spelled out underneath.
-    expect(find.byKey(const ValueKey<String>('qibla-map-diagram')), findsOneWidget);
-    // 1.20: the real street map sits above the dial, and its Qibla line is
-    // drawn even when the compass never reports a heading.
+    // 1.20: the real street map is the first card, and its Qibla line is drawn
+    // even when the compass never reports a heading.
     expect(find.byKey(const ValueKey<String>('qibla-street-map')), findsOneWidget);
     expect(find.text('اصل نقشہ — کعبہ کی سمت'), findsOneWidget);
     expect(find.textContaining('© OpenStreetMap'), findsOneWidget);
+    // The schematic card below it is a north-up diagram: one thick arrow from
+    // «آپ» to the Kaaba, with the degrees spelled out underneath.
+    await tester.scrollUntilVisible(
+      find.text('نقشے پر سمتِ قبلہ'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await settle(tester);
+    expect(find.text('نقشے پر سمتِ قبلہ'), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('qibla-map-diagram')), findsOneWidget);
     expect(find.textContaining('نقشہ شمال اوپر ہے'), findsOneWidget);
     expect(find.textContaining('اسی رخ منہ کر کے نماز پڑھیں'), findsOneWidget);
     expect(find.text('شمال اوپر'), findsNothing);
@@ -636,34 +642,49 @@ void main() {
 
   testWidgets('the next prayer is highlighted without a coloured container', (tester) async {
     phone(tester);
-    // 12:10 on 15 October 2026 in Islamabad: ظہرین is running, and عصر — which
-    // the mini card folds into ظہرین — is next. Pick a moment where the *next*
-    // cell is a different one: 13:30 is after Dhuhr, so مغربین comes next.
-    final (prayer, tasbeeh) = await controllersAt(tester, localTime(13, 30));
+    // 16:00 on 15 October 2026 in Islamabad: عصر is the running window (it
+    // folds into ظہرین) and مغربین is genuinely the next cell.
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(16, 0));
     await tester.pumpWidget(host(prayer, tasbeeh, homeScreen()));
     await settle(tester);
-    // The countdown line: «باقی h:mm:ss» on the next cell only.
-    final remaining = find.textContaining('باقی ');
-    expect(remaining, findsOneWidget);
-    // No gold/yellow fill and no outline on the next cell: the decoration is
-    // fully transparent, which is what "bina kisi colorful container ke" means.
-    final decorated = tester.widgetList<AnimatedContainer>(
-      find.descendant(
-        of: find.byKey(const ValueKey<String>('home-prayer-row')),
-        matching: find.byType(AnimatedContainer),
-      ),
-    ).where((container) {
-      final decoration = container.decoration;
-      return decoration is BoxDecoration && decoration.border != null;
-    });
-    // Only the running prayer may carry a border (the white emerald tile).
-    for (final container in decorated) {
+    // The next cell carries the «باقی …» countdown …
+    expect(find.byKey(const ValueKey<String>('mini-countdown-maghrib')), findsOneWidget);
+    expect(find.textContaining('باقی '), findsOneWidget);
+    // … and no coloured container or outline: only the running prayer keeps
+    // its solid emerald tile with the white border.
+    final bordered = tester
+        .widgetList<AnimatedContainer>(find.descendant(
+          of: find.byKey(const ValueKey<String>('home-prayer-row')),
+          matching: find.byType(AnimatedContainer),
+        ))
+        .where((container) {
+          final decoration = container.decoration;
+          return decoration is BoxDecoration && decoration.border != null;
+        })
+        .toList();
+    expect(bordered, isNotEmpty, reason: 'the running prayer keeps its tile');
+    for (final container in bordered) {
       final decoration = container.decoration! as BoxDecoration;
       expect(decoration.gradient, isNotNull,
           reason: 'a bordered cell must be the running prayer, not the next one');
     }
     expect(tester.takeException(), isNull);
     await shoot(tester, 'home-next-prayer');
+    await finish(tester, prayer, tasbeeh);
+  });
+
+  testWidgets('the countdown stays on the same cell when the next prayer folds into it', (tester) async {
+    phone(tester);
+    // 13:30: عصر is next, and the mini card folds it into ظہرین — the cell that
+    // is already running. The countdown must ride inside that tile instead of
+    // vanishing (the old behaviour left no time on screen at all).
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(13, 30));
+    await tester.pumpWidget(host(prayer, tasbeeh, homeScreen()));
+    await settle(tester);
+    expect(find.byKey(const ValueKey<String>('mini-countdown-dhuhr')), findsOneWidget);
+    expect(find.text('Now'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await shoot(tester, 'home-next-folded');
     await finish(tester, prayer, tasbeeh);
   });
 
