@@ -241,16 +241,16 @@
       "title_urdu": "اثنا عشری انسائکلوپیڈیا",
       "title_latin": "Twelver Shia Encyclopedia",
       "record_label": "مضمون",
-      "size_bytes": 10625024,
-      "sha256": "a9701936373493a2b44a86cabe4721772c198b02b0d7f10b8fed56a5241c4023",
+      "size_bytes": 11186176,
+      "sha256": "e35b74c7dd5e7d9f13d4601ff7aad1c9d1a6189bdbe582c541ea547687c79193",
       "records": {
-        "articles": 574,
+        "articles": 635,
         "groups": 10,
-        "sections": 3320,
-        "source_references": 8142,
+        "sections": 3615,
+        "source_references": 8325,
         "imams": 12,
         "topics": 6,
-        "related_articles": 4093
+        "related_articles": 6459
       }
     },
     {
@@ -288,8 +288,8 @@
       "title_urdu": "نہج البلاغہ",
       "title_latin": "Nahj al-Balagha",
       "record_label": "فقرا",
-      "size_bytes": 6180864,
-      "sha256": "a74f6f6b13a1a63485757113052b85c38edd1bcd64ef140878233c3998069bb2",
+      "size_bytes": 6506496,
+      "sha256": "dabbc69b0a24fa41c921cca65c45e90ef383ae58b2d1ceb97782f4ae9aa37bdf",
       "records": {
         "balaghatext": 3742,
         "balaghatoc": 810,

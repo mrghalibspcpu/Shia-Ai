@@ -158,7 +158,7 @@ class BookDefinition {
       fileName: 'athna_ashari_encyclopedia.db',
       titleUrdu: 'اثنا عشری انسائکلوپیڈیا',
       titleLatin: 'Twelver Shia Encyclopedia',
-      description: 'ائمہ، اہل بیت، عقائد، عبادات، کتب اور مقامات — منتخب مضامین، اصل ماخذ کے ساتھ',
+      description: 'ائمہ، اہل بیت، عقائد، عبادات، کتب اور مقامات — ویکیپیڈیا اور ویکی شیعہ کے منتخب مضامین، اصل ماخذ کے ساتھ',
       source: CorpusSource.encyclopedia,
       recordLabel: 'مضمون',
     ),

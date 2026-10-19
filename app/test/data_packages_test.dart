@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shia_ai/data_packages.dart';
+import 'package:shiaverse/data_packages.dart';
 
 const String _manifest = '''
 {

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shia_ai/astro/compass_math.dart';
+import 'package:shiaverse/astro/compass_math.dart';
 
 /// The compass behaviour that is easy to get wrong on a phone: the north seam,
 /// the alignment thresholds, and the direction of the "turn this way" hint.

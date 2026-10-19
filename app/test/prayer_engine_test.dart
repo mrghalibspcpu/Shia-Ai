@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shia_ai/astro/compass_math.dart';
-import 'package:shia_ai/astro/prayer_calculator.dart';
-import 'package:shia_ai/astro/prayer_format.dart';
+import 'package:shiaverse/astro/compass_math.dart';
+import 'package:shiaverse/astro/prayer_calculator.dart';
+import 'package:shiaverse/astro/prayer_format.dart';
 
 /// The Jafari/Leva-Qum presets, the display-zone rule, the day's logic
 /// (windows, countdowns, the post-prayer moment) and the Qibla formula.

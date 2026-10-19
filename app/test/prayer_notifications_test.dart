@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shia_ai/astro/prayer_calculator.dart';
-import 'package:shia_ai/services/prayer_notifications.dart';
+import 'package:shiaverse/astro/prayer_calculator.dart';
+import 'package:shiaverse/services/prayer_notifications.dart';
 
 void main() {
   group('PrayerReminderPlanner', () {

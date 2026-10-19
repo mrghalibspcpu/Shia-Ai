@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shia_ai/services/place_names.dart';
+import 'package:shiaverse/services/place_names.dart';
 
 /// The online geocoders' payloads, as they arrive (trimmed): OpenStreetMap's
 /// reverse and search, BigDataCloud's reverse, and Open-Meteo's search.

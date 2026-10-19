@@ -2,13 +2,13 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:shia_ai/app_theme.dart';
-import 'package:shia_ai/library_repository.dart';
-import 'package:shia_ai/models.dart';
-import 'package:shia_ai/screens/quran_screen.dart';
-import 'package:shia_ai/widgets/chapter_wallpaper.dart';
-import 'package:shia_ai/widgets/mushaf_text.dart';
-import 'package:shia_ai/widgets/reader_kit.dart';
+import 'package:shiaverse/app_theme.dart';
+import 'package:shiaverse/library_repository.dart';
+import 'package:shiaverse/models.dart';
+import 'package:shiaverse/screens/quran_screen.dart';
+import 'package:shiaverse/widgets/chapter_wallpaper.dart';
+import 'package:shiaverse/widgets/mushaf_text.dart';
+import 'package:shiaverse/widgets/reader_kit.dart';
 
 const _surah = QuranSurah(number: 1, nameArabic: 'الفاتحة', nameUrdu: 'الفاتحہ',
     revelationPlace: 'مکی', verseCount: 3, revelationOrder: 1);

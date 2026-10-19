@@ -3,12 +3,15 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shia_ai/data_packages.dart';
-import 'package:shia_ai/models.dart';
+import 'package:shiaverse/data_packages.dart';
+import 'package:shiaverse/models.dart';
 
-/// The **نئی کتابیں** shelf and its first book, **اثنا عشری انسائکلوپیڈیا
-/// (منتخب)**. These checks run without any database: they pin the wiring
-/// (model, manifest, packaged asset) so a broken download can never ship.
+/// The **نئی کتابیں** shelf and its first book, **اثنا عشری انسائکلوپیڈیا**.
+///
+/// Since 1.20 the edition is the Urdu-Wikipedia corpus **merged** with the
+/// Wikishia topic notes, so these checks also pin that merge: the shipped
+/// database must contain both sources, the merged article count, and a
+/// revision URL on every imported section.
 void main() {
   final manifestFile = File('assets/database-manifest.json');
   final packedFile = File('../assets/athna_ashari_encyclopedia.db.gz');
@@ -54,7 +57,8 @@ void main() {
     expect(package.sha256, matches(RegExp(r'^[0-9a-f]{64}$')));
     // The prose-only edition is around 10 MB; a manifest line advertising a
     // small or empty file would mean the build silently lost the corpus.
-    expect(package.sizeBytes, greaterThan(5 * 1024 * 1024));
+    // Wikipedia (574 articles) + Wikishia notes (61 new articles) is ~11 MB.
+    expect(package.sizeBytes, greaterThan(9 * 1024 * 1024));
     expect(package.isDownloadable, isTrue);
     // The app packages every database gzipped; the encyclopaedia is no
     // exception, and the installer unpacks and hashes it like the rest.
@@ -62,6 +66,27 @@ void main() {
     // The checked-in app copy of the manifest is the same document.
     expect(File('assets/database-manifest.json').readAsStringSync(),
         File('../assets/database-manifest.json').readAsStringSync());
+  });
+
+  test('the shipped edition really contains the merged Wikishia notes', () {
+    // The merge lives in scripts/merge_wikishia_notes.py. This pins the bytes
+    // committed here: the Wikishia revision pages and a note-only topic are in
+    // the same database as the Wikipedia articles, and the title has no
+    // «(منتخب)» suffix any more.
+    final bytes = gzip.decode(packedFile.readAsBytesSync());
+    final text = utf8.decode(bytes, allowMalformed: true);
+    expect(text.contains('https://ur.wikishia.net/w/index.php?title='), isTrue,
+        reason: 'every imported section keeps its Wikishia revision URL');
+    expect(text.contains('ur.wikipedia.org'), isTrue,
+        reason: 'the Wikipedia articles must survive the merge');
+    expect(text.contains('مرجع تقلید'), isTrue,
+        reason: 'a topic that only the Wikishia notes carry');
+    final manifest = jsonDecode(manifestFile.readAsStringSync()) as Map<String, dynamic>;
+    final entry = (manifest['databases'] as List)
+        .cast<Map<String, dynamic>>()
+        .firstWhere((item) => item['key'] == 'athna_ashari_encyclopedia');
+    expect(entry['title_ur'], 'اثنا عشری انسائکلوپیڈیا');
+    expect(entry['sha256'], hasLength(64));
   });
 
   test('the committed .gz expands to exactly the published edition', () {

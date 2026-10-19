@@ -820,16 +820,17 @@ class _MiniPrayerCell extends StatelessWidget {
     final lit = active || upcoming;
     final left = remaining;
     return AnimatedScale(
-      scale: active ? 1.08 : (upcoming ? 1.03 : 1),
+      scale: active ? 1.08 : (upcoming ? 1.02 : 1),
       duration: const Duration(milliseconds: 220),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         margin: const EdgeInsets.symmetric(horizontal: 1.5),
         padding: EdgeInsets.symmetric(vertical: active ? 3 : 1, horizontal: 2),
         decoration: BoxDecoration(
-          // The running prayer gets a solid emerald tile: strong enough to read
-          // at a glance on the sky, but deliberately NOT the gold/yellow fill
-          // readers rejected — gold stays for the *next* prayer's outline.
+          // Running prayer: the solid emerald tile readers already know.
+          // Next prayer: deliberately NO coloured container and no border —
+          // gold lettering, a hairline gold underline and the live countdown
+          // do the highlighting, so the sky stays visible behind the row.
           gradient: active
               ? const LinearGradient(
                   begin: Alignment.topCenter,
@@ -837,16 +838,9 @@ class _MiniPrayerCell extends StatelessWidget {
                   colors: <Color>[_activeEmerald, _activeEmeraldDeep],
                 )
               : null,
-          color: active
-              ? null
-              : (upcoming ? gold.withValues(alpha: 0.14) : Colors.transparent),
+          color: active ? null : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: active
-                ? Colors.white
-                : (upcoming ? gold.withValues(alpha: 0.9) : Colors.transparent),
-            width: active ? 1.7 : (lit ? 1.3 : 1),
-          ),
+          border: active ? Border.all(color: Colors.white, width: 1.7) : null,
           boxShadow: active
               ? <BoxShadow>[
                   BoxShadow(color: _activeEmerald.withValues(alpha: 0.55), blurRadius: 10, offset: const Offset(0, 3)),
@@ -874,9 +868,21 @@ class _MiniPrayerCell extends StatelessWidget {
                       color: active ? Colors.white : (upcoming ? gold : Colors.white)),
                 ),
               ),
+              // A two-pixel gold rule is the whole "this one is next" mark.
+              if (upcoming) ...<Widget>[
+                const SizedBox(height: 2),
+                Container(
+                  width: 22,
+                  height: 2,
+                  decoration: BoxDecoration(
+                    color: gold.withValues(alpha: 0.95),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ],
               const SizedBox(height: 1),
               SizedBox(
-                height: 14,
+                height: upcoming ? 15 : 14,
                 child: Center(
                   child: active
                       ? const _NowTag()
@@ -884,9 +890,20 @@ class _MiniPrayerCell extends StatelessWidget {
                           ? const SizedBox.shrink()
                           : FittedBox(
                               fit: BoxFit.scaleDown,
-                              child: Text(
-                                formatCountdownClock(left),
-                                style: _onSky(11.5, weight: FontWeight.w800, color: gold, digits: true),
+                              child: Text.rich(
+                                TextSpan(
+                                  children: <InlineSpan>[
+                                    TextSpan(
+                                      text: 'باقی ',
+                                      style: _onSky(11.5, weight: FontWeight.w800, color: gold),
+                                    ),
+                                    TextSpan(
+                                      text: formatCountdownClock(left),
+                                      style: _onSky(11.5, weight: FontWeight.w800, color: gold, digits: true),
+                                    ),
+                                  ],
+                                ),
+                                textDirection: TextDirection.rtl,
                               ),
                             )),
                 ),

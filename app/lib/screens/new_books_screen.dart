@@ -13,12 +13,13 @@ import 'library_screen.dart';
 /// **Xplore → نئی کتابیں**: the books that joined the library after the
 /// original corpus.
 ///
-/// The first of them is **اثنا عشری انسائکلوپیڈیا (منتخب)**: 574 curated
-/// articles from Urdu Wikipedia, stored as their ordered prose sections with
-/// the exact page revision attached to every card. It browses exactly like a
-/// book — ten curated chapters, a shelf of the twelve Imams, curated topics,
-/// and an in-collection search — and each article ends with its ماخذ list and
-/// a «مزید پڑھیں» row.
+/// The first of them is **اثنا عشری انسائکلوپیڈیا**: the 574 curated Urdu
+/// Wikipedia articles **plus** the detailed topic notes from Wikishia, merged
+/// into one book — 635 articles, each stored as ordered prose sections with the
+/// exact page revision attached to every card. It browses exactly like a book
+/// — ten chapters, a shelf of the twelve Imams, curated topics, and an
+/// in-collection search — and each article ends with a numbered ماخذ list, the
+/// same references as tappable source links, and a «مزید پڑھیں» row.
 class NewBooksScreen extends StatelessWidget {
   const NewBooksScreen({
     super.key,
@@ -95,7 +96,8 @@ class _IntroCard extends StatelessWidget {
             const SizedBox(height: 6),
             JustifiedText(
               'قرآن، حدیث، دعا اور فتاویٰ کے ساتھ اب «اثنا عشری انسائکلوپیڈیا» بھی اسی '
-              'لائبریری میں — اسی پڑھنے کے انداز، تلاش اور آخری مطالعہ کے ساتھ۔',
+              'لائبریری میں — اردو ویکیپیڈیا اور ویکی شیعہ کے تفصیلی موضوعاتی نوٹس، '
+              'اسی پڑھنے کے انداز، تلاش اور ہر ماخذ کے براہِ راست لنک کے ساتھ۔',
               style: TextStyle(fontSize: 13.5, height: 1.6, color: scheme.onSurfaceVariant),
             ),
           ],
@@ -359,9 +361,9 @@ class _EncyclopediaBrowseScreenState extends State<EncyclopediaBrowseScreen> {
                 ),
                 const SizedBox(height: 6),
                 JustifiedText(
-                  'ائمہ، اہل بیت و کربلا، عقائد، عبادات، کتب، شخصیات اور مقدس مقامات — ہر '
-                  'مضمون اپنے اصل ماخذ اور CC BY-SA 4.0 انتساب کے ساتھ۔ کسی بھی کارڈ کے '
-                  'نیچے «ماخذ» دبا کر وہی صفحہ براہِ راست کھل جاتا ہے۔',
+                  'ائمہ، اہل بیت و کربلا، عقائد، عبادات، کتب، شخصیات اور مقدس مقامات — اردو '
+                  'ویکیپیڈیا کے مضامین اور ویکی شیعہ کے تفصیلی موضوعاتی نوٹس ایک ہی کتاب میں۔ '
+                  'ہر مضمون کے آخر میں «ماخذ — براہِ راست کھولیں» سے اصل صفحہ کھلتا ہے۔',
                   style: TextStyle(fontSize: 13, height: 1.6, color: scheme.onSurfaceVariant),
                 ),
                 if (stats != null) ...<Widget>[
@@ -562,9 +564,10 @@ class _EncyclopediaBrowseScreenState extends State<EncyclopediaBrowseScreen> {
 
   Widget _attribution(ColorScheme scheme) {
     return GlassFootnote(
-      text: 'ماخذ: اردو ویکیپیڈیا (ur.wikipedia.org) — CC BY-SA 4.0۔ متن بغیر تبدیلی کے '
-          'محفوظ ہے؛ ہر مضمون کا اصل صفحہ اور revision لنک کارڈ پر موجود ہے۔ یہ ذخیرہ '
-          'منتخب مضامین کا ہے، مکمل ویکیپیڈیا کا دعویٰ نہیں۔',
+      text: 'ماخذ: اردو ویکیپیڈیا (ur.wikipedia.org) — CC BY-SA 4.0، اور ویکی شیعہ '
+          '(ur.wikishia.net) کے تفصیلی موضوعاتی نوٹس۔ متن بغیر تبدیلی کے محفوظ ہے؛ ہر حصے '
+          'کا اصل صفحہ، revision لنک اور حوالہ جات کارڈ پر موجود ہیں۔ یہ ذخیرہ منتخب '
+          'مضامین کا ہے، مکمل ویکیپیڈیا یا مکمل ویکی شیعہ کا دعویٰ نہیں۔',
     );
   }
 }

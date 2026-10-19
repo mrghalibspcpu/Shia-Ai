@@ -13,6 +13,7 @@ import '../services/prayer_controller.dart';
 import '../services/prayer_scope.dart';
 import '../widgets/glass_panel.dart';
 import '../widgets/qibla_map_card.dart';
+import '../widgets/qibla_street_map.dart';
 import '../widgets/section_background.dart';
 
 /// Where the compass is in its life cycle.
@@ -169,7 +170,6 @@ class _QiblaScreenState extends State<QiblaScreen> {
       heading: (hasHeading ? _filter.heading : bearing),
       hasHeading: hasHeading,
     );
-    final compassUnavailable = _status == _CompassStatus.unavailable;
     final mapFallback = QiblaMapCard(
       location: controller.location,
       bearing: bearing,
@@ -211,20 +211,28 @@ class _QiblaScreenState extends State<QiblaScreen> {
             ),
             const SizedBox(height: 12),
           ],
-          if (compassUnavailable) ...<Widget>[
-            mapFallback,
-            const SizedBox(height: 12),
-          ],
+          // The real map comes first: it is the one view that still gives an
+          // exact direction when the magnetometer is missing or uncalibrated,
+          // which is the case readers kept writing in about.
+          QiblaStreetMapCard(
+            location: controller.location,
+            bearing: bearing,
+            distanceKm: controller.distanceToKaabaKm,
+            heading: hasHeading ? _filter.heading : null,
+            hasHeading: hasHeading,
+            onRefreshLocation: () async {
+              await controller.refreshLocation();
+            },
+          ),
+          const SizedBox(height: 12),
           _CompassCard(
             reading: reading,
             status: _status,
             continuousHeading: _continuousHeading,
             palette: palette,
           ),
-          if (!compassUnavailable) ...<Widget>[
-            const SizedBox(height: 12),
-            mapFallback,
-          ],
+          const SizedBox(height: 12),
+          mapFallback,
           const SizedBox(height: 12),
           _LocationCard(controller: controller, palette: palette),
           const SizedBox(height: 12),

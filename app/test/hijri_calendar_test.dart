@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shia_ai/astro/hijri_calendar.dart';
-import 'package:shia_ai/astro/prayer_calculator.dart';
-import 'package:shia_ai/astro/sky_phase.dart';
+import 'package:shiaverse/astro/hijri_calendar.dart';
+import 'package:shiaverse/astro/prayer_calculator.dart';
+import 'package:shiaverse/astro/sky_phase.dart';
 
 /// The Hijri date on the prayer card and the four skies behind it.
 ///

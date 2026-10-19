@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shia_ai/library_repository.dart';
-import 'package:shia_ai/models.dart';
+import 'package:shiaverse/library_repository.dart';
+import 'package:shiaverse/models.dart';
 
 void main() {
   group('local Arabic/Urdu search', () {

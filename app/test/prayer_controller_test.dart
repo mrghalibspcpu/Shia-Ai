@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:shia_ai/astro/hijri_calendar.dart';
-import 'package:shia_ai/astro/prayer_calculator.dart';
-import 'package:shia_ai/services/alerts.dart';
-import 'package:shia_ai/services/place_names.dart';
-import 'package:shia_ai/services/prayer_controller.dart';
-import 'package:shia_ai/services/prayer_locations.dart';
+import 'package:shiaverse/astro/hijri_calendar.dart';
+import 'package:shiaverse/astro/prayer_calculator.dart';
+import 'package:shiaverse/services/alerts.dart';
+import 'package:shiaverse/services/place_names.dart';
+import 'package:shiaverse/services/prayer_controller.dart';
+import 'package:shiaverse/services/prayer_locations.dart';
 
 /// The controller that ties the three features together: the shared location
 /// (asked for once), the display-zone clock, the prayer-time watcher that

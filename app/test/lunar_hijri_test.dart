@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:shia_ai/astro/hijri_calendar.dart';
-import 'package:shia_ai/astro/lunar_hijri.dart';
+import 'package:shiaverse/astro/hijri_calendar.dart';
+import 'package:shiaverse/astro/lunar_hijri.dart';
 
 /// The Julian Day at 00:00 UT of a civil date: the shape `observeEvening` takes.
 double _midnight(int year, int month, int day) =>

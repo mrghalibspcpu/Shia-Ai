@@ -6,36 +6,36 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:shia_ai/astro/hijri_calendar.dart' show formatHijriUrdu;
-import 'package:shia_ai/astro/prayer_format.dart' show weekdayUrdu;
-import 'package:shia_ai/app_theme.dart';
-import 'package:shia_ai/data_installer.dart';
-import 'package:shia_ai/main.dart' show HomeShell;
-import 'package:shia_ai/screens/settings_screen.dart';
-import 'package:shia_ai/screens/quran_screen.dart';
-import 'package:shia_ai/screens/islamic_calendar_screen.dart';
-import 'package:shia_ai/screens/library_screen.dart';
-import 'package:shia_ai/screens/crescent_screen.dart';
-import 'package:shia_ai/screens/duas_screen.dart';
-import 'package:shia_ai/screens/balagha_screen.dart';
-import 'package:shia_ai/widgets/reader_chrome.dart';
-import 'package:shia_ai/widgets/reader_kit.dart';
-import 'package:shia_ai/widgets/mushaf_text.dart';
-import 'package:shia_ai/widgets/reading_hub.dart';
-import 'package:shia_ai/widgets/glass_panel.dart';
-import 'package:shia_ai/library_repository.dart';
-import 'package:shia_ai/models.dart';
-import 'package:shia_ai/screens/prayer_times_screen.dart';
-import 'package:shia_ai/screens/qibla_screen.dart';
-import 'package:shia_ai/widgets/section_background.dart';
-import 'package:shia_ai/screens/tasbeeh_screen.dart';
-import 'package:shia_ai/services/alerts.dart';
-import 'package:shia_ai/services/city_index.dart';
-import 'package:shia_ai/services/prayer_controller.dart';
-import 'package:shia_ai/services/prayer_locations.dart';
-import 'package:shia_ai/services/prayer_scope.dart';
-import 'package:shia_ai/services/tasbeeh_controller.dart';
-import 'package:shia_ai/widgets/home_dashboard.dart';
+import 'package:shiaverse/astro/hijri_calendar.dart' show formatHijriUrdu;
+import 'package:shiaverse/astro/prayer_format.dart' show weekdayUrdu;
+import 'package:shiaverse/app_theme.dart';
+import 'package:shiaverse/data_installer.dart';
+import 'package:shiaverse/main.dart' show HomeShell;
+import 'package:shiaverse/screens/settings_screen.dart';
+import 'package:shiaverse/screens/quran_screen.dart';
+import 'package:shiaverse/screens/islamic_calendar_screen.dart';
+import 'package:shiaverse/screens/library_screen.dart';
+import 'package:shiaverse/screens/crescent_screen.dart';
+import 'package:shiaverse/screens/duas_screen.dart';
+import 'package:shiaverse/screens/balagha_screen.dart';
+import 'package:shiaverse/widgets/reader_chrome.dart';
+import 'package:shiaverse/widgets/reader_kit.dart';
+import 'package:shiaverse/widgets/mushaf_text.dart';
+import 'package:shiaverse/widgets/reading_hub.dart';
+import 'package:shiaverse/widgets/glass_panel.dart';
+import 'package:shiaverse/library_repository.dart';
+import 'package:shiaverse/models.dart';
+import 'package:shiaverse/screens/prayer_times_screen.dart';
+import 'package:shiaverse/screens/qibla_screen.dart';
+import 'package:shiaverse/widgets/section_background.dart';
+import 'package:shiaverse/screens/tasbeeh_screen.dart';
+import 'package:shiaverse/services/alerts.dart';
+import 'package:shiaverse/services/city_index.dart';
+import 'package:shiaverse/services/prayer_controller.dart';
+import 'package:shiaverse/services/prayer_locations.dart';
+import 'package:shiaverse/services/prayer_scope.dart';
+import 'package:shiaverse/services/tasbeeh_controller.dart';
+import 'package:shiaverse/widgets/home_dashboard.dart';
 
 /// Layout checks for the 1.12 home dashboard and readers and the screens around it on a
 /// small (360 dp) phone, with the app's real fonts: any overflow fails the
@@ -619,6 +619,11 @@ void main() {
     // The card is a north-up diagram, not a tile map: one thick arrow from
     // «آپ» to the Kaaba, with the degrees spelled out underneath.
     expect(find.byKey(const ValueKey<String>('qibla-map-diagram')), findsOneWidget);
+    // 1.20: the real street map sits above the dial, and its Qibla line is
+    // drawn even when the compass never reports a heading.
+    expect(find.byKey(const ValueKey<String>('qibla-street-map')), findsOneWidget);
+    expect(find.text('اصل نقشہ — کعبہ کی سمت'), findsOneWidget);
+    expect(find.textContaining('© OpenStreetMap'), findsOneWidget);
     expect(find.textContaining('نقشہ شمال اوپر ہے'), findsOneWidget);
     expect(find.textContaining('اسی رخ منہ کر کے نماز پڑھیں'), findsOneWidget);
     expect(find.text('شمال اوپر'), findsNothing);
@@ -626,6 +631,39 @@ void main() {
     expectWallpaperInsidePanels(tester);
     expect(tester.takeException(), isNull);
     await shoot(tester, 'qibla-3d');
+    await finish(tester, prayer, tasbeeh);
+  });
+
+  testWidgets('the next prayer is highlighted without a coloured container', (tester) async {
+    phone(tester);
+    // 12:10 on 15 October 2026 in Islamabad: ظہرین is running, and عصر — which
+    // the mini card folds into ظہرین — is next. Pick a moment where the *next*
+    // cell is a different one: 13:30 is after Dhuhr, so مغربین comes next.
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(13, 30));
+    await tester.pumpWidget(host(prayer, tasbeeh, homeScreen()));
+    await settle(tester);
+    // The countdown line: «باقی h:mm:ss» on the next cell only.
+    final remaining = find.textContaining('باقی ');
+    expect(remaining, findsOneWidget);
+    // No gold/yellow fill and no outline on the next cell: the decoration is
+    // fully transparent, which is what "bina kisi colorful container ke" means.
+    final decorated = tester.widgetList<AnimatedContainer>(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('home-prayer-row')),
+        matching: find.byType(AnimatedContainer),
+      ),
+    ).where((container) {
+      final decoration = container.decoration;
+      return decoration is BoxDecoration && decoration.border != null;
+    });
+    // Only the running prayer may carry a border (the white emerald tile).
+    for (final container in decorated) {
+      final decoration = container.decoration! as BoxDecoration;
+      expect(decoration.gradient, isNotNull,
+          reason: 'a bordered cell must be the running prayer, not the next one');
+    }
+    expect(tester.takeException(), isNull);
+    await shoot(tester, 'home-next-prayer');
     await finish(tester, prayer, tasbeeh);
   });
 

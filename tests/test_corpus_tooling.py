@@ -228,3 +228,123 @@ class ReleaseManifestTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MergedEncyclopediaTests(unittest.TestCase):
+    """1.20 merged the Wikishia topic notes into the encyclopaedia read here.
+
+    The reader edition ships gzipped; these checks expand it once and pin the
+    promises the UI makes (a revision URL on every imported section, a merged
+    article that carries both sources, and a title without «(منتخب)»).
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        import gzip
+        import sqlite3
+        import tempfile
+
+        cls._directory = tempfile.TemporaryDirectory(prefix="shiaverse-enc-")
+        database = Path(cls._directory.name) / "encyclopedia.db"
+        with gzip.open(ROOT / "assets" / "athna_ashari_encyclopedia.db.gz", "rb") as packed:
+            database.write_bytes(packed.read())
+        cls.db = sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True)
+        cls.db.row_factory = sqlite3.Row
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.db.close()
+        cls._directory.cleanup()
+
+    def test_title_dropped_the_selected_suffix(self):
+        title = self.db.execute(
+            "SELECT value FROM metadata WHERE key = 'title_ur'"
+        ).fetchone()[0]
+        self.assertEqual(title, "اثنا عشری انسائکلوپیڈیا")
+        self.assertNotIn("منتخب", title)
+
+    def test_article_count_is_the_merge_of_both_corpora(self):
+        articles = self.db.execute("SELECT COUNT(*) FROM articles").fetchone()[0]
+        self.assertGreaterEqual(articles, 620)
+
+    def test_wikishia_sections_keep_their_revision_url(self):
+        rows = self.db.execute(
+            "SELECT COUNT(*) FROM sections WHERE source_url LIKE 'https://ur.wikishia.net/%'"
+        ).fetchone()[0]
+        self.assertGreaterEqual(rows, 280)
+        blank = self.db.execute(
+            "SELECT COUNT(*) FROM sections WHERE source_url = ''"
+        ).fetchone()[0]
+        self.assertEqual(blank, 0)
+
+    def test_a_wikishia_only_topic_became_an_article(self):
+        row = self.db.execute(
+            "SELECT a.id, a.group_id, g.slug FROM articles a JOIN groups g ON g.id = a.group_id "
+            "WHERE a.title_ur = 'مرجع تقلید'"
+        ).fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(row["slug"], "scholars")
+        sections = self.db.execute(
+            "SELECT COUNT(*) FROM sections WHERE article_id = ?", (row["id"],)
+        ).fetchone()[0]
+        self.assertEqual(sections, 3)
+
+    def test_a_shared_topic_keeps_both_sources(self):
+        article = self.db.execute(
+            "SELECT id FROM articles WHERE title_ur = 'حسین بن علی'"
+        ).fetchone()[0]
+        hosts = {
+            row[0]
+            for row in self.db.execute(
+                "SELECT DISTINCT rtrim(substr(source_url, 1, instr(source_url, '/w/')), '/') "
+                "FROM sections WHERE article_id = ?",
+                (article,),
+            )
+        }
+        self.assertIn("https://ur.wikipedia.org", hosts)
+        self.assertIn("https://ur.wikishia.net", hosts)
+        # The Iran-sourced citations of the notes are real links too.
+        external = self.db.execute(
+            "SELECT COUNT(*) FROM source_references WHERE article_id = ? "
+            "AND (source_url LIKE 'http://%' OR source_url LIKE 'https://%')",
+            (article,),
+        ).fetchone()[0]
+        self.assertGreater(external, 0)
+
+    def test_related_links_never_dangle(self):
+        dangling = self.db.execute(
+            "SELECT COUNT(*) FROM related_articles WHERE target_article_id IS NOT NULL "
+            "AND target_article_id NOT IN (SELECT id FROM articles)"
+        ).fetchone()[0]
+        self.assertEqual(dangling, 0)
+
+    def test_group_counts_match_the_articles(self):
+        for row in self.db.execute(
+            "SELECT g.id, g.article_count, COUNT(a.id) AS actual FROM groups g "
+            "LEFT JOIN articles a ON a.group_id = g.id GROUP BY g.id"
+        ):
+            self.assertEqual(row["article_count"], row["actual"])
+
+
+class RevisedNahjTests(unittest.TestCase):
+    """1.20 replaced the Nahj al-Balagha corpus with the newly uploaded one."""
+
+    def test_uploaded_translation_is_in_place(self):
+        import sqlite3
+
+        connection = sqlite3.connect(
+            f"file:{(ROOT / 'assets' / 'nahjul_balagha.db').as_posix()}?mode=ro", uri=True
+        )
+        try:
+            urdu = connection.execute("SELECT UR FROM balaghatext WHERE ID = 2").fetchone()[0]
+            # The uploaded file's translation of the second paragraph; the
+            # previous corpus started the same sentence differently.
+            self.assertIn("جس میں آپ نے", urdu)
+            self.assertEqual(
+                connection.execute("SELECT COUNT(*) FROM balaghatext").fetchone()[0], 3742
+            )
+            self.assertEqual(
+                connection.execute("PRAGMA page_size").fetchone()[0], 1024
+            )
+        finally:
+            connection.close()

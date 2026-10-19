@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:shia_ai/services/prayer_locations.dart';
+import 'package:shiaverse/services/prayer_locations.dart';
 
 /// The location chain's parsing and storage: the IP payloads (both providers),
 /// typed coordinates, the city list, and the round trip through preferences.

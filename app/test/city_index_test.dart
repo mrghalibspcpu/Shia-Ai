@@ -1,9 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shia_ai/services/city_index.dart';
-import 'package:shia_ai/services/place_names.dart';
-import 'package:shia_ai/services/prayer_locations.dart';
+import 'package:shiaverse/services/city_index.dart';
+import 'package:shiaverse/services/place_names.dart';
+import 'package:shiaverse/services/prayer_locations.dart';
 
 /// The offline place list behind the location picker and the naming of a GPS
 /// fix: parsing, search ranking, the "which town is this" scoring, and the

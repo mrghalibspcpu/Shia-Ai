@@ -715,6 +715,14 @@ class _ReaderScreenState extends State<ReaderScreen> with ReaderDisplayMode<Read
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: <Widget>[
+                              // Every reference opens its own page: the
+                              // direct source links readers asked for.
+                              if (related)
+                                EncyclopediaSourceLinks(
+                                  library: widget.library,
+                                  book: widget.book,
+                                  articleId: articleId,
+                                ),
                               if (related)
                                 EncyclopediaRelatedStrip(
                                   library: widget.library,
@@ -828,6 +836,121 @@ class EncyclopediaRelatedStrip extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// «ماخذ — براہِ راست کھولیں»: every reference of an encyclopaedia article as
+/// a tappable row.
+///
+/// The numbered ماخذ card above it keeps the bibliography readable in print;
+/// this card is the one a reader uses to *check* a sentence. Each row opens its
+/// own URL in the browser, so a Wikishia revision, a Wikipedia page and an
+/// external article all lead to the exact page they came from.
+class EncyclopediaSourceLinks extends StatelessWidget {
+  const EncyclopediaSourceLinks({
+    super.key,
+    required this.library,
+    required this.book,
+    required this.articleId,
+  });
+
+  final LibraryRepository library;
+  final BookDefinition book;
+  final int articleId;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return FutureBuilder<List<({String text, String url})>>(
+      future: library.getEncyclopediaReferences(book, articleId),
+      builder: (context, snapshot) {
+        final links = snapshot.data ?? const <({String text, String url})>[];
+        if (links.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Icon(Icons.library_books_outlined, size: 17, color: scheme.secondary),
+                  const SizedBox(width: 6),
+                  const Expanded(
+                    child: JustifiedText(
+                      'ماخذ — براہِ راست کھولیں',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  Text(
+                    '${links.length}',
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: scheme.secondary),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 7),
+              for (final link in links)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Material(
+                    color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => _openSource(context, link.url),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        child: Row(
+                          children: <Widget>[
+                            Icon(Icons.open_in_new_rounded, size: 15, color: scheme.secondary),
+                            const SizedBox(width: 7),
+                            Expanded(
+                              child: Text(
+                                _sourceLabel(link.text, link.url),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                textDirection: TextDirection.ltr,
+                                style: TextStyle(fontSize: 12, height: 1.35, color: scheme.onSurfaceVariant),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 2),
+              Text(
+                'ہر لنک اصل صفحے پر لے جاتا ہے — انٹرنیٹ درکار ہے۔',
+                style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// A readable label: a descriptive reference keeps its Urdu text; a bare URL
+  /// is shortened to «host/…/last-segment» so the row is not a wall of %-codes.
+  static String _sourceLabel(String text, String url) {
+    if (text.trim().isNotEmpty && text.trim() != url && !text.trim().startsWith('http')) {
+      return text.trim();
+    }
+    final uri = Uri.tryParse(url);
+    if (uri == null) return url;
+    final decoded = Uri.decodeFull(uri.path.isEmpty ? '/' : uri.path);
+    final tail = decoded.length > 58 ? '…${decoded.substring(decoded.length - 58)}' : decoded;
+    return '${uri.host.isEmpty ? url : uri.host}$tail';
+  }
+
+  static Future<void> _openSource(BuildContext context, String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (opened || !context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('لنک نہیں کھل سکا — انٹرنیٹ چیک کریں۔')),
     );
   }
 }

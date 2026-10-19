@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:shia_ai/services/alerts.dart';
-import 'package:shia_ai/services/tasbeeh_controller.dart';
+import 'package:shiaverse/services/alerts.dart';
+import 'package:shiaverse/services/tasbeeh_controller.dart';
 
 /// The digital tasbeeh's engine: the Tasbeeh-e-Zahra (s.a.) sequence that
 /// advances by itself, the custom targets, the unlimited mode, the daily

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:shia_ai/library_repository.dart';
-import 'package:shia_ai/models.dart';
-import 'package:shia_ai/screens/quran_screen.dart';
-import 'package:shia_ai/text_utils.dart';
-import 'package:shia_ai/widgets/highlighted_text.dart';
+import 'package:shiaverse/library_repository.dart';
+import 'package:shiaverse/models.dart';
+import 'package:shiaverse/screens/quran_screen.dart';
+import 'package:shiaverse/text_utils.dart';
+import 'package:shiaverse/widgets/highlighted_text.dart';
 
 class _ReaderLibrary extends LibraryRepository {
   @override

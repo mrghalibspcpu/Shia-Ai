@@ -355,8 +355,12 @@ def encyclopedia(connection: sqlite3.Connection) -> None:
     topics = run(connection, "FROM topics AS t JOIN articles AS a ON a.id = t.article_id\n        ORDER BY t.id")
     check("encyclopedia: curated topics resolve to articles", len(topics) >= 5, f"{len(topics)}")
     # The small «ماخذ» chip must have a real page for every reference it shows.
+    # Since 1.20 the encyclopaedia also carries the Wikishia topic notes, and
+    # some of the pages those notes cite are only served over plain HTTP. Every
+    # reference must still be a real page, so an http(s) URL is what is pinned.
     blank_refs = connection.execute(
-        "SELECT COUNT(*) FROM source_references WHERE source_url NOT LIKE 'https://%'"
+        "SELECT COUNT(*) FROM source_references "
+        "WHERE source_url NOT LIKE 'https://%' AND source_url NOT LIKE 'http://%'"
     ).fetchone()[0]
     check("encyclopedia: references keep their permanent URLs", blank_refs == 0, f"{blank_refs} without a URL")
     # Every article must give the reader at least one paragraph and one ماخذ.

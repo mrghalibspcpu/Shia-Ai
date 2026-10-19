@@ -110,7 +110,7 @@ def _error_nodes(node, limit: int = 5) -> list:
 
 def check_imports(paths: list[Path]) -> int:
     errors = 0
-    package_name = "shia_ai"
+    package_name = "shiaverse"
     for path in paths:
         source = path.read_text(encoding="utf-8", errors="replace")
         for match in re.finditer(r"""import\s+'([^']+)'""", source):
@@ -156,7 +156,7 @@ def resolve_project_import(uri: str, importer: Path) -> Path | None:
     """Map a Dart import URI onto a file in this repository, or None."""
     if uri.startswith("dart:") or uri.startswith("package:flutter"):
         return None
-    if uri.startswith("package:shia_ai/"):
+    if uri.startswith("package:shiaverse/"):
         return (APP_DIR / "lib" / uri.split("/", 1)[1]).resolve()
     if uri.startswith("package:"):
         return None  # resolved by pub, not by this script

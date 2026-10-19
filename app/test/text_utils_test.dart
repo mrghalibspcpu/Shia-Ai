@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shia_ai/text_utils.dart';
+import 'package:shiaverse/text_utils.dart';
 
 void main() {
   group('Arabic display spacing', () {

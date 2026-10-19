@@ -845,8 +845,8 @@ class LibraryRepository {
     if (!_installed.contains(book.key)) return 0;
     try {
       if (book.source == CorpusSource.encyclopedia) {
-        // The shelf counts articles (مضامین), not prose sections: 574 is what
-        // the reader can open as one متن.
+        // The shelf counts articles (مضامین), not prose sections: after the
+        // 1.20 Wikishia merge that is 635 articles the reader can open.
         final db = await _openBook(book);
         final rows = await db.rawQuery('SELECT COUNT(*) AS count FROM articles');
         return (rows.first['count'] as int?) ?? 0;
@@ -1019,6 +1019,40 @@ class LibraryRepository {
           if (_asInt(row['id']) != null)
             (id: _asInt(row['id'])!, title: (row['title'] ?? '').toString()),
       ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// The article's numbered references, as **tappable links**.
+  ///
+  /// The closing ماخذ card lists the same lines as text; this list is what the
+  /// reader taps to open the exact page in the browser. Duplicate URLs are
+  /// folded (the merged Wikishia notes cite the same page from several
+  /// sections) and the list is capped so a heavily-referenced biography cannot
+  /// build a thousand-row widget.
+  Future<List<({String text, String url})>> getEncyclopediaReferences(
+    BookDefinition book,
+    int articleId, {
+    int limit = 40,
+  }) async {
+    if (!_installed.contains(book.key)) return const [];
+    try {
+      final db = await _openBook(book);
+      final rows = await db.rawQuery(
+        'SELECT reference_text, source_url FROM source_references WHERE article_id = ? ORDER BY id',
+        [articleId],
+      );
+      final seen = <String>{};
+      final links = <({String text, String url})>[];
+      for (final row in rows) {
+        final url = (row['source_url'] ?? '').toString().trim();
+        if (!url.startsWith('http') || !seen.add(url)) continue;
+        final text = (row['reference_text'] ?? '').toString().trim();
+        links.add((text: text.isEmpty ? url : text, url: url));
+        if (links.length >= limit) break;
+      }
+      return links;
     } catch (_) {
       return const [];
     }

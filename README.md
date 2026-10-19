@@ -1,5 +1,40 @@
 # ShiaVerse
 
+## New in 1.20 — the real Qibla map, the merged encyclopaedia, calmer cards
+
+- **قبلہ نما** now opens on a **real OpenStreetMap street map**, not just a
+  diagram. North stays up, a thick emerald line runs from the reader to the
+  Kaaba with the live distance on it, and — when the magnetometer works — a
+  translucent gold cone shows where the phone is actually pointing. This is
+  the answer to "the compass failed": match two nearby streets on the screen
+  with the ones in front of you and face the line. No sensor, no calibration,
+  no network needed for the bearing itself (tiles cache after the first look),
+  and the schematic north-up card stays right underneath as a second opinion.
+- **نئی کتابیں** now opens **اثنا عشری انسائکلوپیڈیا** proper: the 574 curated
+  Urdu-Wikipedia articles **plus** the detailed topic notes from
+  **ویکی شیعہ** (`wikishia_urdu_twelver_detailed_notes.sqlite`) merged into one
+  book — **635 articles, 3,615 prose sections, 8,325 references**. A note on a
+  topic the Wikipedia edition already had (the twelve Imams, فاطمہ زہرا,
+  واقعہ کربلا, خمس …) is appended to that article, so one مضمون shows both
+  sources, and every section card keeps the exact page revision it came from.
+  Notes on new topics became new articles in the chapter they belong to.
+  Every article also gains **«ماخذ — براہِ راست کھولیں»**: its references as
+  tappable rows that open the exact source page in the browser.
+  The «(منتخب)» suffix is gone: the book is now titled **اثنا عشری انسائکلوپیڈیا**.
+- **The mini prayer card** highlights the **next prayer without a coloured
+  container**: no tile, no border — gold lettering, a two-pixel gold rule and
+  the live `باقی 2:07:45` countdown do the work, so the sky shows through.
+  (The running prayer keeps its solid emerald tile.)
+- **The four section wallpapers** (تسبیح، قبلہ نما، چاند کی رویت، اسلامی تقویم)
+  are new photographs, still painted **inside every glass container** rather
+  than behind the page.
+- **نہج البلاغہ** is the newly uploaded corpus, normalised to the app's page
+  size and indexes: same 3,742 paragraphs / 810 headings, revised Urdu
+  translation throughout.
+- The Dart package, every import and the tooling now say **shiaverse**
+  instead of `shia_ai`; the Android applicationId is unchanged, so an update
+  installs over the existing app and keeps its downloaded books.
+
 ## New in 1.19 — the encyclopaedia, paper inside the cards, a clearer Qibla
 
 - **نئی کتابیں** in **Xplore** now opens **اثنا عشری انسائکلوپیڈیا (منتخب)**
@@ -25,7 +60,8 @@
 - **قبلہ نما**'s map is now an honest north-up diagram: north marked at the top,
   a thick emerald arrow from «آپ» to a Kaaba mark, the bearing in degrees and
   the distance right underneath. No tile downloads, no procedural streets, no
-  rotating map — it reads the same offline.
+  rotating map — it reads the same offline. *(1.20 adds the real street map
+  above it; the diagram stays as the sensor-free second opinion.)*
 - The **آیت / حکمتِ وقت** card also draws from **ہدایۃ العلم**: those lines show
   the Urdu sentence and its reference only, in noticeably larger type.
 
