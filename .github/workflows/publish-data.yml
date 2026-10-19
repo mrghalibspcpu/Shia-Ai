@@ -92,8 +92,33 @@ jobs:
         run: |
           gh release view "$TAG" --json assets \
             --jq '.assets[] | "\(.name)\t\(.size)"' | sort | tee published-assets.txt
-          expected=$(ls dist/*.gz | wc -l)
-          published=$(grep -Ec '\.(db|sqlite|sqlite3)\.gz[[:space:]]' published-assets.txt || true)
-          echo "expected $expected SQLite gzip assets, published $published"
-          test "$published" -eq "$expected"
-          grep -q '^database-manifest\.json' published-assets.txt
+          # Compare against the manifest, not a bare count: the release also
+          # keeps superseded assets from earlier corpus revisions (the app's
+          # pinned `databases-v1` tag is updated in place with --clobber), and
+          # a count of every *.gz in the release would flag those old files as
+          # a failure. What matters is that every file THIS manifest names is
+          # published with the right byte count.
+          python3 - <<'PY'
+          import json
+          import sys
+
+          manifest = json.load(open('dist/database-manifest.json', encoding='utf-8'))
+          published = {}
+          for line in open('published-assets.txt', encoding='utf-8'):
+              name, _, size = line.rstrip('\n').partition('\t')
+              if name:
+                  published[name] = int(size or 0)
+          expected = [f"{entry['name']}.gz" for entry in manifest['databases']]
+          expected.append('database-manifest.json')
+          missing = [name for name in expected if name not in published]
+          empty = [name for name in expected if published.get(name, 0) <= 0]
+          print(f"{len(manifest['databases'])} databases in the manifest, "
+                f"{len(published)} assets in the release")
+          if missing:
+              print('MISSING:', ', '.join(missing))
+          if empty:
+              print('EMPTY:', ', '.join(empty))
+          if missing or empty:
+              sys.exit(1)
+          print('every database this manifest names is published')
+          PY
