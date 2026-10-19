@@ -620,6 +620,7 @@ void main() {
     expect(find.byKey(const ValueKey<String>('qibla-street-map')), findsOneWidget);
     expect(find.text('اصل نقشہ — کعبہ کی سمت'), findsOneWidget);
     expect(find.textContaining('© OpenStreetMap'), findsOneWidget);
+    await shoot(tester, 'qibla-map');
     // The schematic card below it is a north-up diagram: one thick arrow from
     // «آپ» to the Kaaba, with the degrees spelled out underneath.
     await tester.scrollUntilVisible(

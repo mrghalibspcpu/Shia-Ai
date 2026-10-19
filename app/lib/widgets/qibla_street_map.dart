@@ -534,6 +534,7 @@ class _QiblaMapOverlayPainter extends CustomPainter {
       text: TextSpan(
         text: text,
         style: TextStyle(
+          fontFamily: kUrduFont,
           fontSize: small ? 10 : 11.5,
           fontWeight: FontWeight.w800,
           color: foreground,

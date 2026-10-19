@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../app_theme.dart';
 import '../astro/compass_math.dart';
 import '../astro/prayer_format.dart';
 import '../services/prayer_locations.dart';
@@ -218,6 +219,7 @@ class _QiblaDiagramPainter extends CustomPainter {
         text: TextSpan(
           text: label,
           style: TextStyle(
+            fontFamily: kUrduFont,
             fontSize: size,
             fontWeight: FontWeight.w800,
             color: ink,
@@ -328,6 +330,7 @@ class _QiblaDiagramPainter extends CustomPainter {
       text: TextSpan(
         text: text,
         style: TextStyle(
+          fontFamily: kUrduFont,
           fontSize: small ? 10 : 11.5,
           fontWeight: FontWeight.w800,
           color: foreground,
