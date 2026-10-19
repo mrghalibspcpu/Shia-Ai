@@ -616,11 +616,12 @@ void main() {
     final resized = marker.image as ResizeImage;
     expect((resized.imageProvider as AssetImage).assetName, 'assets/images/kaaba_icon.png');
     expect(find.text('نقشے پر سمتِ قبلہ'), findsOneWidget);
-    // The card is a north-up diagram, not a tile map: one thick arrow from
-    // «آپ» to the Kaaba, with the degrees spelled out underneath.
+    // Without an online tile response the card keeps its north-up diagram
+    // fallback: a clear arrow from «آپ» with the exact degrees underneath.
     expect(find.byKey(const ValueKey<String>('qibla-map-diagram')), findsOneWidget);
     expect(find.textContaining('نقشہ شمال اوپر ہے'), findsOneWidget);
-    expect(find.textContaining('اسی رخ منہ کر کے نماز پڑھیں'), findsOneWidget);
+    expect(find.textContaining('آن لائن حقیقی نقشہ دکھتا ہے'), findsOneWidget);
+    expect(find.textContaining('سینسر کے بغیر معلوم نہیں ہو سکتا'), findsOneWidget);
     expect(find.text('شمال اوپر'), findsNothing);
     expect(find.byType(SectionBackground), findsOneWidget);
     expectWallpaperInsidePanels(tester);
