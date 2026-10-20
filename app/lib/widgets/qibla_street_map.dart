@@ -9,7 +9,8 @@ import '../astro/prayer_format.dart';
 import '../services/prayer_locations.dart';
 import 'glass_panel.dart';
 
-/// A **real street map** for the Qibla page, drawn from OpenStreetMap tiles.
+/// A **real street map** for the Qibla page (Esri World Street Map tiles, with an
+/// OpenStreetMap mirror as fall-back).
 ///
 /// The schematic card below it answers "which way is the Kaaba" without any
 /// network or sensor. This card answers the harder question readers kept
@@ -199,7 +200,7 @@ class _QiblaStreetMapCardState extends State<QiblaStreetMapCard> {
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                             child: Text(
-                              '© OpenStreetMap · © CARTO',
+                              '© OpenStreetMap contributors · Esri, HERE, Garmin',
                               textDirection: TextDirection.ltr,
                               style: TextStyle(
                                 fontSize: 8.5,
@@ -361,10 +362,17 @@ class _TileLayer extends StatelessWidget {
 /// answered with an «Access blocked» PNG on a real phone: their volunteer
 /// tile servers block apps that do not follow the tile usage policy, and the
 /// block page arrives as a *successful* image, so `errorBuilder` never fires.
-/// The first provider here is CARTO's CDN (same OpenStreetMap data, no block
-/// page, attribution required and shown on the card); the German OSM mirror
-/// and Esri's street map are the fall-backs. Only when every provider fails
-/// does the widget paint the offline graticule.
+/// CARTO's public CDN used to be the first provider, but it now answers
+/// keyless requests with a *successful* image that reads «API key required» —
+/// the same trap as the OSM block page, so `errorBuilder` never fires and the
+/// reader saw that message on the map. It has been removed.
+///
+/// The tiles now come from Esri's public World Street Map service (street
+/// names, buildings and OpenStreetMap-derived data in many countries; no key
+/// needed for the legacy raster tile endpoint), tried on two of Esri's hosts,
+/// with the German OpenStreetMap mirror as the last network fall-back. Every
+/// provider requires attribution, which the card shows. Only when all of them
+/// fail does the widget paint the offline graticule.
 class _MapTile extends StatefulWidget {
   const _MapTile({
     super.key,
@@ -387,14 +395,14 @@ class _MapTileState extends State<_MapTile> {
   /// Ordered fall-backs. Keeping the list here (not in the parent) means one
   /// provider going down only repaints the squares that failed.
   static const List<String> _providers = <String>[
-    'https://a.basemaps.cartocdn.com/rastertiles/voyager',
-    'https://tile.openstreetmap.de',
     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile',
+    'https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile',
+    'https://tile.openstreetmap.de',
   ];
 
-  /// Esri serves `{z}/{y}/{x}`; the other two `{z}/{x}/{y}`.
+  /// Esri serves `{z}/{y}/{x}`; the OSM mirror `{z}/{x}/{y}.png`.
   static String _urlFor(int index, int zoom, int x, int y) {
-    if (index == 2) return '${_providers[index]}/$zoom/$y/$x';
+    if (index < 2) return '${_providers[index]}/$zoom/$y/$x';
     return '${_providers[index]}/$zoom/$x/$y.png';
   }
 
@@ -413,7 +421,7 @@ class _MapTileState extends State<_MapTile> {
       gaplessPlayback: true,
       filterQuality: FilterQuality.low,
       headers: const <String, String>{
-        'User-Agent': 'ShiaVerse/1.21 (Android Qibla map; offline-first Islamic library)',
+        'User-Agent': 'ShiaVerse/1.21 (Android Qibla map; Islamic library app)',
       },
       loadingBuilder: (context, child, progress) => progress == null
           ? child
