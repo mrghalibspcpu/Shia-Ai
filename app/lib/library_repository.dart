@@ -447,10 +447,11 @@ class LibraryRepository {
     return (rows.first['count'] as int?) ?? 0;
   }
 
-  /// Nahj al-Balagha's Urdu column is damaged at the source (sermons 4-10 and
-  /// scattered words are letter-shuffled). The repair lives in the app, so the
-  /// index must be built from the repaired text — otherwise a reader would find
-  /// a paragraph by a word the page no longer shows.
+  /// The index must hold exactly the Urdu the page shows. Since 1.21.1 the
+  /// database is proofread and `repairNahjulBalaghaUrdu` returns it unchanged;
+  /// on a phone that still holds the old, letter-shuffled file the same call
+  /// repairs the paragraph, and indexing the stored text instead would make the
+  /// reader find a page by a word the page no longer shows.
   String _indexedUrdu(BookDefinition book, int recordId, String urdu) {
     if (book.source != CorpusSource.balagha) return urdu;
     // Footnote and introduction rows carry negative ids and were never part of

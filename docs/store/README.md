@@ -20,7 +20,7 @@
    privacy page (`python3 scripts/set_policy_contact.py` was run for the
    address) and inside the app on **سیٹنگز › کریڈٹس**, where both are tappable.
 3. **Dataset permission** (see audit) — resolve before upload.
-4. **Signing**: the CI keystore is supplied through repository secrets; it was not touched. Keep `applicationId com.shiaai.app` and the same keystore, and the version only goes up (1.21.1+31 > 1.21.0+30), so installs of 1.21.0 update in place.
+4. **Signing**: the CI keystore is supplied through repository secrets; it was not touched. Keep `applicationId com.shiaai.app` and the same keystore, and the version only goes up (1.22.0+32 > 1.21.1+31 > 1.21.0+30), so installs update in place.
 
 ## Building and testing the APK (GitHub Actions)
 
@@ -36,6 +36,8 @@ apksigner verify --print-certs ShiaVerse-1.22.0.apk   # fingerprint must equal t
 Device checklist (Android 7.0 / API 24 and a recent version):
 - [ ] Update over 1.21.1 keeps data (no "package conflicts" message).
 - [ ] Qibla page: map shows streets, no "API key required"; offline → graticule appears.
+- [ ] Settings › کریڈٹس: the HashTech mark paints, the e-mail opens the mail app and the number opens the dialler.
+- [ ] Settings › ماخذ اور حقوق: the dialog opens and the privacy row reaches the live page once Pages is on.
 - [ ] Xplore › روزانہ مطالعہ: pick a track and a length, open today's portion, mark it, restart the app and the mark is still there.
 - [ ] Nahj al-Balagha: Khutba 4–11 read correctly **without** re-downloading (the app repairs the old file); after removing and re-downloading, they read identically.
 - [ ] Prayer times with GPS on / location denied (IP fallback) / airplane mode.
