@@ -74,12 +74,14 @@ class ReadingHub extends StatefulWidget {
   const ReadingHub({
     super.key,
     required this.depth,
+    required this.hidden,
     required this.onAction,
     required this.child,
   });
 
   /// Pages on top of the home screen; the hub is shown while it is above 0.
   final ValueListenable<int> depth;
+  final ValueListenable<bool> hidden;
 
   /// Runs the chosen destination (the caller decides how to open it).
   final ValueChanged<HubDestination> onAction;
@@ -163,10 +165,13 @@ class _ReadingHubState extends State<ReadingHub> with SingleTickerProviderStateM
         widget.child,
         ValueListenableBuilder<int>(
           valueListenable: widget.depth,
-          builder: (context, depth, _) {
-            if (depth <= 0) return const SizedBox.shrink();
-            return _buildHub(context);
-          },
+          builder: (context, depth, _) => ValueListenableBuilder<bool>(
+            valueListenable: widget.hidden,
+            builder: (context, hidden, __) {
+              if (depth <= 0 || hidden) return const SizedBox.shrink();
+              return _buildHub(context);
+            },
+          ),
         ),
       ],
     );

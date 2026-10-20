@@ -48,6 +48,18 @@
             </intent-filter>
         </activity>
         <receiver
+            android:name=".MomentWidgetProvider"
+            android:exported="true"
+            android:label="آیت / فرمانِ ساعت">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.shiaai.app.ACTION_REFRESH_MOMENT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/moment_widget_info" />
+        </receiver>
+        <receiver
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
             android:exported="false" />
         <receiver

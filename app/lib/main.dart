@@ -22,6 +22,7 @@ import 'screens/qibla_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/tasbeeh_screen.dart';
+import 'screens/xplore_xtra_screen.dart';
 import 'services/community_stats.dart';
 import 'services/prayer_controller.dart';
 import 'services/prayer_scope.dart';
@@ -78,7 +79,9 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
   // How many pages sit on top of the home screen, and the observer that counts
   // them: the circular hub is shown while the count is above zero.
   final ValueNotifier<int> _pageDepth = ValueNotifier<int>(0);
+  final ValueNotifier<bool> _hideReadingHub = ValueNotifier<bool>(false);
   late final ReadingDepthObserver _depthObserver = ReadingDepthObserver(_pageDepth);
+  final RouteObserver<PageRoute<dynamic>> _exploreRouteObserver = RouteObserver<PageRoute<dynamic>>();
 
   @override
   void initState() {
@@ -158,6 +161,7 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
     _prayer.dispose();
     _tasbeeh.dispose();
     _pageDepth.dispose();
+    _hideReadingHub.dispose();
     super.dispose();
   }
 
@@ -239,7 +243,12 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
         )));
       case HubDestination.more:
         unawaited(navigator.push(MaterialPageRoute<void>(
-          builder: (_) => ExploreScreen(features: _moreFeatures(homeContext)),
+          builder: (_) => ExploreScreen(
+            features: _moreFeatures(homeContext),
+            onAction: _runHubAction,
+            onHubVisibilityChanged: (hidden) => _hideReadingHub.value = hidden,
+            routeObserver: _exploreRouteObserver,
+          ),
         )));
       case HubDestination.settings:
         _homeShellKey.currentState?.openSettings();
@@ -317,6 +326,36 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
             builder: (_) => const IslamicCalendarScreen(),
           ))),
         ),
+        MoreFeature(
+          title: 'Xplore Xtra',
+          subtitle: 'روزانہ مطالعہ، آنے والی سہولتیں اور روزمرہ کے چھوٹے tools',
+          icon: Icons.auto_awesome_rounded,
+          color: const Color(0xFFC38B3F),
+          onOpen: () => unawaited(_navigatorKey.currentState?.push(MaterialPageRoute<void>(
+            builder: (_) => XploreXtraScreen(library: _library),
+          ))),
+        ),
+        MoreFeature(
+          title: 'اثنا عشری انسائکلوپیڈیا',
+          subtitle: 'بارہ ائمہ، اہلِ بیت، عقائد، عبادات اور معتبر ماخذ',
+          icon: Icons.menu_book_rounded,
+          color: const Color(0xFF547E9F),
+          onOpen: () {
+            final book = BookDefinition.byKey('athna_ashari_encyclopedia')!;
+            unawaited(_navigatorKey.currentState?.push(MaterialPageRoute<void>(
+              builder: (_) => _library.isInstalled(book)
+                  ? EncyclopediaBrowseScreen(
+                      library: _library,
+                      book: book,
+                      onOpenData: () => _homeShellKey.currentState?.openData(),
+                    )
+                  : NewBooksScreen(
+                      library: _library,
+                      onOpenData: () => _homeShellKey.currentState?.openData(),
+                    ),
+            )));
+          },
+        ),
       ];
 
   @override
@@ -324,7 +363,7 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
     return MaterialApp(
       title: 'ShiaVerse',
       navigatorKey: _navigatorKey,
-      navigatorObservers: <NavigatorObserver>[_depthObserver],
+      navigatorObservers: <NavigatorObserver>[_depthObserver, _exploreRouteObserver],
       debugShowCheckedModeBanner: false,
       theme: buildLightTheme(),
       darkTheme: _amoled ? buildAmoledTheme() : buildDarkTheme(),
@@ -337,6 +376,7 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
             textDirection: TextDirection.rtl,
             child: ReadingHub(
               depth: _pageDepth,
+              hidden: _hideReadingHub,
               onAction: _runHubAction,
               child: child ?? const SizedBox.shrink(),
             ),

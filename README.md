@@ -23,8 +23,8 @@
   **sshaashmi@gmail.com** and **+923046980280**, both tappable. The same artwork
   is the developer icon of the APKPure listing (`docs/store/`), and the address
   and number are on the privacy-policy page as well.
-- Version 1.22.0 (versionCode 32) — it installs over the published 1.21.1
-  (versionCode 31) without losing downloaded books.
+- Version 1.23.0 (versionCode 33) — it installs over the published 1.22.0
+  (versionCode 32) without losing downloaded books.
 
 ## New in 1.21.1 — Qibla map fixed, Nahj al-Balagha text repaired
 

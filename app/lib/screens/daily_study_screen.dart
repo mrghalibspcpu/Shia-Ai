@@ -350,7 +350,7 @@ class _PlanBuilder extends StatefulWidget {
 }
 
 class _PlanBuilderState extends State<_PlanBuilder> {
-  static const List<int> _lengths = <int>[30, 60, 90, 180];
+  static const List<int> _lengths = <int>[7, 14, 30, 60, 90, 180];
 
   late StudyTrack _track = widget.initialTrack ?? StudyTrack.quran;
   late int _days = widget.initialDays ?? 90;
