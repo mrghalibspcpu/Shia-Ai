@@ -14,7 +14,7 @@
 | Age rating | **Everyone / 3+** — no ads, no purchases, no user-generated content, no chat. Religious text only; the historical texts mention battles in a scholarly context, nothing graphic. Answer the store's questionnaire the same way. |
 | Price | Free, no ads, no in-app purchases |
 | Privacy policy URL | `https://mrghalibspcpu.github.io/ShiaVerse/privacy-policy/` — live only after GitHub Pages is switched on (see README) |
-| Developer | mrghalibspcpu (GitHub) — replace with your real public name if you want one shown |
+| Developer | HashTech — Syed Sakhir Hashmi (the owner named in the app's Credits; confirm this is the name you want public) |
 | Support | https://github.com/mrghalibspcpu/ShiaVerse/issues (+ your support e-mail) |
 | Icon | `assets/shiaverse-icon-512.png` (512×512 PNG, your ShiaVerse plate) |
 
@@ -50,6 +50,8 @@ No account, no ads, no analytics. Bookmarks, notes and settings stay on your pho
 
 - Qibla: the map no longer shows the "API key required" message; it now uses Esri street tiles with an OpenStreetMap mirror as fall-back.
 - Nahj al-Balagha: fixed reversed/garbled Urdu in sermons 4–10 and many other paragraphs, and repaired split sermon headers. **If you already installed Nahj al-Balagha, remove it in the Data screen and download it again to get the corrected text.**
+- New Settings → Privacy policy and Sources & rights.
+- Clearer wording that books are downloaded from the internet once and then work offline.
 - Other fixes and polish.
 
 ## Screenshots

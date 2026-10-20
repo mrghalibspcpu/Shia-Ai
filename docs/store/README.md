@@ -12,7 +12,7 @@
 
 1. **Enable Pages**: GitHub → repo *Settings → Pages → Deploy from a branch → `main` / `/docs`* (after this branch is merged). The policy URL becomes
    `https://mrghalibspcpu.github.io/ShiaVerse/privacy-policy/` — open it in a browser, confirm it loads, and paste *that* URL into APKPure. (If you publish from the `Shia-Ai` repository instead, the URL is `https://mrghalibspcpu.github.io/Shia-Ai/privacy-policy/`.)
-2. **Developer name / e-mail**: the policy and listing use the only public identity in the repository (GitHub account `mrghalibspcpu`, issues page). Add your real support address with
+2. **Developer name / e-mail**: the policy and listing use the owner named in the app's Credits (HashTech — Syed Sakhir Hashmi) and the GitHub issues page; confirm that name. Add your real support address with
    `python3 scripts/set_policy_contact.py you@yourdomain.com`, and enter your real developer name in the APKPure form.
 3. **Dataset permission** (see audit) — resolve before upload.
 4. **Signing**: the CI keystore is supplied through repository secrets; it was not touched. Keep `applicationId com.shiaai.app` and the same keystore, and the version only goes up (1.21.1+31 > 1.21.0+30), so installs of 1.21.0 update in place.
@@ -38,7 +38,7 @@ Device checklist (Android 7.0 / API 24 and a recent version):
 
 ## Also worth doing (not asked, but APKPure/users will notice)
 
-- Add an in-app **Sources & credits** screen and a link to the privacy policy in Settings.
+- (Done in 1.21.1) Settings now has **Privacy policy** and **Sources & rights**; extend the sources text once the licence permissions are known.
 - Real device screenshots for the listing; a short "how to download books" first-run hint.
 - Existing installs keep the old (garbled) Nahj file until re-downloaded: consider a manifest-hash check that offers "update available" for installed databases.
 - `.github/apk-delivery-request` still points at 1.21.0.

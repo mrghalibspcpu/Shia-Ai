@@ -39,6 +39,6 @@ permission, or remove/replace the affected databases, before submitting.
 ## What to do before publishing
 
 1. Ask the data supplier / Tasneem Academy for **written permission** (name of every translator and publisher included). Keep the letter.
-2. Add a **Sources & credits** screen listing each work, translator/publisher and licence/permission (the table above is the starting point). Not yet in the app.
+2. Extend the in-app **Settings → Sources & rights** dialog (added in 1.21.1, generic wording) to list each work, translator/publisher and licence/permission once known.
 3. For anything without permission: ship the app without that database (the manifest/installer design allows each book to be omitted), or replace with an openly licensed source.
 4. Never write "licensed", "official" or "authorised" in the listing unless a document proves it.
