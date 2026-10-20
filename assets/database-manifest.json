@@ -288,8 +288,8 @@
       "title_urdu": "نہج البلاغہ",
       "title_latin": "Nahj al-Balagha",
       "record_label": "فقرا",
-      "size_bytes": 6506496,
-      "sha256": "dabbc69b0a24fa41c921cca65c45e90ef383ae58b2d1ceb97782f4ae9aa37bdf",
+      "size_bytes": 6510592,
+      "sha256": "20d61ecef8db9f2d24c19a9f9951fa733d605e611cdc8005752b6d4ea07c590a",
       "records": {
         "balaghatext": 3742,
         "balaghatoc": 810,

@@ -123,6 +123,28 @@ def balagha_checks(db: sqlite3.Connection) -> None:
     check("nahj al-balagha: khutba 3 (Shiqshiqiyya) is readable", bool(row and row[0].strip()))
     hawashi = db.execute("SELECT COUNT(*) FROM balaghatext_hawashi").fetchone()[0]
     check("nahj al-balagha: footnotes present", hawashi > 1000, f"{hawashi}")
+    # Regression guard: an earlier import stored whole translations with the
+    # letters of every word reversed ("ںیم" for "میں", "ہیلع" for "علیہ").
+    reversed_rows = 0
+    split_headers = 0
+    for (text,) in db.execute("SELECT UR FROM balaghatext WHERE UR IS NOT NULL"):
+        if any(
+            f" {token} " in f" {text} "
+            for token in ("ںیم", "ہیلع", "ےک", "ےہ", "ےس", "اہلل", "ےنہ")
+        ):
+            reversed_rows += 1
+        if text.startswith(("ہے)", "ہے )")):
+            split_headers += 1
+    check(
+        "nahj al-balagha: no reversed (mirrored) Urdu words",
+        reversed_rows == 0,
+        f"{reversed_rows} rows",
+    )
+    check(
+        "nahj al-balagha: no header split mid-parenthesis",
+        split_headers == 0,
+        f"{split_headers} rows",
+    )
 
 
 def run_checks(collected: list[tuple[object, Path]], expected_count: int) -> None:
