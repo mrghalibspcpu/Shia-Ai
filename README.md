@@ -1,5 +1,28 @@
 # ShiaVerse
 
+## New in 1.22 — readable Nahj al-Balagha, a reading plan, bigger prayer names
+
+- **نہج البلاغہ کا اردو ترجمہ درست ہو گیا۔** The bundled database stores the
+  Urdu of **sermons 4-10** as *shuffled* words — every word of sermon 5 read
+  «اے ولوگ! ونتفں یک وموجں وک …» instead of «اے لوگو! فتنوں کی موجوں کو …» — and
+  scatters reversed words («ںیم» for «میں»، «ےک» for «کے»، «اھت» for «تھا»)
+  through the whole book. The file is SHA-256-verified against the manifest and
+  served from a release, so the repair lives in the app
+  (`lib/nahjul_balagha_urdu.dart`): the scrambled paragraphs have vetted
+  replacements, stray fragments and reversed words are mapped back, and the
+  search index is built from the repaired text (index version 7). A test
+  replays the tables over the database so no damaged word can reappear.
+- **Xplore gains «روزانہ مطالعہ»** — pick the Quran (ختمِ قرآن) or one section
+  of Nahj al-Balagha (خطبات، خطوط، حکمت), pick 30/60/90/180 days, and the app
+  works out today's portion, opens the reader at exactly that page or entry,
+  and counts the streak. Pure offline arithmetic; nothing to download.
+- **Prayer names are a step larger** on the home card (فجر، ظہرین، مغربین …),
+  and the **آیت / حدیثِ وقت** container now reaches further down towards the
+  mini tasbeeh instead of leaving a gap above it.
+- **کریڈٹس** shows the **HashTech** logo and carries the studio's contact:
+  **sshaashmi@gmail.com** and **+923046980280**, both tappable. The same artwork
+  is the APKPure listing icon (`docs/store/`).
+
 ## New in 1.21 — one corpus, a compass first, a real Xplore
 
 - **قبلہ نما**: the live **compass is back at the top** of the page, where the

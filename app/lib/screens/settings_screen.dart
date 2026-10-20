@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../app_theme.dart';
 import '../data_installer.dart';
@@ -73,6 +74,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _saveScript(String value) async {
     setState(() => _script = value);
     await ReaderPreferences().saveScript(value);
+  }
+
+  /// Opens a mail or dial link; failures are spoken in Urdu rather than
+  /// leaving the reader with a button that did nothing.
+  Future<void> _launch(String target) async {
+    final uri = Uri.tryParse(target);
+    if (uri == null) return;
+    final opened = await launchUrl(uri);
+    if (opened || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('ایپ کھل نہیں سکی — ای میل یا فون ایپ دستیاب نہیں۔')),
+    );
   }
 
   Future<void> _rebuildIndex() async {
@@ -349,28 +362,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     border: Border.all(color: const Color(0xFFC59A50).withValues(alpha: 0.55)),
                   ),
-                  child: const Padding(
-                    padding: EdgeInsets.all(18),
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text('HashTech', textDirection: TextDirection.ltr, textAlign: TextAlign.center,
-                            style: TextStyle(fontFamily: kDigitFont, fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 1.1)),
-                        SizedBox(height: 6),
-                        JustifiedText(
+                        // The studio's own mark, first: the credit card is
+                        // about the people and the name behind the app.
+                        Center(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(22),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(22),
+                                border: Border.all(color: const Color(0x66FFE1A1)),
+                              ),
+                              child: Image.asset(
+                                'assets/images/hashtech.png',
+                                width: 104,
+                                height: 104,
+                                filterQuality: FilterQuality.medium,
+                                semanticLabel: 'HashTech',
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text('HashTech',
+                            textDirection: TextDirection.ltr,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                fontFamily: kDigitFont,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: 1.1)),
+                        const SizedBox(height: 6),
+                        const JustifiedText(
                           'جس ادارے کے زیرِ سایہ شیعہ ورس کی تیاری ممکن ہوئی۔ مقصد یہ ہے کہ جدید سافٹ ویئر، سادہ ڈیزائن اور قاری کے وقت و اعتماد کا احترام یکجا ہو کر علم و عقیدت کی خدمت میں آئیں۔',
-                            style: TextStyle(fontSize: 13.5, height: 1.7, color: Color(0xFFF3EAD2))),
-                        Divider(height: 26, color: Color(0x66FFE1A1)),
-                        Text('Syed Sakhir Hashmi', textDirection: TextDirection.ltr, textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFFFFE1A1))),
-                        SizedBox(height: 2),
-                        Text('سید ساخِر ہاشمی', textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFFF3EAD2))),
-                        SizedBox(height: 8),
-                        JustifiedText('بانی و مالک • نگرانِ منصوبہ • پروگرامر • محقق • مصنف • شاعر',
+                          style: TextStyle(fontSize: 13.5, height: 1.7, color: Color(0xFFF3EAD2)),
+                        ),
+                        const SizedBox(height: 14),
+                        // One tap each: the reader can write or call without
+                        // copying a number out of the screen by hand.
+                        _CreditContactRow(
+                          icon: Icons.alternate_email,
+                          label: 'ای میل',
+                          value: 'sshaashmi@gmail.com',
+                          ltr: true,
+                          onTap: () => unawaited(_launch('mailto:sshaashmi@gmail.com')),
+                        ),
+                        const SizedBox(height: 8),
+                        _CreditContactRow(
+                          icon: Icons.call_outlined,
+                          label: 'فون',
+                          value: '+923046980280',
+                          ltr: true,
+                          onTap: () => unawaited(_launch('tel:+923046980280')),
+                        ),
+                        const Divider(height: 26, color: Color(0x66FFE1A1)),
+                        const Text('Syed Sakhir Hashmi',
+                            textDirection: TextDirection.ltr,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFFFE1A1))),
+                        const SizedBox(height: 2),
+                        const Text('سید ساخِر ہاشمی',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFFF3EAD2))),
+                        const SizedBox(height: 8),
+                        const JustifiedText('بانی و مالک • نگرانِ منصوبہ • پروگرامر • محقق • مصنف • شاعر',
                             style: TextStyle(fontSize: 13, height: 1.6, color: Colors.white)),
-                        SizedBox(height: 8),
-                        JustifiedText(
+                        const SizedBox(height: 8),
+                        const JustifiedText(
                           'شیعہ ورس کا بنیادی تصور، کتب کی تحقیق و انتخاب، متن کی تدوین اور ہر سطرِ کوڈ و ڈیزائن کا فیصلہ — یہ سب سید ساخِر ہاشمی کی ذاتی کاوش ہے۔ تحریر سے لے کر ترتیب و پیشکش تک ہر مرحلے میں ان ہی کی رہنمائی شامل رہی ہے۔',
                           style: TextStyle(fontSize: 13.5, height: 1.8, color: Color(0xFFF3EAD2)),
                         ),
@@ -425,6 +494,64 @@ class _SectionTitle extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// One way to reach the studio from the credit card: icon, label and the
+/// address/number itself, tappable for mail and dial apps.
+class _CreditContactRow extends StatelessWidget {
+  const _CreditContactRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onTap,
+    this.ltr = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+  final bool ltr;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: const Color(0xFFFFE1A1)),
+              const SizedBox(width: 10),
+              Text(label,
+                  style: const TextStyle(fontSize: 12.5, color: Color(0xFFF3EAD2))),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textDirection: ltr ? TextDirection.ltr : TextDirection.rtl,
+                  textAlign: ltr ? TextAlign.left : TextAlign.right,
+                  style: const TextStyle(
+                    fontFamily: kDigitFont,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const Icon(Icons.open_in_new, size: 14, color: Color(0x99FFE1A1)),
+            ],
+          ),
+        ),
       ),
     );
   }

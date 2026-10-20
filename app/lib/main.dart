@@ -11,6 +11,7 @@ import 'library_repository.dart';
 import 'models.dart';
 import 'reader_navigation.dart';
 import 'screens/crescent_screen.dart';
+import 'screens/daily_study_screen.dart';
 import 'screens/data_screen.dart';
 import 'screens/explore_screen.dart';
 import 'screens/islamic_calendar_screen.dart';
@@ -260,6 +261,17 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
               library: _library,
               onOpenData: () => _homeShellKey.currentState?.openData(),
             ),
+          ))),
+        ),
+        // 1.22: a plan beats a library. Readers asked for a way to finish a
+        // book rather than open it, so Xplore leads with the daily portion.
+        MoreFeature(
+          title: 'روزانہ مطالعہ',
+          subtitle: 'قرآن یا نہج البلاغہ — روز کا مقررہ حصہ، ساتھ میں تسلسل کا حساب',
+          icon: Icons.event_available_rounded,
+          color: const Color(0xFF1F6E5A),
+          onOpen: () => unawaited(_navigatorKey.currentState?.push(MaterialPageRoute<void>(
+            builder: (_) => DailyStudyScreen(library: _library),
           ))),
         ),
         MoreFeature(

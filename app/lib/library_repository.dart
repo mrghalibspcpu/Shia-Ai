@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'models.dart';
+import 'nahjul_balagha_urdu.dart';
 import 'text_utils.dart';
 
 export 'text_utils.dart'
@@ -19,7 +20,10 @@ export 'text_utils.dart'
         normalizeArabicUrdu,
         relevanceScore;
 
-const int _searchIndexVersion = 6;
+/// Bumped whenever the text stored in the index changes for the same books, so
+/// readers who already hold an index rebuild it. 7: Nahj al-Balagha's Urdu is
+/// indexed through `repairNahjulBalaghaUrdu` (the source column is damaged).
+const int _searchIndexVersion = 7;
 const int _indexPageSize = 400;
 
 const String _kLastReadKey = 'last_read_v2';
@@ -441,6 +445,17 @@ class LibraryRepository {
     return (rows.first['count'] as int?) ?? 0;
   }
 
+  /// Nahj al-Balagha's Urdu column is damaged at the source (sermons 4-10 and
+  /// scattered words are letter-shuffled). The repair lives in the app, so the
+  /// index must be built from the repaired text — otherwise a reader would find
+  /// a paragraph by a word the page no longer shows.
+  String _indexedUrdu(BookDefinition book, int recordId, String urdu) {
+    if (book.source != CorpusSource.balagha) return urdu;
+    // Footnote/introduction rows carry negative ids and were never scrambled.
+    if (recordId <= 0) return urdu;
+    return repairNahjulBalaghaUrdu(recordId, urdu);
+  }
+
   String _sourceTable(BookDefinition book) => switch (book.source) {
         CorpusSource.hadith => 'Parags',
         CorpusSource.quran => 'Quran',
@@ -489,7 +504,7 @@ class LibraryRepository {
         if (recordId == null) continue;
         final titles = _titlesFor(book, row);
         final arabic = (row['arabic'] ?? '').toString();
-        final urdu = (row['urdu'] ?? '').toString();
+        final urdu = _indexedUrdu(book, recordId, (row['urdu'] ?? '').toString());
         final sectionId = row['section_id']?.toString();
         final page = row['page_no']?.toString();
         final normalized = [
@@ -1407,10 +1422,11 @@ class LibraryRepository {
       ORDER BY (x.ParaNo IS NULL), x.ParaNo, x.ID
     ''', [type, typeNo]);
     for (final row in rows) {
+      final recordId = _asInt(row['record_id']) ?? 0;
       final passage = Passage(
-        recordId: _asInt(row['record_id']) ?? 0,
+        recordId: recordId,
         arabic: _compact((row['arabic'] ?? '').toString()),
-        urdu: _compact((row['urdu'] ?? '').toString()),
+        urdu: repairNahjulBalaghaUrdu(recordId, _compact((row['urdu'] ?? '').toString())),
         page: _asInt(row['page_no']),
         containerType: type,
         containerId: typeNo,
@@ -1755,7 +1771,7 @@ class LibraryRepository {
         return Passage(
           recordId: recordId,
           arabic: _compact((row['arabic'] ?? '').toString()),
-          urdu: _compact((row['urdu'] ?? '').toString()),
+          urdu: repairNahjulBalaghaUrdu(recordId, _compact((row['urdu'] ?? '').toString())),
           page: _asInt(row['page_no']),
           footnote: footnotes[_asInt(row['page_no'])] ?? '',
           containerType: type,

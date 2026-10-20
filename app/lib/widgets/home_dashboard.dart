@@ -43,6 +43,10 @@ const double _gap = 8;
 const double _rowGap = 8;
 const double _railWidth = 40;
 const double _searchHeight = 46;
+
+/// Share of the free column the tasbeeh dial keeps for itself; the rest goes to
+/// the آیت/حدیث card directly above it.
+const double _dialShare = 0.88;
 const double _rightWidth = 96;
 
 /// The dashboard and its dock share this width cap and the same edge inset.
@@ -465,12 +469,15 @@ class HomeDashboard extends StatelessWidget {
       // Two cards and two gaps down is the duas card's top edge; the moment
       // card starts there, so the prayer/title row ends one row-gap above it.
       final prayerHeight = (2 * cardHeight + 2 * _gap - _rowGap).clamp(150.0, height - 180.0).toDouble();
-      // The dial is width-limited on tall phones. Give its otherwise-empty
-      // space to the moment card, so that card reaches almost to the dial's
-      // upper edge without pulling the dial away from the search bar.
+      // The card never shrinks below a readable height, whatever is left of
+      // the column goes to the dial and the آیت/حدیث card above it.
       final minimumMoment = (height * 0.13).clamp(66.0, 88.0).toDouble();
       final roomForDial = height - prayerHeight - minimumMoment - 2 * _rowGap - _searchHeight;
-      final dialDiameter = math.min(constraints.maxWidth, roomForDial) * 0.99;
+      // The dial takes a little less than the whole room left over, and the
+      // آیت/حدیث card takes the difference: its lower edge now reaches down
+      // towards the dial instead of stopping well above it. The dial still
+      // fills its own box, so it keeps sitting on the search bar's edge.
+      final dialDiameter = math.min(constraints.maxWidth, roomForDial) * _dialShare;
       final momentHeight = height - prayerHeight - 2 * _rowGap - _searchHeight - dialDiameter;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -856,7 +863,9 @@ class _MiniPrayerCell extends StatelessWidget {
                 displayLabel ?? entry.marker.labelUrdu,
                 maxLines: 1,
                 overflow: TextOverflow.clip,
-                style: _onSky(active ? 16 : 14.5, weight: lit ? FontWeight.w800 : FontWeight.w700, height: 1.25,
+                // A step larger than the clock underneath: the name is what
+                // the reader looks for first (فجر، ظہرین، مغربین …).
+                style: _onSky(active ? 17.5 : 16, weight: lit ? FontWeight.w800 : FontWeight.w700, height: 1.25,
                     color: Colors.white),
               ),
               FittedBox(
