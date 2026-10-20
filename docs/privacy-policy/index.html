@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ShiaVerse — Privacy Policy</title>
+<style>
+ body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;max-width:820px;margin:0 auto;padding:20px 16px 60px;line-height:1.6;color:#1b2a22;background:#fbfcfb}
+ h1{font-size:1.7rem;margin-bottom:.2em} h2{margin-top:1.8em;font-size:1.2rem;border-bottom:1px solid #d5ded8;padding-bottom:.2em}
+ table{border-collapse:collapse;width:100%;font-size:.93rem} th,td{border:1px solid #cfd8d2;padding:6px 8px;text-align:left;vertical-align:top} th{background:#eef3ef}
+ .ur{direction:rtl;text-align:right;font-family:"Noto Nastaliq Urdu","Jameel Noori Nastaleeq",serif;line-height:2.1;background:#f0f5f1;padding:10px 14px;border-radius:8px}
+ .note{background:#fff7e0;border:1px solid #ecd9a0;padding:8px 12px;border-radius:8px}
+ code{background:#eef3ef;padding:1px 4px;border-radius:4px}
+</style>
+</head>
+<body>
+<h1>ShiaVerse — Privacy Policy</h1>
+<p><strong>App:</strong> ShiaVerse (Android package <code>com.shiaai.app</code>) &nbsp;|&nbsp;
+<strong>Publisher:</strong> HashTech — Syed Sakhir Hashmi (project owner as named in the app's Credits; code hosted by GitHub user <a href="https://github.com/mrghalibspcpu">mrghalibspcpu</a>)<br>
+<strong>Effective:</strong> 20 October 2026 &nbsp;|&nbsp; <strong>Applies to:</strong> app version 1.21.1 and later</p>
+
+<div class="ur">
+خلاصہ: شیعہ ورس کوئی اکاؤنٹ نہیں مانگتی، اشتہار نہیں دکھاتی اور کوئی تجزیاتی (analytics) سروس استعمال نہیں کرتی۔ آپ کی بُک مارکس، نوٹس، تسبیح اور ترتیبات صرف آپ کے فون میں رہتی ہیں۔
+تاہم ایپ کچھ کام انٹرنیٹ سے لیتی ہے (کتابوں کا ڈیٹا GitHub سے، نقشے کی ٹائلیں، مقام کا نام، اور جی پی ایس نہ ملنے پر آئی پی سے اندازۂ مقام)۔ ان درخواستوں میں متعلقہ سروس کو آپ کا آئی پی ایڈریس اور بعض صورتوں میں تقریباً مقام نظر آتا ہے۔ تفصیل نیچے انگریزی میں درج ہے۔
+</div>
+
+<h2>1. Short version</h2>
+<ul>
+<li>No account, sign-in, advertising, in-app purchases, or analytics/crash-reporting SDK.</li>
+<li>The app does <strong>not</strong> upload your bookmarks, notes, reading history, tasbeeh counts or settings to any server. They stay on your device.</li>
+<li>The app <strong>does</strong> make network requests to third-party services in the situations listed in section 4. Those services necessarily receive your IP address and, in some cases, coordinates or a search text. We do not run a server of our own and do not receive that data.</li>
+<li>ShiaVerse needs an internet connection to download its book databases (they are not inside the APK) and for the features in section 4. After a database is downloaded, reading and searching it works without a connection.</li>
+</ul>
+
+<h2>2. Data stored on your device only</h2>
+<table>
+<tr><th>Data</th><th>Purpose</th><th>Notes</th></tr>
+<tr><td>Downloaded book databases (SQLite files)</td><td>Reading and search</td><td>Stored in the app's private storage.</td></tr>
+<tr><td>Bookmarks, notes, reader theme and font settings, last-read positions</td><td>Features you use</td><td>Local preferences/database.</td></tr>
+<tr><td>Tasbeeh counters, prayer-time method and alert settings, Hijri date adjustment</td><td>Features you use</td><td>Local preferences.</td></tr>
+<tr><td>Last chosen/detected location (latitude, longitude, place name)</td><td>Prayer times, Qibla direction</td><td>Kept on the device; deleted with app data.</td></tr>
+<tr><td>A random anonymous ID like <code>SV-XXXXXX</code>, install date and last-active date</td><td>Shown in Settings</td><td>Created on the device. <strong>The app does not transmit it.</strong> It is not linked to your name, phone, email or device model.</td></tr>
+<tr><td>Cached public community counters</td><td>Shown in Settings</td><td>Downloaded read-only (section 4).</td></tr>
+</table>
+<p>Android backup is disabled for the app (<code>allowBackup=false</code>). Uninstalling the app or clearing its storage deletes all of the above.</p>
+
+<h2>3. Permissions the app requests</h2>
+<table>
+<tr><th>Permission</th><th>Why</th></tr>
+<tr><td>INTERNET</td><td>Downloading book databases and the services in section 4.</td></tr>
+<tr><td>ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION (optional)</td><td>To compute prayer times and the Qibla bearing for your position. Computation happens on the device. You can refuse and pick a city manually, but if no GPS fix is available the app falls back to an IP-based lookup (section 4).</td></tr>
+<tr><td>POST_NOTIFICATIONS, SCHEDULE_EXACT_ALARM, RECEIVE_BOOT_COMPLETED, VIBRATE</td><td>Local prayer-time and calendar reminders, re-scheduled after a reboot, with sound/vibration. These are on-device notifications; no push service (such as Firebase) is used.</td></tr>
+</table>
+<p>The compass uses the phone's magnetometer; the heading is processed on the device and never sent anywhere. The app does not request access to contacts, camera, microphone, photos, files, SMS or advertising ID.</p>
+
+<h2>4. Network requests and third parties</h2>
+<p>These requests are made directly from your phone to the service named. Each service sees at least your IP address and normal HTTPS request data (such as the app's user-agent), and handles it under its own policy.</p>
+<table>
+<tr><th>Service</th><th>When</th><th>What is sent</th></tr>
+<tr><td><strong>GitHub</strong> (github.com release downloads; raw.githubusercontent.com) — repository <code>mrghalibspcpu/Shia-Ai</code></td><td>When you download/update/verify a book database, and when Settings loads community counters.</td><td>An HTTPS GET for a public file. No account or identifier is sent by the app. GitHub sees your IP address.</td></tr>
+<tr><td><strong>Esri</strong> (server.arcgisonline.com, services.arcgisonline.com) and <strong>OpenStreetMap Germany</strong> (tile.openstreetmap.de)</td><td>When the Qibla page shows the street map.</td><td>Map-tile requests: tile numbers (which reveal the approximate area shown) and your IP address. No exact coordinates.</td></tr>
+<tr><td><strong>Nominatim / OpenStreetMap</strong> (nominatim.openstreetmap.org) and <strong>BigDataCloud</strong> (api.bigdatacloud.net)</td><td>To turn a location fix into a place name, and when you search for a city.</td><td>Coordinates (for naming) or the text you typed (for city search).</td></tr>
+<tr><td><strong>Open-Meteo geocoding</strong> (geocoding-api.open-meteo.com)</td><td>When you search for a city.</td><td>The text you typed.</td></tr>
+<tr><td><strong>ipapi.co</strong> and <strong>ipwho.is</strong></td><td>Only when a device location fix is unavailable or denied; the app asks one of them for an approximate location from your IP address.</td><td>Your IP address (inherent in the request). The response gives an approximate city-level position.</td></tr>
+<tr><td>Web links you tap (for example the "original source" button of a fatwa)</td><td>Opens in your browser.</td><td>Governed by that website.</td></tr>
+</table>
+<p>The app contains no advertising network, no analytics or crash-reporting library, and no social-media SDK.</p>
+
+<h2>5. Sharing, selling, retention</h2>
+<p>We do not sell or share personal data, and we operate no server that receives your data. Third-party services in section 4 may log requests according to their own policies; we have no control over their retention. Data on your device remains until you delete it, clear app storage or uninstall.</p>
+
+<h2>6. Children</h2>
+<p>ShiaVerse is a religious reference app, is not directed at children under 13, and does not knowingly collect personal data from anyone.</p>
+
+<h2>7. Your choices</h2>
+<ul>
+<li>Deny or revoke the location permission in Android settings and choose a city manually (note the IP fallback above when no fix exists).</li>
+<li>Deny the notification permission to stop reminders.</li>
+<li>Do not download books, and avoid the Qibla map, if you do not want those requests made.</li>
+<li>Delete everything: Android Settings → Apps → ShiaVerse → Storage → Clear data, or uninstall.</li>
+</ul>
+
+<h2>8. Religious content notice</h2>
+<p>Texts, translations and rulings shown in the app come from the sources listed in the app's documentation. They are provided for reading and reference; rulings (fatawa) should be verified at the original source linked in the app or with a qualified scholar.</p>
+
+<h2>9. Changes</h2>
+<p>If data handling changes, this page and its effective date will be updated before the new version is published.</p>
+
+<h2>10. Contact</h2>
+<p><strong>HashTech</strong> — Syed Sakhir Hashmi<br>
+E-mail: <a href="mailto:sshaashmi@gmail.com">sshaashmi@gmail.com</a><br>
+Phone / WhatsApp: <a href="tel:+923046980280">+92 304 6980280</a></p>
+<p>Questions or privacy requests: open an issue at <a href="https://github.com/mrghalibspcpu/ShiaVerse/issues">github.com/mrghalibspcpu/ShiaVerse/issues</a>, write to the address above, or call the number above.</p>
+</body>
+</html>

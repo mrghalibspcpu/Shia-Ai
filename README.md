@@ -1,38 +1,64 @@
 # ShiaVerse
 
-## New in 1.22 — readable Nahj al-Balagha, a reading plan, bigger prayer names
+## New in 1.22 — a reading plan, a proofread Nahj al-Balagha, bigger prayer names
 
-- **نہج البلاغہ کا اردو ترجمہ درست ہو گیا۔** The bundled database stores the
-  Urdu of **sermons 4-10** as *shuffled* words — every word of sermon 5 read
-  «اے ولوگ! ونتفں یک وموجں وک …» instead of «اے لوگو! فتنوں کی موجوں کو …» — and
-  scatters reversed words («ںیم» for «میں»، «ےک» for «کے»، «اھت» for «تھا»)
-  through the whole book. The file is SHA-256-verified against the manifest and
-  served from a release, so the repair lives in the app
-  (`lib/nahjul_balagha_urdu.dart`): the scrambled paragraphs have vetted
-  replacements, stray fragments and reversed words are mapped back, and the
-  search index is built from the repaired text (index version 7). A test
-  replays the tables over the database so no damaged word can reappear.
 - **Xplore gains «روزانہ مطالعہ»** — pick the Quran (ختمِ قرآن) or one section
   of Nahj al-Balagha (خطبات، خطوط، حکمت), pick 30/60/90/180 days, and the app
   works out today's portion, opens the reader at exactly that page or entry,
   and counts the streak. Pure offline arithmetic; nothing to download.
+- **نہج البلاغہ کا اردو ترجمہ** is proofread in the database itself (see
+  1.21.1 below), and the app no longer repairs text that is already correct:
+  every rule in `lib/nahjul_balagha_urdu.dart` is now guarded by a damage test,
+  so a phone reading the new file gets it byte for byte. The guard exists for
+  phones that still hold the **old** file: the 21 paragraphs whose letters were
+  stored mirrored, and **32 sermon introductions the old file cut off
+  mid-sentence** («…اسی [بصرہ کی مذمت] کے بارے میں» with no «فرمایا:»), are
+  replaced with the proofread sentences as they are read. A test replays the
+  tables over the checked-in database and fails if a correct paragraph is
+  touched or a damaged one stops being repaired.
 - **Prayer names are a step larger** on the home card (فجر، ظہرین، مغربین …),
   and the **آیت / حدیثِ وقت** container now reaches further down towards the
   mini tasbeeh instead of leaving a gap above it.
 - **کریڈٹس** shows the **HashTech** logo and carries the studio's contact:
   **sshaashmi@gmail.com** and **+923046980280**, both tappable. The same artwork
-  is the APKPure listing icon (`docs/store/`).
+  is the developer icon of the APKPure listing (`docs/store/`), and the address
+  and number are on the privacy-policy page as well.
+- Version 1.22.0 (versionCode 32) — it installs over the published 1.21.1
+  (versionCode 31) without losing downloaded books.
+
+## New in 1.21.1 — Qibla map fixed, Nahj al-Balagha text repaired
+
+- **قبلہ نما map**: CARTO tiles removed (they began showing «API key required»);
+  Esri World Street Map first, German OSM mirror as fall-back. Details below.
+- **نہج البلاغہ — mirrored Urdu repaired.** Khutbas 4–10 (plus the Radi note of
+  Khutba 31, rows 697/698 and 701–723, and a few more rows) had been
+  stored with the letters of every word reversed («ںیم» for «میں»,
+  «ہیلع» for «علیہ»). Each such paragraph was decoded and **proofread against
+  the Arabic by hand**; stray fragments left by the same fault («تق», «کت»,
+  «تع»…), a «مت»/«تم» swap that flipped the meaning of rows 349/353, and
+  ~30 headers/occasion lines split mid-parenthesis (sermons 11–37 and others)
+  were repaired too. `scripts/verify_corpus.py` now fails if mirrored words or a
+  split header come back. The database SHA-256 in `assets/database-manifest.json`
+  changed (new file: `nahjul_balagha.db`, 6,510,592 bytes).
+  *Existing installs keep their old copy until Nahj al-Balagha is removed and
+  downloaded again from «ڈیٹا» — 1.22 softens that with the guarded repair
+  layer described above.*
+- Some other paragraphs of the translation still contain glued words
+  («زیادہبلیغ») from the original import; these are cosmetic and listed in
+  `docs/nahj-repair-notes.md`.
 
 ## New in 1.21 — one corpus, a compass first, a real Xplore
 
 - **قبلہ نما**: the live **compass is back at the top** of the page, where the
   thumb reaches it, followed by the street map and then the offline diagram.
-- **The map no longer shows «Access blocked».** `tile.openstreetmap.org` answers
-  apps it considers outside its tile policy with a *successful* PNG of a block
-  page — so the old `errorBuilder` could never catch it. Tiles now come from
-  CARTO's CDN first (same OpenStreetMap data, attribution shown on the card),
-  then the German OSM mirror, then Esri; the offline graticule is only painted
-  when all three fail.
+- **The Qibla map no longer shows «API key required» (1.21.1 fix).** CARTO's
+  public CDN began answering keyless requests with a *successful* image that
+  says «API key required» (the same trap as the earlier OSM «Access blocked»
+  page — `errorBuilder` can never catch a successful image). CARTO is removed.
+  Tiles now come from Esri's World Street Map (two hosts), then the German OSM
+  mirror; attribution «© OpenStreetMap contributors · Esri, HERE, Garmin» is
+  always on the card, and the offline graticule only paints when every service
+  fails.
 - **آیت / حدیثِ وقت actually rolls.** The card used to cache its very first
   answer — usually the empty one, because the home screen paints before the
   library finishes scanning — in a `static` field, so a phone with books

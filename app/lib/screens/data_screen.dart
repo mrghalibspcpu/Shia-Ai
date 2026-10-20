@@ -179,7 +179,7 @@ class _DataScreenState extends State<DataScreen> {
                 if (widget.setupMode) ...[
                   const JustifiedText(
                     'خوش آمدید! یہ ایپ بغیر ڈیٹا کے انسٹال ہوتی ہے تاکہ APK چھوٹی اور تیز رہے۔ '
-                    'نیچے سے کتب ڈاؤن لوڈ کریں؛ ڈاؤن لوڈ کے بعد سب کچھ آف لائن اور فوری کھلتا ہے۔',
+                    'نیچے سے کتب ڈاؤن لوڈ کریں؛ ڈاؤن لوڈ کے لیے انٹرنیٹ چاہیے؛ اس کے بعد کتابیں بغیر انٹرنیٹ کے فوری کھلتی ہیں۔',
                     style: TextStyle(fontSize: 15),
                   ),
                   const SizedBox(height: 16),
@@ -287,7 +287,7 @@ class _SummaryCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             missingBytes == 0
-                ? 'مکمل لائبریری فون پر موجود ہے — ایپ مکمل طور پر آف لائن چلتی ہے۔'
+                ? 'مکمل لائبریری فون پر موجود ہے — کتابیں بغیر انٹرنیٹ کے پڑھی اور تلاش کی جا سکتی ہیں۔'
                 : 'باقی ڈیٹا: ${formatBytes(missingBytes)}',
             textDirection: TextDirection.rtl,
             style: const TextStyle(color: Color(0xFFE4D7B9), fontSize: 14),

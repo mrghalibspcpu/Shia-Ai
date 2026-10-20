@@ -88,6 +88,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  /// The public policy Page. It is also the URL entered on APKPure, so the two
+  /// can never point at different texts.
+  static final Uri _privacyPolicyUrl =
+      Uri.parse('https://mrghalibspcpu.github.io/ShiaVerse/privacy-policy/');
+
+  /// Where the texts come from, in the reader's words, so a question about
+  /// rights can be answered without leaving the app.
+  void _showSources() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('ماخذ اور حقوق'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'قرآن، احادیث، مفاتیح الجنان، صحیفہ سجادیہ اور نہج البلاغہ کے عربی متون قدیم ہیں؛ '
+            'ان کے اردو تراجم، حواشی اور تدوین کے حقوق متعلقہ مترجمین، مصنفین اور ناشرین کے ہیں۔\n\n'
+            'فتاویٰ آیت اللہ خامنہ ای اور آیت اللہ سیستانی کے سرکاری اردو صفحات سے لیے گئے ہیں؛ '
+            'ہر جواب کے ساتھ اصل ماخذ کا لنک موجود ہے۔ کسی حکم پر عمل سے پہلے اصل ماخذ یا مرجع کے دفتر سے تصدیق کریں۔\n\n'
+            'اثنا عشری انسائیکلو پیڈیا اردو ویکیپیڈیا اور ویکی شیعہ کے مضامین پر مبنی ہے؛ ہر حصے کے ساتھ اصل صفحہ کا حوالہ محفوظ ہے۔\n\n'
+            'قبلہ کے نقشے کی ٹائلیں © OpenStreetMap contributors اور Esri (HERE, Garmin) کی ہیں۔\n\n'
+            'یہ ایپ کتب کے مصنفین یا اداروں کی طرف سے سرکاری طور پر تصدیق شدہ ہونے کا دعویٰ نہیں کرتی۔',
+            style: TextStyle(height: 1.8),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('ٹھیک ہے'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _rebuildIndex() async {
     if (_rebuilding) return;
     setState(() {
@@ -345,12 +379,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'صحیفہ سجادیہ، نہج البلاغہ کے خطبات، خطوط اور حکمت بھرے اقوال، چودہ معتبر کتبِ احادیث، '
                   'فقہی مسائل و فتاویٰ، شیعہ (جعفری) اوقاتِ نماز چھ متحرک آسمانی وال پیپرز کے ساتھ، '
                   'لائیو قبلہ نما، اور تسبیحِ زہرا (س) سمیت مکمل ڈیجیٹل تسبیح۔ '
-                  'کمال یہ ہے کہ تقریباً تمام لائبریری مکمل آف لائن آپ کے فون میں محفوظ رہتی ہے اور تلاش بھی مقامی طور پر چلتی ہے — '
-                  'نہ انتظار، نہ انٹرنیٹ کی محتاجی۔ خوب صورت تھیمز، واضح اردو و عربی خط، بک مارکس، نوٹس اور '
+                  'کتابیں ایک بار انٹرنیٹ سے ڈاؤن لوڈ کرنی پڑتی ہیں (وہ APK میں شامل نہیں)؛ اس کے بعد وہ آپ کے فون میں محفوظ رہتی ہیں اور تلاش بھی مقامی طور پر چلتی ہے۔ '
+                  'قبلہ کا نقشہ، مقام کا نام، شہر کی تلاش اور آئی پی سے مقام کا اندازہ انٹرنیٹ استعمال کرتے ہیں۔ خوب صورت تھیمز، واضح اردو و عربی خط، بک مارکس، نوٹس اور '
                   '「جہاں چھوڑا تھا وہیں سے آغاز」 جیسی سہولتیں اسے ہر مؤمن کے لیے روزمرہ کا ساتھی بناتی ہیں۔',
                   style: TextStyle(fontSize: 14, height: 1.8),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 26),
+                const _SectionTitle('رازداری اور ماخذ'),
+                Card(
+                  child: Column(
+                    children: [
+                      ListTile(
+                        key: const ValueKey<String>('settings-privacy-policy'),
+                        leading: const Icon(Icons.privacy_tip_outlined),
+                        title: const JustifiedText(
+                          'پرائیویسی پالیسی',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: const JustifiedText(
+                          'ایپ کون سا ڈیٹا کہاں رکھتی ہے اور کن سروسز سے رابطہ کرتی ہے',
+                          maxLines: 2,
+                        ),
+                        trailing: const Icon(Icons.open_in_new, size: 20),
+                        onTap: () => unawaited(_launch(_privacyPolicyUrl.toString())),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        key: const ValueKey<String>('settings-sources'),
+                        leading: const Icon(Icons.menu_book_outlined),
+                        title: const JustifiedText(
+                          'ماخذ اور حقوق',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: const JustifiedText(
+                          'متون، تراجم، فتاویٰ اور نقشے کے ماخذ',
+                          maxLines: 2,
+                        ),
+                        trailing: const Icon(Icons.chevron_left),
+                        onTap: _showSources,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 26),
                 const _SectionTitle('کریڈٹس'),
                 Container(
                   decoration: BoxDecoration(

@@ -1,145 +1,78 @@
-# ShiaVerse on APKPure — listing kit
+# APKPure listing — ShiaVerse 1.22.0
 
-Everything the APKPure upload form asks for, in one place. The developer
-identity is **HashTech** and its artwork is
-[`hashtech-apkpure-512.png`](hashtech-apkpure-512.png) — the same file the app
-ships as `app/assets/images/hashtech.png` and shows in **سیٹنگز › کریڈٹس**.
-
-## Developer identity (APKPure → Account → Developer profile)
+> Publish only after the blockers in [`README.md`](README.md) are cleared (especially
+> the dataset-permission question in [`dataset-rights-audit.md`](dataset-rights-audit.md)).
 
 | Field | Value |
 |---|---|
-| Developer name | **HashTech** |
-| Developer icon / avatar | `docs/store/hashtech-apkpure-512.png` (512 × 512 PNG) |
-| Email | **sshaashmi@gmail.com** |
-| Phone | **+923046980280** |
-| Website | the repository page: `https://github.com/mrghalibspcpu/ShiaVerse` |
-| Privacy policy | `docs/store/privacy-policy.md` |
-| Country | Pakistan |
+| App name | **ShiaVerse** |
+| Package | `com.shiaai.app` (keep unchanged — updates depend on it) |
+| Version | 1.22.0 (versionCode 32) |
+| Min Android | 7.0 (API 24) |
+| Category | **Books & Reference** (alt.: Lifestyle) |
+| Tags | Shia, Quran, Nahj al-Balagha, Hadith, Al-Kafi, Mafatih al-Jinan, Sahifa Sajjadiyya, Urdu, Qibla, Prayer times, Tasbeeh, Islamic calendar |
+| Age rating | **Everyone / 3+** — no ads, no purchases, no user-generated content, no chat. Religious text only; the historical texts mention battles in a scholarly context, nothing graphic. Answer the store's questionnaire the same way. |
+| Price | Free, no ads, no in-app purchases |
+| Privacy policy URL | `https://mrghalibspcpu.github.io/ShiaVerse/privacy-policy/` — live only after GitHub Pages is switched on (see README) |
+| Developer | **HashTech** — Syed Sakhir Hashmi |
+| Developer e-mail | **sshaashmi@gmail.com** |
+| Developer phone | **+923046980280** |
+| Support | **sshaashmi@gmail.com** · **+923046980280** · https://github.com/mrghalibspcpu/ShiaVerse/issues |
+| Developer icon | `assets/hashtech-icon-512.png` (512×512 PNG, the HashTech mark) |
+| App icon | `assets/shiaverse-icon-512.png` (512×512 PNG, the ShiaVerse plate) |
 
-The same e-mail and number are printed inside the app, in
-**سیٹنگز › کریڈٹس**, as tappable `mailto:` and `tel:` rows — a reviewer can
-compare the two without leaving the phone.
+Both the **developer icon** and the **app icon** are shown on the listing: the
+HashTech mark is the studio avatar in APKPure's developer profile, the ShiaVerse
+plate stays the app's launcher icon. The same HashTech artwork is bundled in the
+APK (`app/assets/images/hashtech.png`) and painted on the **کریڈٹس** card in
+**سیٹنگز**, with the e-mail and phone above as tap-to-write and tap-to-call rows
+— a reviewer can compare the listing with the installed app in ten seconds.
 
-## App identity (APKPure → Upload APK)
+## Short description (≤ 80 chars)
 
-| Field | Value |
-|---|---|
-| App name | **ShiaVerse — شیعہ ورس** |
-| Package name | `com.shiaai.app` |
-| Version name | `1.22.0` |
-| Version code | `31` |
-| Category | Books & Reference (secondary: Education) |
-| Content rating | Everyone / 3+ (no ads, no user-generated content) |
-| Price | Free |
-| Ads | **No** |
-| In-app purchases | **No** |
-| Signing | the checked-in CI key (`app/android/ci-signing/`), or the owner's
-  release key when the `ANDROID_*` secrets are set — see
-  `app/android/ci-signing/README.md` |
+Urdu Shia library: Quran, Nahj al-Balagha, hadith, prayer times, Qibla, daily study.
 
-The APK to upload is the **universal** build from the *Android APK* workflow
-(`ShiaVerse-<version>-universal.apk`). The per-ABI splits are smaller but cannot
-be installed through a store that serves one file per device profile; APKPure
-accepts the universal build as a single APK and, if the splits are uploaded too,
-uses them as the ABI-specific variants.
+## Full description
 
-## Short description (80 characters max)
+**ShiaVerse** is a Shia study library for Android with an Urdu interface. It brings the Quran, Nahj al-Balagha, major hadith collections, duas and rulings together with prayer times, a Qibla compass and a tasbeeh counter.
 
-```
-Offline Shia library: Quran, Nahj al-Balagha, Mafatih, 14 hadith books, prayer times.
-```
+**Inside**
+- **Quran** — 114 surahs, 6,236 verses with Urdu translation and tafsir notes.
+- **Nahj al-Balagha** — sermons, letters and sayings with Urdu translation, footnotes and introductions.
+- **Hadith library** — Al-Kafi, Tahdhib al-Ahkam, Man La Yahduruhu al-Faqih, Wasa'il al-Shia, Kamal al-Din, Al-Khisal, Ma'ani al-Akhbar, Thawab al-A'mal, Kitab al-Tawhid, Mizan al-Hikmah, Ghurar al-Hikam and more, with book → chapter → section navigation.
+- **Mafatih al-Jinan** and **Sahifa Sajjadiyya**, and a Twelver Shia encyclopedia.
+- **Fatawa** (Urdu) of Ayatollah Khamenei and Ayatollah Sistani, each with a link to its original source page.
+- **One search** across everything, bookmarks, notes, reader themes.
+- **روزانہ مطالعہ** — a daily portion plan for the Quran or Nahj al-Balagha, with a streak.
+- **Prayer times**, Hijri/Islamic calendar, reminders, **Qibla compass** with a street map, **tasbeeh** counter.
 
-Urdu (for the localized listing):
+**Internet is required for some things — please read**
+- The large book databases are **not packaged in the APK**. On first use you download the ones you want from the project's GitHub releases; each file is checked against a SHA-256 fingerprint. Everything together is roughly 240 MB (uncompressed); every book is optional — use Wi-Fi.
+- Once a book is downloaded it can be read and searched **without** a connection.
+- The Qibla street map, place-name lookup, city search, and the IP-based location fallback need internet.
+- Prayer times and the Qibla bearing are calculated on the phone.
 
-```
-قرآن، نہج البلاغہ، مفاتیح الجنان اور چودہ کتبِ احادیث — مکمل آف لائن، نماز کے اوقات اور قبلہ نما کے ساتھ۔
-```
+**Privacy**
+No account, no ads, no analytics. Bookmarks, notes and settings stay on your phone. Location is optional. The app contacts GitHub, map-tile and geocoding services in the situations described in the privacy policy, and those services see your IP address.
 
-## Full description (English)
+**Please note** — Texts and translations are provided for reading and reference. Verify rulings with the original source or a qualified scholar. Compass accuracy depends on your phone's magnetometer; calibrate it (figure-8) if the direction looks off.
 
-```
-ShiaVerse is a complete offline library for the followers of the Ahl al-Bayt (a.s.):
-the Holy Quran with Urdu translation and commentary, Nahj al-Balagha (sermons,
-letters and short sayings), Mafatih al-Jinan with its supplications and rituals,
-Sahifa Sajjadiyya, fourteen hadith collections, and Shia (Jafari) jurisprudence
-answers — all on the phone, without a connection.
+## Release notes (1.22.0)
 
-READ
-• Quran: surah, juz, page and mushaf views with Urdu translation
-• Nahj al-Balagha: 241 sermons, 79 letters, 480 sayings, with footnotes
-• Mafatih al-Jinan: 677 supplications and practices
-• Fourteen hadith books: Al-Kafi, Wasail, Tahzeeb, Mizan al-Hikmah and more
-• Fatawa from Ayatollah Sistani and Ayatollah Khamenei (Urdu)
-• One search across every book, working entirely offline
+- **روزانہ مطالعہ (daily study)** in Xplore: choose the Quran or a section of
+  Nahj al-Balagha and a length of 30/60/90/180 days; the app works out today's
+  portion, opens it in the reader and keeps a streak. Works offline.
+- **Nahj al-Balagha in readable Urdu**: sermons 4–10 and the scattered reversed
+  words are repaired. Installs that still hold the older file are corrected by
+  the app itself, and a fresh download from «ڈیٹا» gets the proofread database.
+- Home screen: **prayer names are a step larger**, and the **آیت / حدیثِ وقت**
+  card now reaches down towards the mini tasbeeh.
+- **Credits** carry the **HashTech** logo with tap-to-write e-mail
+  (sshaashmi@gmail.com) and tap-to-call phone (+923046980280).
+- Qibla map: Esri street tiles with an OpenStreetMap mirror (the previous
+  «API key required» image is gone).
+- Other fixes and polish.
 
-PRAY AND REMEMBER
-• Shia (Jafari) prayer times for your own location, with the next prayer on the
-  home screen and optional alerts
-• Live Qibla compass with a street map and an offline bearing diagram
-• Digital tasbeeh with Tasbeeh-e-Zahra (s.a.), your own wird and a daily goal
-• Crescent sighting and the Islamic calendar
+## Screenshots
 
-READ YOUR WAY
-• Bookmarks, notes, last-read markers and whole-surah bookmarks
-• Urdu and Arabic typefaces, font size, light, dark and AMOLED themes
-• آیت / حدیثِ وقت — a verse or narration chosen for the moment
-• روزانہ مطالعہ — a daily portion plan that finishes a whole book
-
-NO ACCOUNTS. NO ADS. NO TRACKING.
-The library is stored on the device; the app only reaches the network when you
-ask it to download a collection or refresh the prayer location.
-
-Developer: HashTech — sshaashmi@gmail.com — +923046980280
-```
-
-## Full description (Urdu)
-
-```
-شیعہ ورس اہلِ بیت (علیہم السلام) کے پیروکاروں کے لیے ایک مکمل آف لائن لائبریری ہے:
-قرآنِ کریم اردو ترجمہ و تفسیر کے ساتھ، نہج البلاغہ (خطبات، خطوط، حکمت)، مفاتیح الجنان
-کی دعائیں و اعمال، صحیفہ سجادیہ، چودہ کتبِ احادیث اور فقہی مسائل — سب کچھ آپ کے فون میں،
-انٹرنیٹ کے بغیر۔
-
-پڑھیں
-• قرآنِ کریم: سورت، پارہ، صفحہ اور مصحف کے انداز میں، اردو ترجمے کے ساتھ
-• نہج البلاغہ: ۲۴۱ خطبات، ۷۹ خطوط اور ۴۸۰ اقوالِ قصار، حواشی کے ساتھ
-• مفاتیح الجنان: ۶۷۷ دعائیں اور اعمال
-• چودہ کتبِ احادیث: الکافی، وسائل، تہذیب، میزان الحکمہ وغیرہ
-• آیت اللہ سیستانی اور آیت اللہ خامنہ ای کے اردو فتاویٰ
-• پوری لائبریری میں ایک تلاش، مکمل طور پر آف لائن
-
-نماز اور ذکر
-• آپ کے مقام کے مطابق اہلِ تشیع (جعفری) اوقاتِ نماز، اگلی نماز ہوم اسکرین پر
-• لائیو قبلہ نما، سٹریٹ میپ اور آف لائن نقشے کے ساتھ
-• ڈیجیٹل تسبیح: تسبیحِ زہرا (س)، اپنا ورد اور روزانہ کا ہدف
-• چاند کی رویت اور اسلامی تقویم
-
-اپنی طرز پر پڑھیں
-• بک مارکس، نوٹس، «جہاں چھوڑا تھا وہیں سے»، مکمل سورت کے بک مارکس
-• اردو و عربی خط، فونٹ سائز، لائٹ، ڈارک اور AMOLED تھیمز
-• آیت / حدیثِ وقت — وقت کے مطابق ایک آیت یا روایت
-• روزانہ مطالعہ — روز کا مقررہ حصہ، تاکہ کتاب مکمل ہو
-
-نہ اکاؤنٹ، نہ اشتہار، نہ ٹریکنگ۔
-لائبریری آپ کے فون میں محفوظ رہتی ہے؛ ایپ صرف اُس وقت انٹرنیٹ سے رابطہ کرتی ہے جب آپ
-کوئی مجموعہ ڈاؤن لوڈ کریں یا اپنا مقام تازہ کریں۔
-
-ڈویلپر: HashTech — sshaashmi@gmail.com — +923046980280
-```
-
-## Graphic assets
-
-| Asset | File | Notes |
-|---|---|---|
-| Developer icon | `docs/store/hashtech-apkpure-512.png` | 512 × 512, the HashTech mark |
-| App icon | `app/assets/images/shiaverse_icon.png` | the app's own launcher plate |
-| Screenshots | `docs/previews/*.png`, `docs/previews/*.jpg` | phone screenshots of the home screen and readers, produced by `app/test/ui_layout_test.dart` (`SHIAVERSE_PREVIEW_DIR`) |
-| Feature graphic | `app/assets/images/prayer_hero.jpg` | 16:9 crop works for APKPure's header slot |
-
-## Rating and permissions to declare
-
-The app requests: internet (to download a collection), notifications (prayer
-alerts), exact alarms (so a prayer alert is not deferred), location (prayer
-times and Qibla), and the compass sensor (declared `required="false"`). It
-does not request storage, contacts, camera, microphone or advertising IDs.
+Use screenshots taken on a real device from the signed build (APKPure wants at least 3, portrait). Existing mock-ups in `docs/previews/` are not store-quality evidence of the final build.
