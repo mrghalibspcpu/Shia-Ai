@@ -186,7 +186,7 @@ class _QiblaStreetMapCardState extends State<QiblaStreetMapCard> {
                         ),
                         child: const SizedBox.expand(),
                       ),
-                      // The tile server asks for visible attribution; keep it
+                      // The tile servers ask for visible attribution; keep it
                       // unobtrusive but always on screen.
                       Positioned(
                         left: 6,
@@ -199,7 +199,7 @@ class _QiblaStreetMapCardState extends State<QiblaStreetMapCard> {
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                             child: Text(
-                              '© OpenStreetMap · © CARTO',
+                              '© OpenStreetMap · © Esri',
                               textDirection: TextDirection.ltr,
                               style: TextStyle(
                                 fontSize: 8.5,
@@ -386,9 +386,14 @@ class _MapTile extends StatefulWidget {
 class _MapTileState extends State<_MapTile> {
   /// Ordered fall-backs. Keeping the list here (not in the parent) means one
   /// provider going down only repaints the squares that failed.
+  /// CARTO's voyager tiles now require an API key and answer with a 403 PNG
+  /// that says “API key required” – the same problem the old OSM block page
+  /// had (a *successful* image, so errorBuilder never fires).  Use only
+  /// providers that answer without a key: the German OSM mirror, the French
+  /// OSM-FR hot tiles, and Esri World Street Map.
   static const List<String> _providers = <String>[
-    'https://a.basemaps.cartocdn.com/rastertiles/voyager',
     'https://tile.openstreetmap.de',
+    'https://a.tile.openstreetmap.fr/hot',
     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile',
   ];
 

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ShiaVerse Privacy Policy</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;line-height:1.6;max-width:820px;margin:0 auto;padding:24px;color:#111}
+h1{font-size:28px;margin-bottom:6px}
+h2{font-size:18px;margin-top:28px;color:#145B45}
+.meta{color:#555;font-size:13px;margin-bottom:18px}
+a{color:#145B45}
+code{background:#f4f4f4;padding:2px 4px;border-radius:4px;font-size:90%}
+table{border-collapse:collapse;width:100%;margin:12px 0}
+th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:14px}
+th{background:#f7f7f7}
+</style>
+</head>
+<body>
+<h1>ShiaVerse — Privacy Policy</h1>
+<div class="meta">
+  Effective date: 20 October 2026 &bull; Version 1.21.0 (30) &bull; Package: <code>com.shiaai.app</code> &bull; Developer: ShiaVerse Team<br>
+  Contact: <a href="mailto:shiaverse.support@gmail.com">shiaverse.support@gmail.com</a> &bull; Publisher page: <a href="https://github.com/mrghalibspcpu/ShiaVerse">github.com/mrghalibspcpu/ShiaVerse</a>
+</div>
+
+<p><strong>Summary:</strong> ShiaVerse is an offline-first Shia Islamic library. The app does <em>not</em> create user accounts, does <em>not</em> run ads, does <em>not</em> include analytics or tracking SDKs, and does <em>not</em> send your reading activity to a developer server. Two network features exist: (1) an optional on-demand download of the book databases from GitHub, and (2) loading street-map tiles for the Qibla page. Your location is used only on-device for prayer times and Qibla.</p>
+
+<h2>1. What the app does</h2>
+<p>ShiaVerse provides offline reading of the Quran with Urdu translation &amp; tafseer, Mafatih al-Jinan, Sahifa Sajjadiyya, Nahj al-Balagha, 14 Urdu/Arabic hadith books, the Athna-Ashari encyclopedia, fatawa, prayer times, Hijri calendar, Qibla compass/map, tasbeeh and search/bookmarks/notes. Except for the corpus download and map tiles described below, all features work fully offline after the first download.</p>
+
+<h2>2. Permissions and how they are used</h2>
+<table>
+<tr><th>Permission</th><th>Why it is needed</th><th>Sent off-device?</th></tr>
+<tr><td><code>INTERNET</code></td><td>Download the optional book databases from GitHub and fetch Qibla map tiles from OpenStreetMap / Esri servers.</td><td>Yes — only as standard HTTP requests to those hosts (IP, User-Agent, tile coordinates). See §3.</td></tr>
+<tr><td><code>ACCESS_FINE_LOCATION</code> / <code>ACCESS_COARSE_LOCATION</code></td><td>Determine your city/coordinates for prayer-time calculation, Qibla bearing &amp; distance, and to name the location using the offline city index. You may also deny this — the app falls back to a manually chosen city.</td><td><strong>No.</strong> Location is computed on-device; it is <em>not</em> uploaded to the developer. It is only used locally to compute times/bearing and to request map tiles (your coordinates are not sent to tile servers; only the XYZ tile numbers for the map viewport are requested).</td></tr>
+<tr><td><code>POST_NOTIFICATIONS</code>, <code>SCHEDULE_EXACT_ALARM</code>, <code>RECEIVE_BOOT_COMPLETED</code></td><td>Schedule and show local prayer-time alerts. Notifications are created and delivered entirely on-device via the OS alarm manager.</td><td>No — no push service or server.</td></tr>
+<tr><td><code>VIBRATE</code></td><td>Haptic feedback on tasbeeh and when the Qibla compass aligns.</td><td>No.</td></tr>
+<tr><td><code>android.hardware.sensor.compass</code> (optional)</td><td>Read the device magnetometer for the live Qibla compass.</td><td>No.</td></tr>
+</table>
+
+<h2>3. Network data — what actually leaves the device</h2>
+<h3>3.1 Corpus download (GitHub)</h3>
+<p>On first launch each book (Quran, hadith books, etc.) is listed as “not installed”. Tapping <em>Download</em> fetches <code>&lt;name&gt;.db.gz</code> from:</p>
+<ul>
+<li>Primary: <code>https://github.com/mrghalibspcpu/ShiaVerse/releases/download/databases-v1/</code></li>
+<li>Fallback: <code>https://raw.githubusercontent.com/mrghalibspcpu/Shia-Ai/main/assets/</code> (legacy pinned URL kept in the manifest)</li>
+</ul>
+<p>The app sends a normal HTTPS GET with resume support (<code>Range</code>). The server (GitHub) sees your IP, request time, file name and User-Agent as with any GitHub download. GitHub’s privacy statement applies: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">docs.github.com — GitHub General Privacy Statement</a>. The download is hashed (SHA-256) against <code>assets/database-manifest.json</code> and unpacked locally; a mismatched file is deleted and never opened. No personal data is added to the request.</p>
+<p><strong>You can use the app without this download</strong> if you build it with <code>python3 scripts/prepare_databases.py --output app/assets/databases</code> — then the APK already contains the corpus and makes no download request.</p>
+
+<h3>3.2 Qibla street map (OpenStreetMap / Esri)</h3>
+<p>The Qibla page shows a north-up street map with your position, a line to the Kaaba and an optional heading cone. Map tiles are fetched from (in order):</p>
+<ol>
+<li><code>https://tile.openstreetmap.de/{z}/{x}/{y}.png</code> — German OSM mirror, operated by FOSSGIS e.V.</li>
+<li><code>https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png</code> — French OSM-FR “Humanitarian” tiles.</li>
+<li><code>https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}</code> — Esri.</li>
+</ol>
+<p>The previous CARTO CDN provider (<code>basemaps.cartocdn.com</code>) has been removed in 1.21.1 because it began requiring an API key and returned an “API key required” tile. The tile servers see your IP and the requested tile coordinates (which coarse-locate your viewport, not a precise GPS fix). Their policies apply:</p>
+<ul>
+<li>OpenStreetMap: <a href="https://osmfoundation.org/wiki/Privacy_Policy">osmfoundation.org — Privacy Policy</a></li>
+<li>Esri: <a href="https://www.esri.com/en-us/privacy/overview">esri.com — Privacy</a></li>
+</ul>
+<p>The map keeps a small attribution “© OpenStreetMap · © Esri” on screen as required. If you are offline the map shows a faint graticule and the Qibla bearing/distance remain correct — the bearing is computed locally from your coordinates and the Kaaba (21.4225° N, 39.8262° E) using the WGS-84 great-circle formula, no network needed.</p>
+
+<h3>3.3 No other network calls</h3>
+<p>The app makes <strong>no</strong> other network requests: no analytics endpoints, no crash reporters, no ad networks, no social SDKs. The AI-chat/Gemini integration was removed before 1.0; there are no API keys or backends.</p>
+
+<h2>4. Data stored on your device</h2>
+<p>All of the following stay on your device and are deleted if you clear app data or uninstall:</p>
+<ul>
+<li>Downloaded SQLite databases under the app’s private storage (<code>/data/data/com.shiaai.app/</code>).</li>
+<li>Bookmarks, notes, reading positions (“Last seen”), and tasbeeh counters — saved via <code>SharedPreferences</code> and a local SQLite search index.</li>
+<li>Chosen city, prayer-calculation settings (Jafari/Leva Qum method), and notification preferences.</li>
+<li>Cached search index (<code>search_docs</code> + FTS) built from the local books.</li>
+<li>Map tile cache (handled by Flutter’s image cache / HTTP cache) — cleared with the system cache.</li>
+</ul>
+<p>There is no “login”, no cloud sync and no restore code. If you want to keep your corpus after an update, do not use “Clear data”; just tap the update APK — successive CI-signed builds share the same signature so <code>adb install -r</code> or tapping the APK preserves the databases.</p>
+
+<h2>5. Data sharing</h2>
+<p>We do not sell, rent or otherwise share personal data. The only recipients of technical data are the tile and download hosts named in §3, as part of delivering the feature you requested. Those hosts process your IP under their own policies; we do not receive copies of their logs.</p>
+
+<h2>6. Children’s privacy</h2>
+<p>ShiaVerse contains religious texts and no user-generated public content. It is suitable for all ages and does not knowingly collect information from children. If you believe a child has provided personal information through an app store review or email, please contact us and we will delete it.</p>
+
+<h2>7. Your choices</h2>
+<ul>
+<li><strong>Deny location:</strong> Prayer times and Qibla still work with a manually selected city (the bearing defaults to the city centre). The map still loads tiles for the chosen city.</li>
+<li><strong>Block network:</strong> The app remains fully functional for reading, search, bookmarks and prayer times. Map tiles and new book downloads will not load.</li>
+<li><strong>Delete data:</strong> Android Settings → Apps → ShiaVerse → Storage → Clear data removes the corpus, search index, bookmarks and settings. Uninstall does the same.</li>
+</ul>
+
+<h2>8. Security</h2>
+<p>Downloads are verified with SHA-256 before opening; corrupt files are deleted. Databases are opened read-only except for the search index. The manifest (<code>database-manifest.json</code>) lists every expected size, hash, row count and download URL, and is checked by <code>scripts/prepare_databases.py</code> and the in-app verifier.</p>
+
+<h2>9. Changes to this policy</h2>
+<p>We will update this page and the in-app “About → Privacy” link when the app’s network behaviour changes. The policy version and effective date at the top will be bumped, and the release notes for that version will mention the change.</p>
+
+<h2>10. Contact</h2>
+<p>Developer / publisher shown on APKPure and Play listings:</p>
+<p>
+<strong>ShiaVerse Team</strong><br>
+Email: <a href="mailto:shiaverse.support@gmail.com">shiaverse.support@gmail.com</a><br>
+GitHub: <a href="https://github.com/mrghalibspcpu/ShiaVerse">github.com/mrghalibspcpu/ShiaVerse</a><br>
+Issue tracker: <a href="https://github.com/mrghalibspcpu/ShiaVerse/issues">github.com/mrghalibspcpu/ShiaVerse/issues</a>
+</p>
+<p>If you use a different support address for your store listing, replace the email above in your listing — the behaviour described here does not depend on the address.</p>
+
+<h2>11. Third-party notices</h2>
+<ul>
+<li>Quran, Mafatih al-Jinan, Nahj al-Balagha, Sahifa Sajjadiyya and the 14 hadith collections are community religious texts. Their individual sources and reuse terms are listed in the repository at <code>docs/apk-analysis.md</code> and <code>scripts/database_specs.py</code> — see the “Sources &amp; Attribution” section of the store listing.</li>
+<li>Adhan calculations use <code>adhan_dart</code> (Dart port of <a href="https://github.com/batoulapps/adhan-js">adhan-js</a>, MIT) with the Jafari/Leva Qum method.</li>
+<li>City names for offline search use GeoNames <code>cities.tsv.gz</code> (CC BY 4.0).</li>
+</ul>
+
+<p style="font-size:13px;color:#666;margin-top:32px">This policy is the public HTTPS page required by APKPure, Google Play and similar distributors. Keep this URL live for as long as version 1.21.x is distributed.</p>
+</body>
+</html>
