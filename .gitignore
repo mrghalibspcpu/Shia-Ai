@@ -1,0 +1,50 @@
+# Expanded database files are produced from the checked-in compressed bundle.
+assets/databases/*.db
+assets/databases/*.db-shm
+assets/databases/*.db-wal
+app/assets/databases/*.db
+app/assets/databases/*.sqlite
+app/assets/databases/*.sqlite3
+assets/databases/*.sqlite
+assets/databases/*.sqlite3
+app/assets/databases/*.db-shm
+app/assets/databases/*.db-wal
+
+# Compressed release assets produced by scripts/publish_databases.py.
+dist/
+
+# Local search indexes, Python tool environments, Flutter/Android build outputs, and secrets.
+.cache/
+.venv/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+*.jks
+*.keystore
+*.p12
+# ...except the CI signing key, which must be stable across builds so APK
+# updates install over each other without losing the downloaded corpus.
+# See app/android/ci-signing/README.md.
+!app/android/ci-signing/*.p12
+app/.dart_tool/
+app/build/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.packages
+app/android/.gradle/
+app/android/local.properties
+app/android/app/key.properties
+app/android/app/owner-release-key.jks
+
+# Delivered APK zips and restorable source archives (build outputs, never committed).
+ShiaVerse-*-apk.zip
+deliverables/
+
+# The encyclopaedia reader edition is committed gzipped; the expanded .db is a
+# build artefact (scripts/build_encyclopedia_db.py writes it on demand).
+assets/athna_ashari_encyclopedia.db
+
+# The raw corpus downloaded from Google Drive (20 MB ZIP). The app edition is
+# assets/athna_ashari_encyclopedia.db.gz; the ZIP is only the builder's input.
+google_drive/

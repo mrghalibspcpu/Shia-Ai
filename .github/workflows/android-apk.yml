@@ -1,0 +1,488 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main, 'arena/**']
+    # A delivery request only asks for already-published bytes to be copied
+    # into blobs; rebuilding the whole APK for it wastes a runner for 20 min.
+    paths-ignore:
+      - '.github/apk-delivery-request'
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      bundle_databases:
+        description: Ship the SQLite databases inside the APK (much larger download)
+        type: boolean
+        default: false
+
+permissions:
+  # `write` so the build can publish its APK to the `app-v*` pre-release.
+  contents: write
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test and build APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+          cache-key: flutter-${{ runner.os }}-${{ hashFiles('app/pubspec.yaml') }}
+
+      - name: Validate corpus against the manifest
+        run: python scripts/prepare_databases.py
+
+      - name: Run corpus smoke checks
+        run: python scripts/verify_corpus.py
+
+      - name: Replay the client's SQL against the databases
+        run: python scripts/verify_client_sql.py
+
+      - name: Run Python tooling tests
+        run: python -m unittest discover -v
+
+      - name: Install Dart grammar for the offline client check
+        run: python -m pip install --quiet tree-sitter tree-sitter-dart
+
+      - name: Check Flutter client syntax, imports, and removed symbols
+        run: python scripts/check_dart.py
+
+      - name: Unpack databases into the APK (optional)
+        if: ${{ inputs.bundle_databases == true }}
+        run: python scripts/prepare_databases.py --output app/assets/databases
+
+      - name: Resolve Flutter packages
+        working-directory: app
+        run: flutter pub get
+
+      - name: Analyze Flutter client
+        working-directory: app
+        shell: bash
+        run: |
+          set +e
+          flutter analyze --no-pub 2>&1 | tee /tmp/flutter-analyze.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [[ $status -ne 0 ]]; then
+            python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          for raw in Path('/tmp/flutter-analyze.log').read_text(errors='replace').splitlines():
+              parts = raw.strip().split(' • ')
+              if len(parts) < 4:
+                  continue
+              severity = parts[0].split()[0].lower()
+              location = parts[-2]
+              match = re.fullmatch(r'(.+):(\d+):(\d+)', location)
+              if not match:
+                  continue
+              source, line, column = match.groups()
+              message = ' • '.join(parts[1:-2]) + f' ({parts[-1]})'
+              message = message.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              level = 'error' if severity in {'error', 'warning'} else 'warning'
+              print(f'::{level} file=app/{source},line={line},col={column},title=Flutter analyzer::{message}')
+          PY
+            exit "$status"
+          fi
+
+      - name: Run Flutter tests
+        working-directory: app
+        shell: bash
+        env:
+          # test/ui_layout_test.dart saves each checked screen here as a PNG.
+          SHIAVERSE_PREVIEW_DIR: ${{ github.workspace }}/build/previews
+        run: |
+          set +e
+          flutter test --reporter expanded 2>&1 | tee /tmp/flutter-test.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [[ $status -ne 0 ]]; then
+            python3 ../scripts/flutter_test_digest.py /tmp/flutter-test.log
+            exit "$status"
+          fi
+
+      # The screens the layout test rendered, as unreferenced git blobs, so
+      # the UI can be looked at from tooling that cannot download artifacts.
+      # Best effort: never fails the build.
+      - name: Stage UI previews as git blobs
+        if: always() && github.event_name == 'push'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          list=""
+          for png in build/previews/*.png; do
+            python3 - "$png" > "$png.json" <<'PY'
+          import base64, json, sys
+          data = open(sys.argv[1], 'rb').read()
+          print(json.dumps({'content': base64.b64encode(data).decode(), 'encoding': 'base64'}))
+          PY
+            sha=$(gh api -X POST "repos/$GITHUB_REPOSITORY/git/blobs" --input "$png.json" --jq .sha)
+            list="$list $(basename "$png" .png)=$sha"
+          done
+          echo "::notice title=UI previews::${list# }"
+
+      - name: Configure optional production signing
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          # Passphrase of the checked-in CI key (app/android/ci-signing/),
+          # used only when the repository secrets above are not configured.
+          # It is deliberately public: the key exists so builds keep one
+          # stable signature, not to protect the app. Replace both by setting
+          # the ANDROID_* secrets — see ci-signing/README.md.
+          CI_KEYSTORE_PASSWORD: 'nlrOVNNZSUV7L6oZQV39bGO7'
+          CI_KEY_ALIAS: 'shia-library'
+        run: |
+          set -euo pipefail
+          if [[ -n "$KEYSTORE_BASE64" && -n "$KEYSTORE_PASSWORD" && -n "$KEY_ALIAS" && -n "$KEY_PASSWORD" ]]; then
+            KEYSTORE_PATH="$GITHUB_WORKSPACE/app/android/app/owner-release-key.jks"
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+            chmod 600 "$KEYSTORE_PATH"
+            {
+              echo "production=true"
+              echo "artifact_name=shia-library-production-signed-${GITHUB_SHA}"
+              echo "ANDROID_KEYSTORE_PATH=$KEYSTORE_PATH"
+              echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
+              echo "ANDROID_KEY_ALIAS=$KEY_ALIAS"
+              echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD"
+            } >> "$GITHUB_ENV"
+            echo "production=true" >> "$GITHUB_OUTPUT"
+            echo "artifact_name=shia-library-production-signed-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          elif [[ -f "$GITHUB_WORKSPACE/app/android/ci-signing/shia-library-ci.p12" ]]; then
+            # The Android debug key is generated fresh on every runner, so
+            # debug-signed APKs cannot be installed over each other — every
+            # update forced an uninstall and lost the downloaded corpus. This
+            # checked-in CI key gives every build the same signature, so
+            # `adb install -r` / tapping the APK just updates the app.
+            # Replace it by setting the four ANDROID_* repository secrets;
+            # those always take precedence (see ci-signing/README.md).
+            KEYSTORE_PATH="$GITHUB_WORKSPACE/app/android/ci-signing/shia-library-ci.p12"
+            {
+              echo "production=false"
+              echo "artifact_name=shia-library-ci-signed-${GITHUB_SHA}"
+              echo "ANDROID_KEYSTORE_PATH=$KEYSTORE_PATH"
+              echo "ANDROID_KEYSTORE_PASSWORD=$CI_KEYSTORE_PASSWORD"
+              echo "ANDROID_KEY_ALIAS=$CI_KEY_ALIAS"
+              echo "ANDROID_KEY_PASSWORD=$CI_KEYSTORE_PASSWORD"
+            } >> "$GITHUB_ENV"
+            echo "production=false" >> "$GITHUB_OUTPUT"
+            echo "artifact_name=shia-library-ci-signed-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+            echo "Using the repository CI signing key (stable across runs); artifact: shia-library-ci-signed-${GITHUB_SHA}"
+          else
+            echo "production=false" >> "$GITHUB_OUTPUT"
+            echo "artifact_name=shia-library-preview-debug-signed-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+            echo "Production signing secrets are incomplete; building with the Android debug key. This APK is for testing only."
+          fi
+
+      - name: Build APK
+        working-directory: app
+        shell: bash
+        env:
+          SHIA_DATA_BASE_URL: ${{ vars.SHIA_DATA_BASE_URL }}
+        run: |
+          set +e
+          flutter build apk --release --dart-define=SHIA_DATA_BASE_URL="$SHIA_DATA_BASE_URL" 2>&1 | tee /tmp/flutter-build.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [[ $status -ne 0 ]]; then
+            python3 - <<'PY'
+          from pathlib import Path
+
+          lines = [line for line in Path('/tmp/flutter-build.log').read_text(errors='replace').splitlines() if line.strip()]
+          detail = chr(10).join(lines[-80:])
+          detail = detail[-3000:]
+          print(f'::error title=Flutter APK build failed::{detail}')
+          PY
+            exit "$status"
+          fi
+
+      # Split builds: one APK per CPU architecture. The universal APK carries
+      # three copies of libflutter/libapp (~57 MiB uncompressed) and lands at
+      # ~76 MiB, which a slow phone connection often truncates mid-download —
+      # the phone then reports "There was a problem while parsing the package".
+      # The arm64 build is roughly half the size and installs on every modern
+      # phone; the universal file stays published as the fallback.
+      - name: Build per-ABI APKs
+        working-directory: app
+        shell: bash
+        env:
+          SHIA_DATA_BASE_URL: ${{ vars.SHIA_DATA_BASE_URL }}
+        run: |
+          set -euo pipefail
+          # Keep the universal build: it is what the emulator smoke test,
+          # the uploaded artifact and the published fallback download use.
+          cp build/app/outputs/flutter-apk/app-release.apk build/app-universal-release.apk
+          flutter build apk --release --split-per-abi --dart-define=SHIA_DATA_BASE_URL="$SHIA_DATA_BASE_URL"
+          cp build/app-universal-release.apk build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Report APK size and digest
+        run: |
+          set -euo pipefail
+          apk=app/build/app/outputs/flutter-apk/app-release.apk
+          ls -lh "$apk"
+          sha256sum "$apk"
+          {
+            echo "### Built APK"
+            echo
+            echo "- size: $(stat -c%s "$apk") bytes"
+            echo "- sha-256: \`$(sha256sum "$apk" | cut -d' ' -f1)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # A signed ZIP can still contain an APK the package manager rejects.
+      # Do not publish a new link until Android itself clean-installs and
+      # launches the exact release build. Also diagnose the previous release
+      # and verify that its signer can update in place.
+      - name: Enable KVM for Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install and launch signed APK on Android
+        uses: reactivecircus/android-emulator-runner@v2
+        timeout-minutes: 30
+        env:
+          GH_TOKEN: ${{ github.token }}
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_4
+          script: bash scripts/smoke_install_apk.sh
+
+      - name: Upload signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.signing.outputs.artifact_name }}
+          path: app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      # A tappable download link the owner can open on the phone.
+      # Published as a *pre-release* on purpose: `releases/latest` must keep
+      # pointing at the data release, because every installed app downloads
+      # its databases from the pinned `databases-v1` tag.
+      #
+      # The asset is named after the version, never `shia-library.apk`. Two
+      # reasons, both learned the hard way: a phone that already holds a
+      # half-downloaded file keeps offering that broken copy back (the name
+      # never changes, so the download never restarts), and a fixed name means
+      # a second build silently replaces the file under a reader who is
+      # downloading it — which is exactly how "the APK is invalid" happens.
+      - name: Publish the APK download
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version:[[:space:]]*//p' app/pubspec.yaml | tr -d '\r')
+          tag="app-v${version%%+*}"
+          asset="ShiaVerse-${version%%+*}.apk"
+          apk=app/build/app/outputs/flutter-apk/app-release.apk
+          size=$(stat -c%s "$apk")
+          sha=$(sha256sum "$apk" | cut -d' ' -f1)
+          mkdir -p build/apk-release
+          cp "$apk" "build/apk-release/$asset"
+          {
+            echo "Installable release build — tap **$asset** to install."
+            echo
+            echo '```'
+            echo "file    : $asset"
+            echo "size    : $size bytes"
+            echo "sha-256 : $sha"
+            echo '```'
+            echo
+            echo "Before publishing, this APK was clean-installed and launched on an Android 15 emulator. SHA-256 above is for the exact release bytes."
+            echo "If installation fails on your phone, send the phone model and Android version; do not uninstall a working copy just to try again."
+          } > build/apk-release/notes.md
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "build/apk-release/$asset" --clobber
+            gh release edit "$tag" --title "ShiaVerse $version — APK" --notes-file build/apk-release/notes.md
+          else
+            gh release create "$tag" "build/apk-release/$asset" \
+              --prerelease \
+              --title "ShiaVerse $version — APK" \
+              --notes-file build/apk-release/notes.md \
+              --target "$GITHUB_SHA"
+          fi
+          echo "Download: https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$asset"
+
+      # Proof, not hope: the bytes a phone downloads are compared with the bytes
+      # this run built. A truncated or stale asset fails the run here instead of
+      # failing on somebody's phone.
+      - name: Verify the hosted APK is the APK we built
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version:[[:space:]]*//p' app/pubspec.yaml | tr -d '\r')
+          tag="app-v${version%%+*}"
+          asset="ShiaVerse-${version%%+*}.apk"
+          mkdir -p build/verify
+          for attempt in 1 2 3 4 5; do
+            if gh release download "$tag" -p "$asset" -D build/verify --clobber; then break; fi
+            echo "download attempt $attempt failed; retrying"
+            sleep 10
+          done
+          built=$(sha256sum app/build/app/outputs/flutter-apk/app-release.apk | cut -d' ' -f1)
+          hosted=$(sha256sum "build/verify/$asset" | cut -d' ' -f1)
+          echo "built  : $built"
+          echo "hosted : $hosted"
+          if [ "$built" != "$hosted" ]; then
+            echo "::error title=Hosted APK differs from the build::the release asset is not the APK this run produced"
+            exit 1
+          fi
+          signer=""
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)
+          if [ -n "$apksigner" ]; then
+            signer=$("$apksigner" verify --print-certs app/build/app/outputs/flutter-apk/app-release.apk | grep -i 'certificate DN' | head -1 || true)
+            "$apksigner" verify app/build/app/outputs/flutter-apk/app-release.apk
+          fi
+          {
+            echo "### Hosted APK verified"
+            echo
+            echo "- asset: \`$asset\` ($(stat -c%s "build/verify/$asset") bytes)"
+            echo "- sha-256: \`$hosted\`"
+            echo "- identical to the built APK: yes"
+            if [ -n "$signer" ]; then echo "- $signer"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Hosted APK is byte-identical to the signed build."
+
+      # One APK per architecture, named after the version so a phone never
+      # reuses a half-downloaded file it already holds.
+      - name: Publish the per-ABI APKs
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version:[[:space:]]*//p' app/pubspec.yaml | tr -d '\r')
+          tag="app-v${version%%+*}"
+          base="ShiaVerse-${version%%+*}"
+          out=app/build/app/outputs/flutter-apk
+          mkdir -p build/apk-abi
+          rows=""
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            src="$out/app-$abi-release.apk"
+            if [ ! -f "$src" ]; then
+              echo "::error title=Missing split APK::$src was not built"
+              exit 1
+            fi
+            asset="$base-$abi.apk"
+            cp "$src" "build/apk-abi/$asset"
+            size=$(stat -c%s "$src")
+            sha=$(sha256sum "$src" | cut -d' ' -f1)
+            echo "$abi $size bytes $sha"
+            rows="${rows}| \`$asset\` | $size | \`$sha\` |"$'\n'
+          done
+          gh release upload "$tag" build/apk-abi/*.apk --clobber
+          {
+            echo
+            echo '### Smaller downloads (one per CPU)'
+            echo
+            echo '| file | size | sha-256 |'
+            echo '| --- | --- | --- |'
+            printf '%s' "$rows"
+            echo
+            echo 'Almost every phone is **arm64-v8a** — pick that one if the 76 MiB universal APK keeps failing to download.'
+          } >> build/apk-release/notes.md
+          gh release edit "$tag" --notes-file build/apk-release/notes.md
+
+      # The same APK inside a zip, published next to it: some phones and
+      # messengers refuse to download or forward a bare .apk file.
+      - name: Publish the zipped APK
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version:[[:space:]]*//p' app/pubspec.yaml | tr -d '\r')
+          tag="app-v${version%%+*}"
+          base="ShiaVerse-${version%%+*}"
+          mkdir -p build/apk-zip
+          cp app/build/app/outputs/flutter-apk/app-release.apk "build/apk-zip/$base.apk"
+          {
+            echo "ShiaVerse ${version%%+*}"
+            echo
+            echo "Install: extract this ZIP first, then open $base.apk in the phone's Files app."
+            echo "The exact release APK was clean-installed and launched on an Android 15 emulator before publishing."
+            echo "An update should preserve downloaded books if the installed copy uses the same signing key."
+          } > build/apk-zip/README.txt
+          (cd build/apk-zip && zip -9 -q "$base.zip" "$base.apk" README.txt)
+          unzip -t "build/apk-zip/$base.zip"
+          builtsha=$(sha256sum app/build/app/outputs/flutter-apk/app-release.apk | cut -d' ' -f1)
+          unzippedsha=$(unzip -p "build/apk-zip/$base.zip" "$base.apk" | sha256sum | cut -d' ' -f1)
+          if [[ "$builtsha" != "$unzippedsha" ]]; then
+            echo "::error title=Zipped APK differs from Android-tested build::the ZIP would install a different APK"
+            exit 1
+          fi
+          gh release upload "$tag" "build/apk-zip/$base.zip" --clobber
+          zipsha=$(sha256sum "build/apk-zip/$base.zip" | cut -d' ' -f1)
+          {
+            echo "### Zipped APK"
+            echo
+            echo "- asset: \`$base.zip\` ($(stat -c%s "build/apk-zip/$base.zip") bytes)"
+            echo "- sha-256: \`$zipsha\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Download: https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/$base.zip"
+
+      # The zip again as unreferenced git blobs (20 MB parts), for build tooling
+      # that can reach the GitHub API but not the release download host. The
+      # part ids are printed as a notice. Best effort: never fails the build.
+      - name: Stage the zipped APK as git blobs
+        if: github.event_name == 'push'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^version:[[:space:]]*//p' app/pubspec.yaml | tr -d '\r')
+          base="ShiaVerse-${version%%+*}"
+          zip="build/apk-zip/$base.zip"
+          mkdir -p build/blobs
+          split -b 20m -d -a 2 "$zip" build/blobs/part-
+          parts=""
+          for part in build/blobs/part-??; do
+            python3 - "$part" > "$part.json" <<'PY'
+          import base64, json, sys
+          data = open(sys.argv[1], 'rb').read()
+          print(json.dumps({'content': base64.b64encode(data).decode(), 'encoding': 'base64'}))
+          PY
+            sha=$(gh api -X POST "repos/$GITHUB_REPOSITORY/git/blobs" --input "$part.json" --jq .sha)
+            parts="$parts,$sha"
+          done
+          zipsha=$(sha256sum "$zip" | cut -d' ' -f1)
+          echo "::notice title=APK zip blobs::$base.zip sha256=$zipsha parts=${parts#,}"
+
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f app/android/app/owner-release-key.jks

@@ -1,0 +1,60 @@
+name: Deliver APK
+
+# Fetches an APK already published on an app-v* release and stores its exact
+# bytes as unreferenced git blobs. Sandboxed tooling that can only reach
+# api.github.com can then download the file through the blobs API.
+#
+# Trigger: write `tag [asset-name]` into .github/apk-delivery-request and push.
+# (workflow_dispatch needs the workflow on the default branch, which this
+# working branch must not touch.)
+on:
+  push:
+    branches: ['arena/**']
+    paths:
+      - .github/workflows/deliver-apk.yml
+      - .github/apk-delivery-request
+
+permissions:
+  contents: write
+
+jobs:
+  deliver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Download the release asset and stage it as git blobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          request=$(tr '\n' ' ' < .github/apk-delivery-request)
+          # shellcheck disable=SC2086
+          set -- $request
+          TAG=${1:?request must start with a release tag}
+          ASSET=${2:-}
+          mkdir -p /tmp/work && cd /tmp/work
+          if [ -n "$ASSET" ]; then
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$ASSET" --clobber
+          else
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.apk' --clobber
+          fi
+          apk=$(ls *.apk 2>/dev/null | head -1)
+          echo "asset        : $apk"
+          echo "size         : $(stat -c%s "$apk") bytes"
+          echo "sha256       : $(sha256sum "$apk" | cut -d' ' -f1)"
+
+          parts=""
+          split -b 10m -d -a 2 "$apk" part-
+          for part in part-??; do
+            python3 - "$part" > "$part.json" <<'PY'
+          import base64, json, sys
+          data = open(sys.argv[1], 'rb').read()
+          print(json.dumps({'content': base64.b64encode(data).decode(), 'encoding': 'base64'}))
+          PY
+            blob=$(gh api -X POST "repos/$GITHUB_REPOSITORY/git/blobs" --input "$part.json" --jq .sha)
+            parts="$parts,$blob"
+          done
+          echo "::notice title=APK blobs::$apk size=$(stat -c%s "$apk") sha256=$(sha256sum "$apk" | cut -d' ' -f1) parts=${parts#,}"

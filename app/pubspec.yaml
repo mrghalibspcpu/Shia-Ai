@@ -1,0 +1,87 @@
+name: shiaverse
+publish_to: "none"
+description: Offline Shia library — Quran, Mafatih al-Jinan, Nahj al-Balagha, and 14 hadith books.
+version: 1.21.1+31
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # The three daily utilities: prayer times (adhan_dart is the Dart port of the
+  # battle-tested JS Adhan library and carries the Jafari/Leva Qum method),
+  # device location, and the magnetometer compass.
+  adhan_dart: ^2.0.1
+  app_links: ^6.4.1
+  audioplayers: ^6.5.0
+  crypto: ^3.0.3
+  flutter_compass: ^0.8.1
+  flutter_local_notifications: ^18.0.1
+  geolocator: ^14.0.2
+  http: ^1.4.0
+  path: ^1.9.1
+  scrollable_positioned_list: ^0.3.8
+  shared_preferences: ^2.5.3
+  sqflite: ^2.4.2
+  timezone: ^0.9.4
+  url_launcher: ^6.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    # SQLite books are optional here: when this folder is empty the app
+    # downloads each database on demand (see lib/data_installer.dart).
+    - assets/databases/
+    - assets/database-manifest.json
+    # Only images the UI actually paints are bundled: `logo.png` and
+    # `tasneemlogo.png` stayed behind when the ShiaVerse plate replaced them,
+    # and every bundled byte is APK size and unpack time.
+    - assets/images/shiaverse_icon.png
+    - assets/images/marja_khamenei.png
+    - assets/images/marja_sistani.png
+    # The prayer banner's wallpaper and the three synthesised alert sounds.
+    # ~30 kB and ~130 kB: no downloads, no third-party audio.
+    - assets/images/prayer_hero.jpg
+    # The full prayer page has its own portrait mosque wallpaper; the mini
+    # card keeps the separate animated skies. Chapter art lives only in lists.
+    - assets/images/prayer_details.jpg
+    - assets/images/chapter_wallpaper.jpg
+    # Transparent, isolated Kaaba for the live compass's bearing marker.
+    - assets/images/kaaba_icon.png
+    - assets/images/kaaba_center.png
+    - assets/audio/
+    # The four skies behind the prayer card (dawn, midday, evening, night),
+    # ~370 kB together; the animation on top of them is drawn in code.
+    - assets/images/sky_dawn.jpg
+    - assets/images/sky_sehr.jpg
+    - assets/images/sky_morning.jpg
+    - assets/images/chapter_wallpaper_dark.jpg
+    - assets/images/sky_day.jpg
+    - assets/images/sky_evening.jpg
+    - assets/images/sky_night.jpg
+    # One wallpaper per utility section (تسبیح، قبلہ نما، چاند کی رویت، اسلامی
+    # تقویم). Since 1.19 it is painted INSIDE each glass container instead of
+    # behind the page. ~1 MB together, cropped to 900x1600 and decoded at 900 px
+    # wide.
+    - assets/images/wall_tasbeeh.jpg
+    - assets/images/wall_qibla.jpg
+    - assets/images/wall_crescent.jpg
+    - assets/images/wall_calendar.jpg
+    # 73,000 places (GeoNames, CC BY 4.0) for the offline location search and
+    # for naming a GPS fix without the network. ~1.3 MB, built by
+    # scripts/build_city_index.py.
+    - assets/geo/cities.tsv.gz
+  fonts:
+    - family: JameelNooriNastaleeq
+      fonts:
+        - asset: assets/fonts/JameelNooriNastaleeq.ttf
+    - family: Amiri
+      fonts:
+        - asset: assets/fonts/Amiri-Regular.ttf

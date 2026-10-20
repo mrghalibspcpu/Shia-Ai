@@ -1,0 +1,343 @@
+{
+  "format_version": 2,
+  "source_app": "Ahadith al Shia Urdu 1.0.1 corpus plus the Quran, Mafatih al-Jinan, and Nahj al-Balagha collections",
+  "sqlite_page_size": 1024,
+  "database_count": 21,
+  "totals": {
+    "hadith_records": 96513,
+    "sections": 17855,
+    "chapters": 845,
+    "quran_verses": 6236,
+    "quran_surahs": 114,
+    "dua_items": 677,
+    "dua_lines": 5378,
+    "balagha_paragraphs": 3742,
+    "sahifa_rows": 4993,
+    "fatwa_answers": 2047,
+    "balagha_sections": 810
+  },
+  "download": {
+    "extension": ".gz",
+    "base_urls": [
+      "https://github.com/mrghalibspcpu/Shia-Ai/releases/download/databases-v1/",
+      "https://raw.githubusercontent.com/mrghalibspcpu/Shia-Ai/main/assets/"
+    ]
+  },
+  "databases": [
+    {
+      "name": "alkafi.db",
+      "key": "alkafi",
+      "source": "hadith",
+      "title_urdu": "الکافی",
+      "title_latin": "Al-Kafi",
+      "record_label": "حدیث نمبر",
+      "size_bytes": 27953152,
+      "sha256": "23c030d6ffd6244edf0503b7eabc8f42addfbef3aad8c67a80a20583998821b8",
+      "records": {
+        "Parags": 8032,
+        "Sections": 1183,
+        "Chaps": 19
+      }
+    },
+    {
+      "name": "alkhisal.db",
+      "key": "alkhisal",
+      "source": "hadith",
+      "title_urdu": "الخصال",
+      "title_latin": "Al-Khisal",
+      "record_label": "حدیث نمبر",
+      "size_bytes": 3920896,
+      "sha256": "c5acb7f55b067df435d7b3984ce44ca42be0c374a47a47bc904db597e68ba413",
+      "records": {
+        "Parags": 1257,
+        "Sections": 964,
+        "Chaps": 26
+      }
+    },
+    {
+      "name": "hakam.db",
+      "key": "hakam",
+      "source": "hadith",
+      "title_urdu": "غرر الحکم",
+      "title_latin": "Ghurar al-Hikam",
+      "record_label": "حدیث نمبر",
+      "size_bytes": 2038784,
+      "sha256": "aebf0fa4f729eb63a509faca7a54d46a7cc9eea7c4ff81f224e576c87417e202",
+      "records": {
+        "Parags": 5873,
+        "Sections": 46,
+        "Chaps": 16
+      }
+    },
+    {
+      "name": "hidaya.db",
+      "key": "hidaya",
+      "source": "hadith",
+      "title_urdu": "ہدایۃ العلم",
+      "title_latin": "Hidayat al-Ilm",
+      "record_label": "حدیث نمبر",
+      "size_bytes": 4173824,
+      "sha256": "74673e585e139bbc08a3ed7fc79472e6724d238d9f39e3377589d85b38deab7b",
+      "records": {
+        "Parags": 11052,
+        "Sections": 722,
+        "Chaps": 28
+      }
+    },
+    {
+      "name": "hikmatprophet.db",
+      "key": "hikmatprophet",
+      "source": "hadith",
+      "title_urdu": "حکمت نامۂ رسول اکرم(ص)",
+      "title_latin": "Hikmat-nama Rasul Akram (s)",
+      "record_label": "حدیث نمبر",
+      "size_bytes": 4512768,
+      "sha256": "e4d106c1df651be6bc1862c0920a1f591a9c43b7a547b0daae7682d02fbba854",
+      "records": {
+        "Parags": 4445,
+        "Sections": 2087,
+        "Chaps": 11
+      }
+    },
+    {
+      "name": "imam.db",
+      "key": "imam",
+      "source": "hadith",
+      "title_urdu": "حکمت نامہ امام حسین(ع)",
+      "title_latin": "Hikmat-nama Imam Husain (a)",
+      "record_label": "حدیث نمبر",
+      "size_bytes": 2221056,
+      "sha256": "d26604ea1e610743b1fb605f5864f5e6be6f864f348ce2593e41920f729ea53a",
+      "records": {
+        "Parags": 860,
+        "Sections": 184,
+        "Chaps": 11
+      }
+    },
+    {
+      "name": "kamaledeen.db",
+      "key": "kamaledeen",
+      "source": "hadith",
+      "title_urdu": "کمال الدین و تمام النعمة",
+      "title_latin": "Kamal al-Din",
+      "record_label": "حدیث نمبر",
+      "size_bytes": 5315584,
+      "sha256": "d90ff58b62e256a0a684db77d324d8c30c600b3c8bf3f12788351f3098d90128",
+      "records": {
+        "Parags": 668,
+        "Sections": 91,
+        "Chaps": 2
+      }
+    },
+    {
+      "name": "maniakbar.db",
+      "key": "maniakbar",
+      "source": "hadith",
+      "title_urdu": "معانی الاخبار",
+      "title_latin": "Ma'ani al-Akhbar",
+      "record_label": "حدیث نمبر",
+      "size_bytes": 3034112,
+      "sha256": "e2addbf83ca7c898d61124fa6f01f517cb6614f723db34504a858d65a993f366",
+      "records": {
+        "Parags": 801,
+        "Sections": 431,
+        "Chaps": 2
+      }
+    },
+    {
+      "name": "manlahyahzur.db",
+      "key": "manlahyahzur",
+      "source": "hadith",
+      "title_urdu": "من لا یحضره الفقیہ",
+      "title_latin": "Man La Yahduruhu al-Faqih",
+      "record_label": "حدیث نمبر",
+      "size_bytes": 12068864,
+      "sha256": "979512f533b35c2ba5020b4bda52f021165662cd852481682ac1de0e197b977d",
+      "records": {
+        "Parags": 6003,
+        "Sections": 694,
+        "Chaps": 5
+      }
+    },
+    {
+      "name": "mezan.db",
+      "key": "mezan",
+      "source": "hadith",
+      "title_urdu": "میزان الحکمة",
+      "title_latin": "Mizan al-Hikmah",
+      "record_label": "حدیث نمبر",
+      "size_bytes": 18994176,
+      "sha256": "1f2c73b0e8756ce982d59c59c9be6ca6100f276cd24ae5ff8c424013e5fbad80",
+      "records": {
+        "Parags": 20335,
+        "Sections": 3599,
+        "Chaps": 497
+      }
+    },
+    {
+      "name": "swab.db",
+      "key": "swab",
+      "source": "hadith",
+      "title_urdu": "ثواب الاعمال",
+      "title_latin": "Thawab al-A’mal",
+      "record_label": "حدیث نمبر",
+      "size_bytes": 2271232,
+      "sha256": "4f793429cb859a48f80012ce2222bf45e5af4970c5678e35dd7fb2636ab4de72",
+      "records": {
+        "Parags": 1132,
+        "Sections": 612,
+        "Chaps": 3
+      }
+    },
+    {
+      "name": "Tahzeeb.db",
+      "key": "tahzeeb",
+      "source": "hadith",
+      "title_urdu": "تہذیب الاحکام",
+      "title_latin": "Tahdhib al-Ahkam",
+      "record_label": "حدیث نمبر",
+      "size_bytes": 67474432,
+      "sha256": "de752e940559605a0fd343a8064536642f3d482a631a5432cbb7e1d148524630",
+      "records": {
+        "Parags": 8239,
+        "Sections": 267,
+        "Chaps": 7
+      }
+    },
+    {
+      "name": "towheed.db",
+      "key": "towheed",
+      "source": "hadith",
+      "title_urdu": "کتاب التوحید",
+      "title_latin": "Kitab al-Tawhid",
+      "record_label": "حدیث نمبر",
+      "size_bytes": 2898944,
+      "sha256": "a709a7663475c759c3941df64617cfe85c183d372db114a0eab0570c56847713",
+      "records": {
+        "Parags": 584,
+        "Sections": 69,
+        "Chaps": 2
+      }
+    },
+    {
+      "name": "wasail.db",
+      "key": "wasail",
+      "source": "hadith",
+      "title_urdu": "وسائل الشیعہ",
+      "title_latin": "Wasa'il al-Shi'a",
+      "record_label": "حدیث نمبر",
+      "size_bytes": 33277952,
+      "sha256": "f5c72e44e7efb50202cbae297c29eceba89acc3a33bf0e5ce6875cec76e3b51f",
+      "records": {
+        "Parags": 27232,
+        "Sections": 6906,
+        "Chaps": 216
+      }
+    },
+    {
+      "name": "athna_ashari_encyclopedia.db",
+      "key": "athna_ashari_encyclopedia",
+      "source": "encyclopedia",
+      "title_urdu": "اثنا عشری انسائکلوپیڈیا",
+      "title_latin": "Twelver Shia Encyclopedia",
+      "record_label": "مضمون",
+      "size_bytes": 10625024,
+      "sha256": "2c64ff87ddb2b5d72a49c12176a8903f6a9d360ce8da13232921c389749d4084",
+      "records": {
+        "articles": 574,
+        "groups": 10,
+        "sections": 3320,
+        "source_references": 8142,
+        "imams": 12,
+        "topics": 6,
+        "related_articles": 4093
+      }
+    },
+    {
+      "name": "khamenei_urdu_fatawa.sqlite",
+      "key": "khamenei",
+      "source": "fatwa",
+      "title_urdu": "فتاویٰ — آیت اللہ خامنہ ای",
+      "title_latin": "Khamenei Urdu Fatawa",
+      "record_label": "مسئلہ",
+      "size_bytes": 1490944,
+      "sha256": "5053c5cc2cf81a60ab9603aac744d70064f1c310eaee36c1841c807127bdd45e",
+      "records": {
+        "question_answers": 428,
+        "categories": 35
+      }
+    },
+    {
+      "name": "mafatihdb-v4.db",
+      "key": "mafatih",
+      "source": "dua",
+      "title_urdu": "مفاتیح الجنان",
+      "title_latin": "Mafatih al-Jinan",
+      "record_label": "دعا",
+      "size_bytes": 9178112,
+      "sha256": "32de9bf0f1047a287aacc91fae9a353b76e12ee8f93310fd464efff4efe5c734",
+      "records": {
+        "M_items": 677,
+        "Lines": 5378
+      }
+    },
+    {
+      "name": "nahjul_balagha.db",
+      "key": "nahjul_balagha",
+      "source": "balagha",
+      "title_urdu": "نہج البلاغہ",
+      "title_latin": "Nahj al-Balagha",
+      "record_label": "فقرا",
+      "size_bytes": 6510592,
+      "sha256": "20d61ecef8db9f2d24c19a9f9951fa733d605e611cdc8005752b6d4ea07c590a",
+      "records": {
+        "balaghatext": 3742,
+        "balaghatoc": 810,
+        "balaghatext_hawashi": 2352,
+        "balaghatext_muqadamat": 504
+      }
+    },
+    {
+      "name": "quran.db",
+      "key": "quran",
+      "source": "quran",
+      "title_urdu": "قرآنِ کریم",
+      "title_latin": "Al-Quran al-Karim",
+      "record_label": "آیت",
+      "size_bytes": 16943104,
+      "sha256": "c09009ac4f3d592e8a841ce2a168adbe218f7cea82f41daa061f45d433632b5b",
+      "records": {
+        "Quran": 6236,
+        "ChapterProperty": 114
+      }
+    },
+    {
+      "name": "Sahifa_Sajjadiyya_full_runtime.sqlite3",
+      "key": "sahifa",
+      "source": "sahifa",
+      "title_urdu": "صحیفہ سجادیہ",
+      "title_latin": "Sahifa Sajjadiyya",
+      "record_label": "دعا",
+      "size_bytes": 2777088,
+      "sha256": "a823946073716788ee5b1c6c28394deed95372798d71735e95268569e5a420e9",
+      "records": {
+        "saheefa_data": 4993,
+        "saheefa_index": 148
+      }
+    },
+    {
+      "name": "sistani_urdu_fatawa.sqlite",
+      "key": "sistani",
+      "source": "fatwa",
+      "title_urdu": "فتاویٰ — آیت اللہ سیستانی",
+      "title_latin": "Sistani Urdu Fatawa",
+      "record_label": "مسئلہ",
+      "size_bytes": 3788800,
+      "sha256": "187025bb359ec67a10a2a30688490d6334f2810a242995fadfd324bfc016d3fd",
+      "records": {
+        "question_answers": 1619,
+        "categories": 245
+      }
+    }
+  ]
+}

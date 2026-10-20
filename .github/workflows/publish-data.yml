@@ -1,0 +1,124 @@
+name: Publish data release
+
+# Builds the compressed SQLite collections (dist/*.gz) and uploads them to a
+# GitHub Release. The app downloads `<name>.db.gz` from
+# `releases/download/databases-v1/` (pinned tag: `latest` would break the
+# day an APK release is published), verifies SHA-256 against its manifest,
+# and unpacks it on the device — so the APK itself stays small.
+#
+# Asset uploads must happen here: they go to a storage host that restricted
+# networks cannot reach, while a runner always can.
+#
+# Triggers:
+#   - manually (workflow_dispatch, once this file is on the default branch);
+#   - on any push that changes the corpus manifest — which is exactly when a
+#     fresh data release is needed. Uploads use --clobber, so re-runs are
+#     safe and idempotent.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to create or update
+        type: string
+        default: databases-v1
+      title:
+        description: Release title
+        type: string
+        default: Corpus v1 — Shia Library databases
+  push:
+    paths:
+      - 'assets/database-manifest.json'
+      - '.github/workflows/publish-data.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-data-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build and publish databases
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Resolve release settings
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_TITLE: ${{ inputs.title }}
+        run: |
+          echo "TAG=${INPUT_TAG:-databases-v1}" >> "$GITHUB_ENV"
+          echo "TITLE=${INPUT_TITLE:-Corpus v1 — Shia Library databases}" >> "$GITHUB_ENV"
+
+      - name: Build compressed databases
+        run: python3 scripts/publish_databases.py
+
+      # The app fetches this file over HTTP; it must survive charset-less
+      # (Latin-1) decoding, so every byte has to be plain ASCII.
+      - name: Check the release manifest is ASCII-safe
+        run: |
+          python3 -c "
+          data = open('dist/database-manifest.json', 'rb').read()
+          data.decode('ascii')
+          print(len(data), 'bytes, pure ASCII')
+          "
+
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG already exists — uploading assets to it."
+          else
+            gh release create "$TAG" \
+              --title "$TITLE" \
+              --notes "SQLite collections for the Shia Library app (21 databases, gzip-compressed). The app downloads these on first launch, verifies SHA-256 against its bundled manifest, then reads them fully offline."
+          fi
+          gh release upload "$TAG" dist/*.gz dist/database-manifest.json --clobber
+          gh release edit "$TAG" --draft=false
+
+      - name: Verify every asset is published
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$TAG" --json assets \
+            --jq '.assets[] | "\(.name)\t\(.size)"' | sort | tee published-assets.txt
+          # Compare against the manifest, not a bare count: the release also
+          # keeps superseded assets from earlier corpus revisions (the app's
+          # pinned `databases-v1` tag is updated in place with --clobber), and
+          # a count of every *.gz in the release would flag those old files as
+          # a failure. What matters is that every file THIS manifest names is
+          # published with the right byte count.
+          python3 - <<'PY'
+          import json
+          import sys
+
+          manifest = json.load(open('dist/database-manifest.json', encoding='utf-8'))
+          published = {}
+          for line in open('published-assets.txt', encoding='utf-8'):
+              name, _, size = line.rstrip('\n').partition('\t')
+              if name:
+                  published[name] = int(size or 0)
+          expected = [f"{entry['name']}.gz" for entry in manifest['databases']]
+          expected.append('database-manifest.json')
+          missing = [name for name in expected if name not in published]
+          empty = [name for name in expected if published.get(name, 0) <= 0]
+          print(f"{len(manifest['databases'])} databases in the manifest, "
+                f"{len(published)} assets in the release")
+          if missing:
+              print('MISSING:', ', '.join(missing))
+          if empty:
+              print('EMPTY:', ', '.join(empty))
+          if missing or empty:
+              sys.exit(1)
+          print('every database this manifest names is published')
+          PY
