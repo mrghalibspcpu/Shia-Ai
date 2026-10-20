@@ -22,7 +22,9 @@ export 'text_utils.dart'
 
 /// Bumped whenever the text stored in the index changes for the same books, so
 /// readers who already hold an index rebuild it. 7: Nahj al-Balagha's Urdu is
-/// indexed through `repairNahjulBalaghaUrdu` (the source column is damaged).
+/// indexed through `repairNahjulBalaghaUrdu`, which now returns the proofread
+/// database unchanged and only edits a phone still holding the old file — the
+/// index has to agree with what the reader sees, whichever copy is installed.
 const int _searchIndexVersion = 7;
 const int _indexPageSize = 400;
 
@@ -451,8 +453,11 @@ class LibraryRepository {
   /// a paragraph by a word the page no longer shows.
   String _indexedUrdu(BookDefinition book, int recordId, String urdu) {
     if (book.source != CorpusSource.balagha) return urdu;
-    // Footnote/introduction rows carry negative ids and were never scrambled.
+    // Footnote and introduction rows carry negative ids and were never part of
+    // the damage, so they are indexed exactly as stored.
     if (recordId <= 0) return urdu;
+    // Same text the reader is shown: no-op on the proofread file, a repair on a
+    // phone that still holds the old one.
     return repairNahjulBalaghaUrdu(recordId, urdu);
   }
 
