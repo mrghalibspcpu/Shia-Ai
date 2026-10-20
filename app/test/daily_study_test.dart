@@ -100,8 +100,11 @@ void main() {
     });
 
     test('a missed day ends the streak', () {
-      expect(studyStreak(plan.copyWith(completedDays: <int>{1, 2, 4}), 5), 0);
+      // Today is not marked yet, so yesterday still counts: days 1–4 finished
+      // is a streak of one, and day 3 breaks it there.
+      expect(studyStreak(plan.copyWith(completedDays: <int>{1, 2, 4}), 5), 1);
       expect(studyStreak(plan.copyWith(completedDays: <int>{1, 2, 3}), 5), 0);
+      expect(studyStreak(plan.copyWith(completedDays: <int>{4, 5}), 5), 2);
     });
 
     test('an empty plan has no streak', () {
