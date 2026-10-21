@@ -549,6 +549,10 @@ void main() {
     await tester.tap(find.text('نہج البلاغہ — خطبات'));
     await tester.pump();
     expect(find.text('۲ کتابوں کے منصوبے شروع کریں'), findsOneWidget);
+    // The builder is taller than the phone: bring its button on screen
+    // before tapping, or the tap lands outside the window entirely.
+    await tester.ensureVisible(find.text('۲ کتابوں کے منصوبے شروع کریں'));
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('۲ کتابوں کے منصوبے شروع کریں'));
     await settle(tester);
     // Both plans now exist side by side (their data is absent in the test,
