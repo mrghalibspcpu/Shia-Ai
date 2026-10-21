@@ -119,3 +119,21 @@ panel and locks/unlocks the reset button; the two new SQL statements were run
 against the shipped `quran.db` and `mezan.db` before they were written.
 `python3 scripts/check_dart.py` parses every file (`tree-sitter-dart`) and finds
 no unused import, unresolved import or forbidden symbol.
+
+## The mini prayer card's five names (1.26)
+
+The five prayers of the mini card are five names of very different lengths —
+«فجر» is half of «طلوعِ شمس» — and each cell used to be scaled to fit its own
+content. The running prayer's cell also carries the **Now** tag and, when the
+next prayer folds into the same cell, its countdown; that pair is wider than
+one cell, so the whole cell was scaled down and the running prayer's name came
+out at half the size of the other four. The row looked as if it belonged to
+five different apps.
+
+The names are now measured once, at the size the longest of them needs, and
+drawn at exactly that size in every cell (`_miniLabelSize`). The reader's own
+text scale is part of the measurement, so a reader who enlarges the system
+font gets five names of one size. The tag and the countdown are scaled down as
+a pair, so nothing spills out of the cell, and the times under the names are
+drawn at one size as well. The measurement is cached: the card is rebuilt on
+every tick of the clock, and measuring five strings each time would be waste.
