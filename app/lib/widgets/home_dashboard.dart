@@ -825,10 +825,10 @@ double _miniLabelSize(List<(PrayerEntry, String)> entries, double cellWidth) {
   if (cached != null && cached.$2 == cellWidth) return cached.$1;
   final available = cellWidth - _miniCellChrome;
   var widest = 0.0;
-  for (final (entry, label) in entries) {
+  for (final entry in entries) {
     final painter = TextPainter(
       text: TextSpan(
-        text: label,
+        text: entry.$2,
         style: const TextStyle(
           fontFamily: kUrduFont,
           fontSize: base,
