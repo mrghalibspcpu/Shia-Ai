@@ -17,9 +17,12 @@ import '../text_utils.dart' show searchMatchRanges;
 
 /// Mafatih al-Jinan: chapters, supplications, and the reader.
 class DuasHomeScreen extends StatefulWidget {
-  const DuasHomeScreen({super.key, required this.library});
+  const DuasHomeScreen({super.key, required this.library, this.focusCategoryId});
 
   final LibraryRepository library;
+
+  /// Highlights the chapter the last-seen dua belongs to.
+  final int? focusCategoryId;
 
   @override
   State<DuasHomeScreen> createState() => _DuasHomeScreenState();
@@ -58,7 +61,14 @@ class _DuasHomeScreenState extends State<DuasHomeScreen> {
               _FeaturedDuas(library: library),
               const SizedBox(height: 16),
               for (final category in categories) ...[
-                ChapterWallpaperCard(
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    border: widget.focusCategoryId == category.id
+                        ? Border.all(color: kGold, width: 1.8)
+                        : null,
+                  ),
+                  child: ChapterWallpaperCard(
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundColor: Theme.of(context).colorScheme.primaryContainer,
@@ -82,6 +92,7 @@ class _DuasHomeScreenState extends State<DuasHomeScreen> {
                       builder: (_) => DuaCategoryScreen(library: library, category: category),
                     )),
                   ),
+                ),
                 ),
                 const SizedBox(height: 8),
               ],
@@ -155,10 +166,18 @@ class _FeaturedDuas extends StatelessWidget {
 }
 
 class DuaCategoryScreen extends StatelessWidget {
-  const DuaCategoryScreen({super.key, required this.library, required this.category});
+  const DuaCategoryScreen({
+    super.key,
+    required this.library,
+    required this.category,
+    this.focusRowId,
+  });
 
   final LibraryRepository library;
   final DuaCategory category;
+
+  /// The dua that was opened, so back from last seen shows that row.
+  final int? focusRowId;
 
   @override
   Widget build(BuildContext context) {
@@ -175,8 +194,11 @@ class DuaCategoryScreen extends StatelessWidget {
           if (items.isEmpty) {
             return const CollectionMessage('اس حصے میں کوئی عنوان نہیں۔');
           }
-          return ListView.builder(
+          final focus = focusRowId;
+          final focusIndex = focus == null ? 0 : items.indexWhere((item) => item.rowId == focus);
+          return ScrollablePositionedList.builder(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 26),
+            initialScrollIndex: focusIndex < 0 ? 0 : focusIndex,
             itemCount: items.length,
             itemBuilder: (context, index) {
               final item = items[index];
@@ -194,7 +216,13 @@ class DuaCategoryScreen extends StatelessWidget {
                   ),
                 );
               }
-              return ChapterWallpaperCard(
+              final highlighted = focus != null && item.rowId == focus;
+              return DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  border: highlighted ? Border.all(color: kGold, width: 1.8) : null,
+                ),
+                child: ChapterWallpaperCard(
                 child: ListTile(
                   leading: const Icon(Icons.menu_book_outlined),
                   title: JustifiedText(item.name, style: const TextStyle(fontSize: 16), maxLines: 2),
@@ -205,6 +233,7 @@ class DuaCategoryScreen extends StatelessWidget {
                     builder: (_) => DuaReaderScreen(library: library, item: item),
                   )),
                 ),
+              ),
               );
             },
           );
@@ -269,6 +298,7 @@ class _DuaReaderScreenState extends State<DuaReaderScreen> with ReaderDisplayMod
         unawaited(widget.library.saveLastRead(
           bookKey: _book.key,
           recordId: widget.item.rowId,
+          sectionId: widget.item.categoryId,
           title: widget.item.name,
           reference: '${duaCategoryTitles[widget.item.categoryId] ?? 'مفاتیح الجنان'} • دعا',
         ));

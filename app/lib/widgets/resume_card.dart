@@ -4,6 +4,12 @@ import '../app_theme.dart';
 import '../library_repository.dart';
 import '../models.dart';
 import '../reader_navigation.dart';
+import '../screens/balagha_screen.dart';
+import '../screens/duas_screen.dart';
+import '../screens/fatawa_screen.dart';
+import '../screens/library_screen.dart';
+import '../screens/quran_screen.dart';
+import '../screens/dua_collection_screen.dart';
 
 /// Re-opens the position a reader left off at.
 ///
@@ -15,17 +21,144 @@ import '../reader_navigation.dart';
 Future<void> openLastRead(
   BuildContext context,
   LibraryRepository library,
-  LastReadEntry entry,
-) async {
+  LastReadEntry entry, {
+  bool includeCollection = true,
+}) async {
   final book = entry.book;
   if (book == null || !library.isInstalled(book) || !context.mounted) return;
-  await pushReaderFor(
-    context,
-    library: library,
-    book: book,
-    recordId: entry.recordId,
-    sectionId: entry.sectionId,
-  );
+  final navigator = Navigator.of(context);
+  Passage? passage;
+  final recordId = entry.recordId;
+  if (recordId != null && recordId != 0) {
+    try {
+      passage = await library.getPassageById(book, recordId);
+    } catch (_) {
+      passage = null;
+    }
+  }
+  if (!context.mounted) return;
+
+  Future<void> openReader() => pushReaderFor(
+        context,
+        library: library,
+        book: book,
+        passage: passage,
+        recordId: recordId,
+        sectionId: entry.sectionId ?? passage?.sectionId,
+      );
+
+  switch (book.source) {
+    case CorpusSource.quran:
+      final surah = passage?.containerType ?? entry.sectionId;
+      // The list goes on the stack first and is not awaited: awaiting it would
+      // wait until the reader pressed back, and the passage would never open.
+      navigator.push(MaterialPageRoute<void>(
+        builder: (_) => QuranHomeScreen(library: library, focusSurah: surah),
+      ));
+      await openReader();
+    case CorpusSource.dua:
+      final categoryId = passage?.containerType ?? entry.sectionId;
+      final rowId = passage?.containerId ?? recordId;
+      DuaCategory? category;
+      if (categoryId != null && categoryId != 0) {
+        final categories = await library.getDuaCategories();
+        for (final item in categories) {
+          if (item.id == categoryId) category = item;
+        }
+      }
+      if (!context.mounted) return;
+      navigator.push(MaterialPageRoute<void>(
+        builder: (_) => DuasHomeScreen(library: library, focusCategoryId: categoryId),
+      ));
+      if (category != null) {
+        final chosen = category;
+        navigator.push(MaterialPageRoute<void>(
+          builder: (_) => DuaCategoryScreen(
+            library: library,
+            category: chosen,
+            focusRowId: rowId,
+          ),
+        ));
+      }
+      await openReader();
+    case CorpusSource.balagha:
+      final type = passage?.containerType ?? 0;
+      final typeNo = passage?.containerId ?? 0;
+      if (type < 1 || type > 3 || typeNo <= 0) {
+        await navigator.push(MaterialPageRoute<void>(
+          builder: (_) => BalaghaHomeScreen(library: library),
+        ));
+        return;
+      }
+      final sections = await library.getBalaghaSections();
+      BalaghaSection? section;
+      for (final item in sections) {
+        if (item.type == type) section = item;
+      }
+      if (!context.mounted) return;
+      navigator.push(MaterialPageRoute<void>(
+        builder: (_) => BalaghaHomeScreen(library: library),
+      ));
+      if (section != null) {
+        final chosen = section;
+        navigator.push(MaterialPageRoute<void>(
+          builder: (_) => BalaghaSectionScreen(
+            library: library,
+            section: chosen,
+            focusTypeNo: typeNo,
+          ),
+        ));
+      }
+      await openReader();
+    case CorpusSource.fatwa:
+      if (includeCollection) {
+        navigator.push(MaterialPageRoute<void>(
+          builder: (_) => FatawaCollectionScreen(library: library),
+        ));
+      }
+      await _pushChapterThenReader(context, library, book, entry, passage, openReader);
+    case CorpusSource.sahifa:
+      if (includeCollection) {
+        navigator.push(MaterialPageRoute<void>(
+          builder: (_) => DuaCollectionScreen(library: library),
+        ));
+      }
+      await _pushChapterThenReader(context, library, book, entry, passage, openReader);
+    case CorpusSource.hadith:
+    case CorpusSource.encyclopedia:
+      await _pushChapterThenReader(context, library, book, entry, passage, openReader);
+  }
+}
+
+/// Puts the chapter list (scrolled to the saved chapter) under the reader, so
+/// back from the passage lands on that chapter instead of the collection root.
+Future<void> _pushChapterThenReader(
+  BuildContext context,
+  LibraryRepository library,
+  BookDefinition book,
+  LastReadEntry entry,
+  Passage? passage,
+  Future<void> Function() openReader,
+) async {
+  final navigator = Navigator.of(context);
+  final sectionId = entry.sectionId ?? passage?.sectionId ?? passage?.containerId;
+  int? chapterId;
+  if (sectionId != null && sectionId != 0) {
+    try {
+      chapterId = await library.chapterIdFor(book, sectionId);
+    } catch (_) {
+      chapterId = sectionId;
+    }
+  }
+  if (!context.mounted) return;
+  navigator.push(MaterialPageRoute<void>(
+    builder: (_) => ChapterListScreen(
+      library: library,
+      book: book,
+      focusChapterId: chapterId,
+    ),
+  ));
+  await openReader();
 }
 
 /// "جاری رکھیں" for one book. Renders nothing when that book has no history.

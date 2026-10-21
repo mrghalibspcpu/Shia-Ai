@@ -6,8 +6,11 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.database.sqlite.SQLiteDatabase
 import android.view.View
 import android.widget.RemoteViews
+import org.json.JSONArray
+import java.io.File
 import kotlin.random.Random
 
 /** A genuinely useful Android launcher widget; refreshes on the platform's
@@ -16,7 +19,12 @@ import kotlin.random.Random
  * The plate is cut for the cell the launcher gives it: a tall cell shows the
  * verse, its reference, the next prayer and the Hijri date, while a short one
  * shows the verse alone. Both layouts carry the same view ids, so the same
- * update fills either of them. */
+ * update fills either of them.
+ *
+ * The line itself is fetched from the installed Quran and Ghurar al-Hikam
+ * databases (and from the cache the app writes after it has opened them).
+ * Built-in lines are only the last resort, for a phone that has not downloaded
+ * either book yet. */
 class MomentWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         ids.forEach { updateOne(context, manager, it, hourly = true) }
@@ -25,9 +33,7 @@ class MomentWidgetProvider : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         if (intent.action != ACTION_REFRESH) return
-        val manager = AppWidgetManager.getInstance(context)
-        val ids = manager.getAppWidgetIds(ComponentName(context, MomentWidgetProvider::class.java))
-        ids.forEach { updateOne(context, manager, it, hourly = false) }
+        refreshAll(context)
     }
 
     private fun updateOne(context: Context, manager: AppWidgetManager, id: Int, hourly: Boolean) {
@@ -41,6 +47,7 @@ class MomentWidgetProvider : AppWidgetProvider() {
             context.packageName,
             if (compact) R.layout.moment_widget_small else R.layout.moment_widget,
         )
+        val moments = loadMoments(context)
         val seed = if (hourly) System.currentTimeMillis() / HOUR_MS + id * 31L else System.nanoTime()
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val key = "quote_$id"
@@ -95,22 +102,162 @@ class MomentWidgetProvider : AppWidgetProvider() {
         private const val FLUTTER_PREFIX = "flutter."
         private const val KEY_NEXT_PRAYER = "widget_next_prayer"
         private const val KEY_HIJRI = "widget_hijri"
+        private const val KEY_MOMENTS = "widget_moments"
+        private const val KEY_DB_DIR = "widget_db_dir"
 
-        // Carefully attributed selections from the Quran and Nahj al-Balagha.
-        // The launcher widget is self-contained and remains useful offline.
-        private val moments = listOf(
+        /** Asked by the app after it has written a fresh batch of lines. */
+        fun refreshAll(context: Context) {
+            val manager = AppWidgetManager.getInstance(context)
+            val ids = manager.getAppWidgetIds(ComponentName(context, MomentWidgetProvider::class.java))
+            val provider = MomentWidgetProvider()
+            ids.forEach { provider.updateOne(context, manager, it, hourly = false) }
+        }
+
+        /** Quran first, then Ghurar al-Hikam. The app's cache fills any gap
+         * (a database the widget could not open). Built-in lines are last. */
+        private fun loadMoments(context: Context): List<Moment> {
+            val live = ArrayList<Moment>(24)
+            live += queryQuran(databaseFile(context, "quran.db"))
+            live += queryGhurar(databaseFile(context, "hakam.db"))
+            if (live.isNotEmpty()) return live
+            val cached = loadCached(context)
+            if (cached.isNotEmpty()) return cached
+            return fallbackMoments
+        }
+
+        private fun databaseFile(context: Context, name: String): File? {
+            val prefs = context.getSharedPreferences(FLUTTER_PREFS, Context.MODE_PRIVATE)
+            val hinted = prefs.getString("$FLUTTER_PREFIX$KEY_DB_DIR", null)
+            val databases = context.getDatabasePath("shia_library").parentFile
+            val candidates = listOfNotNull(
+                hinted?.let { File(it, name) },
+                databases?.let { File(File(it, "shia_library"), name) },
+                File(File(context.applicationInfo.dataDir, "databases/shia_library"), name),
+                File(File(context.applicationInfo.dataDir, "app_flutter/shia_library"), name),
+            )
+            return candidates.firstOrNull { it.isFile && it.length() > 1024L }
+        }
+
+        private fun queryQuran(file: File?): List<Moment> {
+            if (file == null) return emptyList()
+            val sql = """
+                SELECT q.tr, q.Arabic, q.verse, q.chapter, COALESCE(cp.Name, '')
+                FROM Quran AS q
+                LEFT JOIN ChapterProperty AS cp ON cp.Id = q.chapter
+                WHERE LENGTH(COALESCE(q.tr, '')) BETWEEN 12 AND 240
+                  AND LENGTH(COALESCE(q.Arabic, '')) BETWEEN 6 AND 220
+                ORDER BY RANDOM() LIMIT 12
+            """.trimIndent()
+            return query(file, sql) { cursor ->
+                val urdu = cursor.getString(0)?.trim().orEmpty()
+                val arabic = cursor.getString(1)?.trim().orEmpty()
+                val verse = cursor.getInt(2)
+                val chapter = cursor.getInt(3)
+                val arabicName = cursor.getString(4)?.trim().orEmpty()
+                val name = if (chapter in 1..URDU_SURAHS.size) URDU_SURAHS[chapter - 1] else arabicName
+                val text = urdu.ifBlank { arabic }
+                if (text.length < 8) null
+                else Moment(text, if (name.isBlank()) "قرآنِ کریم" else "قرآنِ کریم — سورہ $name، آیت $verse")
+            }
+        }
+
+        private fun queryGhurar(file: File?): List<Moment> {
+            if (file == null) return emptyList()
+            val sql = """
+                SELECT p.mean, p.txt, COALESCE(s.title, '')
+                FROM Parags AS p
+                LEFT JOIN Sections AS s ON s.Secid = p.Secid
+                WHERE LENGTH(COALESCE(p.mean, '')) BETWEEN 12 AND 240
+                  AND LENGTH(COALESCE(p.txt, '')) BETWEEN 6 AND 260
+                ORDER BY RANDOM() LIMIT 12
+            """.trimIndent()
+            return query(file, sql) { cursor ->
+                val urdu = cursor.getString(0)?.trim().orEmpty()
+                val arabic = cursor.getString(1)?.trim().orEmpty()
+                val section = cursor.getString(2)?.trim().orEmpty()
+                val text = urdu.ifBlank { arabic }
+                if (text.length < 8) null
+                else Moment(
+                    text,
+                    if (section.isBlank()) "غرر الحکم" else "غرر الحکم — $section",
+                )
+            }
+        }
+
+        private fun query(
+            file: File,
+            sql: String,
+            map: (android.database.Cursor) -> Moment?,
+        ): List<Moment> {
+            var database: SQLiteDatabase? = null
+            var cursor: android.database.Cursor? = null
+            return try {
+                database = SQLiteDatabase.openDatabase(
+                    file.absolutePath,
+                    null,
+                    SQLiteDatabase.OPEN_READONLY,
+                )
+                cursor = database.rawQuery(sql, null)
+                val found = ArrayList<Moment>(12)
+                while (cursor.moveToNext()) {
+                    val moment = map(cursor) ?: continue
+                    found += moment
+                }
+                found
+            } catch (_: Exception) {
+                emptyList()
+            } finally {
+                cursor?.close()
+                database?.close()
+            }
+        }
+
+        private fun loadCached(context: Context): List<Moment> {
+            val prefs = context.getSharedPreferences(FLUTTER_PREFS, Context.MODE_PRIVATE)
+            val raw = prefs.getString("$FLUTTER_PREFIX$KEY_MOMENTS", null) ?: return emptyList()
+            return try {
+                val array = JSONArray(raw)
+                buildList {
+                    for (index in 0 until array.length()) {
+                        val item = array.optJSONObject(index) ?: continue
+                        val text = item.optString("text").trim()
+                        val reference = item.optString("reference").trim()
+                        if (text.isEmpty()) continue
+                        add(Moment(text, reference.ifBlank { item.optString("kind") }))
+                    }
+                }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+
+        // Shown only while neither book has been downloaded. Once quran.db or
+        // hakam.db is on the device the plate uses those, not these lines.
+        private val fallbackMoments = listOf(
             Moment("بے شک اللہ صبر کرنے والوں کے ساتھ ہے۔", "قرآنِ کریم — البقرہ ۲:۱۵۳"),
             Moment("اور تمہارا رب فرماتا ہے: مجھ سے دعا کرو، میں قبول کروں گا۔", "قرآنِ کریم — غافر ۴۰:۶۰"),
             Moment("اللہ کے ذکر سے دل اطمینان پاتے ہیں۔", "قرآنِ کریم — الرعد ۱۳:۲۸"),
             Moment("نیکی اور تقویٰ کے کاموں میں ایک دوسرے کی مدد کرو۔", "قرآنِ کریم — المائدہ ۵:۲"),
             Moment("اور جو اللہ پر بھروسا کرے تو وہ اس کے لیے کافی ہے۔", "قرآنِ کریم — الطلاق ۶۵:۳"),
             Moment("بے شک مشکل کے ساتھ آسانی ہے۔", "قرآنِ کریم — الشرح ۹۴:۶"),
-            Moment("اپنے نفس کا محاسبہ کرو، اس سے پہلے کہ تمہارا محاسبہ کیا جائے۔", "فرمانِ امیرالمؤمنینؑ — نہج البلاغہ، کلماتِ قصار"),
-            Moment("لوگوں سے ایسا میل جول رکھو کہ تم نہ رہو تو وہ تمہیں یاد کریں۔", "فرمانِ امیرالمؤمنینؑ — نہج البلاغہ، کلماتِ قصار"),
-            Moment("قناعت ایسا سرمایہ ہے جو کبھی ختم نہیں ہوتا۔", "فرمانِ امیرالمؤمنینؑ — نہج البلاغہ، کلماتِ قصار"),
-            Moment("ہر شخص کی قدر اس کے اچھے کام کے مطابق ہے۔", "فرمانِ امیرالمؤمنینؑ — نہج البلاغہ، کلماتِ قصار"),
-            Moment("آدمی اپنی زبان کے نیچے پوشیدہ ہے۔", "فرمانِ امیرالمؤمنینؑ — نہج البلاغہ، کلماتِ قصار"),
-            Moment("دوست وہ ہے جو تمہیں تمہاری غلطی سے آگاہ کرے۔", "فرمانِ امیرالمؤمنینؑ — نہج البلاغہ، کلماتِ قصار")
+            Moment("علم مال سے بہتر ہے، کیونکہ علم تیری حفاظت کرتا ہے اور مال کی حفاظت تجھے کرنی پڑتی ہے۔", "غرر الحکم"),
+            Moment("جو اپنے نفس کا محاسبہ کرتا ہے وہ نفع میں رہتا ہے، اور جو غافل رہتا ہے وہ نقصان میں۔", "غرر الحکم"),
+        )
+
+        private val URDU_SURAHS = listOf(
+            "الفاتحہ", "البقرہ", "آل عمران", "النساء", "المائدہ", "الانعام", "الاعراف", "الانفال",
+            "التوبہ", "یونس", "ہود", "یوسف", "الرعد", "ابراہیم", "الحجر", "النحل", "بنی اسرائیل",
+            "الکہف", "مریم", "طٰہٰ", "الانبیاء", "الحج", "المؤمنون", "النور", "الفرقان", "الشعراء",
+            "النمل", "القصص", "العنکبوت", "الروم", "لقمان", "السجدہ", "الاحزاب", "سبا", "فاطر",
+            "یٰس", "الصافات", "ص", "الزمر", "المؤمن", "حم السجدہ", "الشوری", "الزخرف", "الدخان",
+            "الجاثیہ", "الاحقاف", "محمد", "الفتح", "الحجرات", "ق", "الذاریات", "الطور", "النجم",
+            "القمر", "الرحمن", "الواقعہ", "الحدید", "المجادلہ", "الحشر", "الممتحنہ", "الصف", "الجمعہ",
+            "المنافقون", "التغابن", "الطلاق", "التحریم", "الملک", "القلم", "الحاقہ", "المعارج",
+            "نوح", "الجن", "المزمل", "المدثر", "القیامہ", "الانسان", "المرسلات", "النبا", "النازعات",
+            "عبس", "التکویر", "الانفطار", "المطففین", "الانشقاق", "البروج", "الطارق", "الاعلی",
+            "الغاشیہ", "الفجر", "البلد", "الشمس", "اللیل", "الضحی", "الم نشرح", "التین", "العلق",
+            "القدر", "البینہ", "الزلزلہ", "العادیات", "القارعہ", "التکاثر", "العصر", "الہمزہ",
+            "الفیل", "قریش", "الماعون", "الکوثر", "الکافرون", "النصر", "لہب", "الاخلاص", "الفلق", "الناس",
         )
     }
 }

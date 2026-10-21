@@ -154,7 +154,7 @@ class BookDefinition {
       fileName: 'nahjul_balagha.db',
       titleUrdu: 'نہج البلاغہ',
       titleLatin: 'Nahj al-Balagha',
-      description: 'خطبات، خطوط، حکمت اور مقدمات اردو ترجمہ کے ساتھ',
+      description: 'خطبات، مکاتبات اور حکمتیں — عربی متن اور اردو ترجمہ',
       source: CorpusSource.balagha,
       recordLabel: 'فقرا',
     ),

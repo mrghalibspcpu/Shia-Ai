@@ -122,9 +122,15 @@ class ReaderWiringTests(unittest.TestCase):
             "a note number is not a paragraph id",
         )
 
-    def test_the_entry_ends_with_numbered_notes(self):
-        self.assertIn("حواشی — ${notes.length} حاشیے", self.source)
-        self.assertIn("locator: 'حاشیہ ${index + 1}'", self.source)
+    def test_the_matn_page_no_longer_appends_notes(self):
+        """خطبات، مکتوبات اور حکمتیں show Arabic matn and Urdu tarjuma only."""
+        self.assertNotIn(
+            "حواشی — ${notes.length} حاشیے",
+            self.source,
+            "the numbered حاشیه block must not follow the matn",
+        )
+        self.assertIn("if (book == null || type < 1 || type > 3 || typeNo <= 0) return const [];", self.source)
+        self.assertIn("if (recordId <= 0) return null;", self.source)
 
     def test_only_a_printed_marker_keeps_a_note_under_its_paragraph(self):
         self.assertIn("_markerNumbers(", self.source)

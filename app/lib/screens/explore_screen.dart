@@ -92,50 +92,82 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B1218),
-      body: Stack(
-        fit: StackFit.expand,
-        children: <Widget>[
-          const _MachineBody(),
-          SafeArea(
-            child: LayoutBuilder(builder: (context, constraints) {
-              final width = constraints.maxWidth;
-              final height = constraints.maxHeight;
-              // Lens diameter: about 40% of the width on a phone, and never so
-              // tall that the five lenses plus the corner plates stop fitting.
-              final lens = math.min(width * 0.40, height * 0.20);
-              // The three red plates, cut into the edges of the body.
-              final brand = _PlateGeometry.brand(width, height);
-              final wedge = _PlateGeometry.wedge(width, height);
-              final corner = _PlateGeometry.corner(width, height);
-              // The radial menu fans out of the round button that sits on the
-              // bottom-right plate, so the menu grows out of the button.
-              final buttonCentre = corner.incentre(corner.size);
-              final anchor = Offset(
-                width - corner.width + buttonCentre.dx,
-                height - corner.height + buttonCentre.dy,
-              );
+      body: LayoutBuilder(builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final height = constraints.maxHeight;
+        final padding = MediaQuery.paddingOf(context);
+        // Lenses stay inside the safe area so a status bar never covers a
+        // control. The three red plates are aligned to the SCREEN, not to that
+        // inset: the left wedge's base is the left edge and its midpoint is
+        // the screen's vertical centre; the top-right and bottom-right plates
+        // are the same size and sit flush in their corners.
+        final safeLeft = padding.left;
+        final safeTop = padding.top;
+        final safeWidth = math.max(1.0, width - padding.left - padding.right);
+        final safeHeight = math.max(1.0, height - padding.top - padding.bottom);
+        final lens = math.min(safeWidth * 0.40, safeHeight * 0.20);
+        final brand = _PlateGeometry.brand(width, height);
+        final wedge = _PlateGeometry.wedge(width, height);
+        final corner = _PlateGeometry.corner(width, height);
+        final buttonCentre = corner.incentre(corner.size);
+        final anchor = Offset(
+          width - corner.width + buttonCentre.dx,
+          height - corner.height + buttonCentre.dy,
+        );
 
-              Widget at(Offset centre, double diameter, Widget child) => Positioned(
-                    left: centre.dx - diameter / 2,
-                    top: centre.dy - diameter / 2,
-                    width: diameter,
-                    height: diameter,
-                    child: child,
-                  );
+        Widget at(Offset centre, double diameter, Widget child) => Positioned(
+              left: centre.dx - diameter / 2,
+              top: centre.dy - diameter / 2,
+              width: diameter,
+              height: diameter,
+              child: child,
+            );
 
-              return Stack(
+        return Stack(
+          fit: StackFit.expand,
+          clipBehavior: Clip.hardEdge,
+          children: <Widget>[
+            const _MachineBody(),
+            Positioned(
+              key: const ValueKey<String>('xplore-top-right-plate'),
+              right: 0,
+              top: 0,
+              width: brand.width,
+              height: brand.height,
+              child: _BrandPlate(geometry: brand),
+            ),
+            Positioned(
+              key: const ValueKey<String>('xplore-left-plate'),
+              left: 0,
+              top: (height - wedge.height) / 2,
+              width: wedge.width,
+              height: wedge.height,
+              child: _WedgePlate(geometry: wedge, feature: encyclopedia),
+            ),
+            Positioned(
+              key: const ValueKey<String>('xplore-bottom-right-plate'),
+              right: 0,
+              bottom: 0,
+              width: corner.width,
+              height: corner.height,
+              child: _CornerPlate(
+                geometry: corner,
+                open: _menuOpen,
+                onTap: _toggleMenu,
+                width: width,
+              ),
+            ),
+            Positioned(
+              left: safeLeft,
+              top: safeTop,
+              width: safeWidth,
+              height: safeHeight,
+              child: Stack(
                 clipBehavior: Clip.none,
                 children: <Widget>[
                   _TopBar(onBack: () => Navigator.maybePop(context)),
-                  Positioned(
-                    left: width - brand.width,
-                    top: 0,
-                    width: brand.width,
-                    height: brand.height,
-                    child: _BrandPlate(geometry: brand),
-                  ),
                   at(
-                    Offset(width * 0.20, height * 0.155),
+                    Offset(safeWidth * 0.20, safeHeight * 0.155),
                     lens,
                     _LensControl(
                       title: 'تسبیح',
@@ -146,7 +178,7 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                     ),
                   ),
                   at(
-                    Offset(width * 0.505, height * 0.335),
+                    Offset(safeWidth * 0.505, safeHeight * 0.335),
                     lens * 1.08,
                     _LensControl(
                       title: 'نماز',
@@ -157,7 +189,7 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                     ),
                   ),
                   at(
-                    Offset(width * 0.795, height * 0.505),
+                    Offset(safeWidth * 0.795, safeHeight * 0.505),
                     lens * 0.94,
                     _LensControl(
                       title: 'چاند کی رویت',
@@ -168,7 +200,7 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                     ),
                   ),
                   at(
-                    Offset(width * 0.515, height * 0.675),
+                    Offset(safeWidth * 0.515, safeHeight * 0.675),
                     lens,
                     _LensControl(
                       title: 'اسلامی تقویم',
@@ -179,7 +211,7 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                     ),
                   ),
                   at(
-                    Offset(width * 0.215, height * 0.838),
+                    Offset(safeWidth * 0.215, safeHeight * 0.838),
                     lens * 0.88,
                     _LensControl(
                       title: 'Xplore Xtra',
@@ -189,39 +221,20 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                       feature: extra,
                     ),
                   ),
-                  Positioned(
-                    left: 0,
-                    top: height * 0.28,
-                    width: wedge.width,
-                    height: wedge.height,
-                    child: _WedgePlate(geometry: wedge, feature: encyclopedia),
-                  ),
-                  Positioned(
-                    left: width - corner.width,
-                    top: height - corner.height,
-                    width: corner.width,
-                    height: corner.height,
-                    child: _CornerPlate(
-                      geometry: corner,
-                      open: _menuOpen,
-                      onTap: _toggleMenu,
-                      width: width,
-                    ),
-                  ),
-                  if (_menuOpen)
-                    Positioned.fill(
-                      child: _RadialMenu(
-                        anchor: anchor,
-                        onSelect: _selectDestination,
-                        onDismiss: _toggleMenu,
-                      ),
-                    ),
                 ],
-              );
-            }),
-          ),
-        ],
-      ),
+              ),
+            ),
+            if (_menuOpen)
+              Positioned.fill(
+                child: _RadialMenu(
+                  anchor: anchor,
+                  onSelect: _selectDestination,
+                  onDismiss: _toggleMenu,
+                ),
+              ),
+          ],
+        );
+      }),
     );
   }
 }
@@ -276,29 +289,36 @@ class _PlateGeometry {
     required this.vertices,
   });
 
-  /// The brand wedge in the top-right corner: the hypotenuse runs from the
-  /// top edge down to the right edge, and the right angle sits in the corner.
+  /// The brand wedge in the top-right corner. Same width and height as
+  /// [corner], so the two right-hand plates line up with each other and with
+  /// the screen's right edge.
   factory _PlateGeometry.brand(double width, double height) => _PlateGeometry(
-        width: width * 0.62,
-        height: height * 0.185,
+        width: width * _cornerWidth,
+        height: height * _cornerHeight,
         vertices: const <Offset>[Offset(0, 0), Offset(1, 0), Offset(1, 1)],
       );
 
   /// The wedge on the left edge: its base is the edge of the body itself and
-  /// its point reaches into the plate.
+  /// its point reaches into the plate. The caller centres this box on the
+  /// screen's vertical midline, so the base's midpoint is the centre of the
+  /// left edge.
   factory _PlateGeometry.wedge(double width, double height) => _PlateGeometry(
-        width: width * 0.44,
-        height: height * 0.38,
+        width: width * 0.40,
+        height: height * 0.36,
         vertices: const <Offset>[Offset(0, 0), Offset(0, 1), Offset(1, 0.5)],
       );
 
-  /// The corner wedge in the bottom right: the right angle sits in the corner
-  /// of the screen, and the hypotenuse runs up the right edge.
+  /// The corner wedge in the bottom right. Same size as [brand], flush with
+  /// the screen's bottom and right edges.
   factory _PlateGeometry.corner(double width, double height) => _PlateGeometry(
-        width: width * 0.46,
-        height: height * 0.34,
+        width: width * _cornerWidth,
+        height: height * _cornerHeight,
         vertices: const <Offset>[Offset(1, 0), Offset(1, 1), Offset(0, 1)],
       );
+
+  /// Shared by the two right-hand plates so they stay equal as the phone changes.
+  static const double _cornerWidth = 0.50;
+  static const double _cornerHeight = 0.22;
 
   final double width;
   final double height;

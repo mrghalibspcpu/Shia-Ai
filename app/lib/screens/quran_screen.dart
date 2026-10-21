@@ -24,9 +24,13 @@ const String kQuranMushafKey = 'quran_mushaf_mode_v1';
 
 /// Surah / juz / page browser for the Quran collection.
 class QuranHomeScreen extends StatefulWidget {
-  const QuranHomeScreen({super.key, required this.library});
+  const QuranHomeScreen({super.key, required this.library, this.focusSurah});
 
   final LibraryRepository library;
+
+  /// Scrolls the surah list to this surah. Set when the reader was opened from
+  /// last seen, so back returns to that surah instead of the top of the list.
+  final int? focusSurah;
 
   @override
   State<QuranHomeScreen> createState() => _QuranHomeScreenState();
@@ -145,7 +149,7 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
             Expanded(
               child: TabBarView(
                 children: [
-                  _SurahList(library: widget.library),
+                  _SurahList(library: widget.library, focusSurah: widget.focusSurah),
                   _JuzList(library: widget.library),
                 ],
               ),
@@ -158,9 +162,10 @@ class _QuranHomeScreenState extends State<QuranHomeScreen> {
 }
 
 class _SurahList extends StatefulWidget {
-  const _SurahList({required this.library});
+  const _SurahList({required this.library, this.focusSurah});
 
   final LibraryRepository library;
+  final int? focusSurah;
 
   @override
   State<_SurahList> createState() => _SurahListState();
@@ -206,14 +211,23 @@ class _SurahListState extends State<_SurahList> {
         if (surahs.isEmpty) {
           return const CollectionMessage('سورتیں دستیاب نہیں۔', icon: Icons.menu_book);
         }
-        return ListView.separated(
+        final focus = widget.focusSurah;
+        final focusIndex = focus == null ? 0 : surahs.indexWhere((surah) => surah.number == focus);
+        return ScrollablePositionedList.separated(
           padding: const EdgeInsets.all(14),
+          initialScrollIndex: focusIndex < 0 ? 0 : focusIndex,
           itemCount: surahs.length,
           separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final surah = surahs[index];
             final saved = widget.library.isSurahBookmarkedNow(surah.number);
-            return ChapterWallpaperCard(
+            final highlighted = focus != null && surah.number == focus;
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: highlighted ? Border.all(color: kGold, width: 1.8) : null,
+              ),
+              child: ChapterWallpaperCard(
               child: ListTile(
                 leading: CircleAvatar(
                   backgroundColor: Theme.of(context).colorScheme.primaryContainer,
@@ -251,6 +265,7 @@ class _SurahListState extends State<_SurahList> {
                   builder: (_) => SurahReaderScreen(library: widget.library, surah: surah),
                 )),
               ),
+            ),
             );
           },
         );

@@ -331,10 +331,19 @@ class HadithBooksScreen extends StatelessWidget {
 }
 
 class ChapterListScreen extends StatefulWidget {
-  const ChapterListScreen({super.key, required this.library, required this.book});
+  const ChapterListScreen({
+    super.key,
+    required this.library,
+    required this.book,
+    this.focusChapterId,
+  });
 
   final LibraryRepository library;
   final BookDefinition book;
+
+  /// Scrolls the list to this chapter. Last-seen opens pass the chapter the
+  /// passage belongs to, so back from the reader lands on that row.
+  final int? focusChapterId;
 
   @override
   State<ChapterListScreen> createState() => _ChapterListScreenState();
@@ -342,11 +351,25 @@ class ChapterListScreen extends StatefulWidget {
 
 class _ChapterListScreenState extends State<ChapterListScreen> {
   Future<List<Map<String, Object?>>>? _chapters;
+  int? _focusChapterId;
 
   @override
   void initState() {
     super.initState();
     _chapters = widget.library.getChapters(widget.book);
+    _focusChapterId = widget.focusChapterId;
+    if (_focusChapterId == null) unawaited(_focusLastRead());
+  }
+
+  /// Opening the book itself should also show where the reader left off, not
+  /// only a tap on the last-seen card.
+  Future<void> _focusLastRead() async {
+    final entry = await widget.library.getLastReadFor(widget.book.key);
+    final sectionId = entry?.sectionId;
+    if (!mounted || sectionId == null || sectionId == 0) return;
+    final chapter = await widget.library.chapterIdFor(widget.book, sectionId);
+    if (!mounted || chapter == null) return;
+    setState(() => _focusChapterId = chapter);
   }
 
   /// Called after the reader closes so this book's saved position is current.
@@ -369,10 +392,16 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
           }
           if (snapshot.hasError) return ErrorPanel(error: snapshot.error.toString());
           final chapters = snapshot.data ?? [];
-          return ListView.separated(
+          final focus = _focusChapterId;
+          final focusIndex = focus == null
+              ? -1
+              : chapters.indexWhere((row) => (_toInt(row['cid']) ?? 0) == focus);
+          // Slot 0 is the "جاری رکھیں" row, so the chapter's list index is one
+          // past its place in [chapters].
+          final initial = focusIndex < 0 ? 0 : focusIndex + 1;
+          return ScrollablePositionedList.separated(
             padding: const EdgeInsets.all(16),
-            // One extra slot on top: this book's own "جاری رکھیں" row, which
-            // collapses to nothing until the book has been opened once.
+            initialScrollIndex: initial,
             itemCount: chapters.length + 1,
             separatorBuilder: (_, index) => index == 0 ? const SizedBox(height: 12) : const SizedBox(height: 8),
             itemBuilder: (context, index) {
@@ -382,22 +411,31 @@ class _ChapterListScreenState extends State<ChapterListScreen> {
               final row = chapters[index - 1];
               final cid = _toInt(row['cid']) ?? 0;
               final title = (row['title'] ?? '').toString();
-              return ChapterWallpaperCard(
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                    child: Text('$index'),
-                  ),
-                  title: JustifiedText(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
-                  trailing: const Icon(Icons.chevron_left),
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => SectionListScreen(
-                      library: library,
-                      book: book,
-                      chapterId: cid,
-                      chapterTitle: title,
+              final highlighted = focus != null && cid == focus;
+              return DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  border: highlighted ? Border.all(color: kGold, width: 1.8) : null,
+                ),
+                child: ChapterWallpaperCard(
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: highlighted
+                          ? kGold
+                          : Theme.of(context).colorScheme.primaryContainer,
+                      child: Text('$index'),
                     ),
-                  )),
+                    title: JustifiedText(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                    trailing: const Icon(Icons.chevron_left),
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => SectionListScreen(
+                        library: library,
+                        book: book,
+                        chapterId: cid,
+                        chapterTitle: title,
+                      ),
+                    )),
+                  ),
                 ),
               );
             },
@@ -415,12 +453,17 @@ class SectionListScreen extends StatelessWidget {
     required this.book,
     required this.chapterId,
     required this.chapterTitle,
+    this.focusSectionId,
   });
 
   final LibraryRepository library;
   final BookDefinition book;
   final int chapterId;
   final String chapterTitle;
+
+  /// The section the reader was opened from, so back from a last-seen passage
+  /// shows that row instead of the top of the list.
+  final int? focusSectionId;
 
   @override
   Widget build(BuildContext context) {
@@ -435,8 +478,13 @@ class SectionListScreen extends StatelessWidget {
           if (snapshot.hasError) return ErrorPanel(error: snapshot.error.toString());
           final sections = snapshot.data ?? [];
           if (sections.isEmpty) return const CollectionMessage('اس باب میں کوئی فصل موجود نہیں۔');
-          return ListView.separated(
+          final focus = focusSectionId;
+          final focusIndex = focus == null
+              ? 0
+              : sections.indexWhere((row) => _toInt(row['Secid']) == focus);
+          return ScrollablePositionedList.separated(
             padding: const EdgeInsets.all(16),
+            initialScrollIndex: focusIndex < 0 ? 0 : focusIndex,
             itemCount: sections.length,
             separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemBuilder: (context, index) {
@@ -446,7 +494,13 @@ class SectionListScreen extends StatelessWidget {
               final isEncyclopedia = book.source == CorpusSource.encyclopedia;
               final sourceUrl = (row['source_url'] ?? '').toString();
               final length = _toInt(row['count']) ?? 0;
-              return ChapterWallpaperCard(
+              final highlighted = focus != null && secid == focus;
+              return DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  border: highlighted ? Border.all(color: kGold, width: 1.8) : null,
+                ),
+                child: ChapterWallpaperCard(
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   leading: const Icon(Icons.article_outlined),
@@ -487,6 +541,7 @@ class SectionListScreen extends StatelessWidget {
                             ),
                           )),
                 ),
+              ),
               );
             },
           );

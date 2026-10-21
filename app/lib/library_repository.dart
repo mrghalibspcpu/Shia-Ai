@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -21,11 +22,10 @@ export 'text_utils.dart'
         relevanceScore;
 
 /// Bumped whenever the text stored in the index changes for the same books, so
-/// readers who already hold an index rebuild it. 7: Nahj al-Balagha's Urdu is
-/// indexed through `repairNahjulBalaghaUrdu`, which now returns the proofread
-/// database unchanged and only edits a phone still holding the old file — the
-/// index has to agree with what the reader sees, whichever copy is installed.
-const int _searchIndexVersion = 7;
+/// readers who already hold an index rebuild it. 8: Nahj al-Balagha's index is
+/// the Arabic matn and Urdu translation of sermons, letters and sayings only —
+/// footnotes, introductions and the two extra divisions are no longer offered.
+const int _searchIndexVersion = 8;
 const int _indexPageSize = 400;
 
 const String _kLastReadKey = 'last_read_v2';
@@ -131,6 +131,10 @@ class LibraryRepository {
     final appDatabasePath = await getDatabasesPath();
     _databaseDirectory = p.join(appDatabasePath, 'shia_library');
     await Directory(_databaseDirectory).create(recursive: true);
+    // The launcher widget opens these files itself. It cannot guess the
+    // subdirectory, so the path is written beside the prayer times it already
+    // reads.
+    unawaited(_rememberWidgetDatabaseDir());
 
     for (var i = 0; i < BookDefinition.all.length; i++) {
       final book = BookDefinition.all[i];
@@ -443,9 +447,7 @@ class LibraryRepository {
         ? 'SELECT COUNT(*) AS count FROM Parags '
               'WHERE LENGTH(COALESCE(txt, \'\')) > 0 OR LENGTH(COALESCE(mean, \'\')) > 0'
         : book.source == CorpusSource.balagha
-            ? 'SELECT (SELECT COUNT(*) FROM balaghatext) + '
-                '(SELECT COUNT(*) FROM balaghatext_hawashi) + '
-                '(SELECT COUNT(*) FROM balaghatext_muqadamat) AS count'
+            ? 'SELECT COUNT(*) AS count FROM balaghatext WHERE Type BETWEEN 1 AND 3'
             : 'SELECT COUNT(*) AS count FROM ${_sourceTable(book)}';
     final rows = await source.rawQuery(statement);
     return (rows.first['count'] as int?) ?? 0;
@@ -679,19 +681,16 @@ class LibraryRepository {
           LIMIT ? OFFSET ?
         ''', [_indexPageSize, offset]);
       case CorpusSource.balagha:
+        // Sermons, letters and sayings only. Footnotes, introductions and the
+        // two extra divisions are not part of the reader any more, so search
+        // must not offer them either.
         return source.rawQuery('''
           SELECT x.ID AS record_id, x.AR AS arabic, x.UR AS urdu, x.ParaNo AS page_no,
                  x.Type AS container_type, x.TypeNo AS container_id,
                  COALESCE(t.ShortDesc, t.Description, '') AS section_title
           FROM balaghatext AS x
           LEFT JOIN balaghatoc AS t ON t.TypeID = x.Type AND t.TypeNo = x.TypeNo
-          UNION ALL
-          SELECT -h.ID, '', h.hawashi, h.ParaNo, h.Type, h.TypeNo,
-                 CASE WHEN h.Type = 5 THEN 'مقدمہ' ELSE 'حاشیہ' END
-          FROM balaghatext_hawashi h
-          UNION ALL
-          SELECT -1000000-m.ID, m.mqar, m.mqur, m.ParaNo, m.Type, 0, 'مقدمہ'
-          FROM balaghatext_muqadamat m
+          WHERE x.Type BETWEEN 1 AND 3
           ORDER BY record_id
           LIMIT ? OFFSET ?
         ''', [_indexPageSize, offset]);
@@ -1392,9 +1391,11 @@ class LibraryRepository {
         type: type,
         titleUrdu: balaghaSectionTitles[type] ?? 'حصہ $type',
         entryCount: _asInt(row['entries']) ?? 0,
-        hasIntroduction: (_asInt(row['intro']) ?? 0) > 0,
+        // Introductions (مقدمات) are not shown. The reader keeps the Arabic
+        // matn and the Urdu translation of sermons, letters and sayings.
+        hasIntroduction: false,
       );
-    }).toList();
+    }).where((section) => section.type >= 1 && section.type <= 3).toList();
   }
 
   Future<List<BalaghaEntry>> getBalaghaEntries(int type) async {
@@ -1419,28 +1420,11 @@ class LibraryRepository {
 
   Future<List<Passage>> getBalaghaEntry(int type, int typeNo) async {
     final book = BookDefinition.bookFor(CorpusSource.balagha);
-    if (book == null) return const [];
+    // خطبات، مکتوبات اور حکمتیں only. Types 4 and 5 (احادیثِ رسول، مقدمات)
+    // are no longer opened.
+    if (book == null || type < 1 || type > 3 || typeNo <= 0) return const [];
     final db = await _openBook(book);
     final paragraphs = <Passage>[];
-
-    if (type == 5) {
-      // The introductions live as continuous Urdu prose in the footnote table.
-      final prose = await db.rawQuery('''
-        SELECT ID AS record_id, hawashi AS urdu, TypeNo AS container_id
-        FROM balaghatext_hawashi WHERE Type = 5 AND TypeNo = ? ORDER BY ID
-      ''', [typeNo]);
-      // Footnote-table prose gets a negative id so it can never collide with a
-      // balaghatext id, and getPassageById can resolve it back to this entry.
-      paragraphs.addAll(prose.map((row) => Passage(
-            recordId: -(_asInt(row['record_id']) ?? 0),
-            arabic: '',
-            urdu: _compact((row['urdu'] ?? '').toString()),
-            containerType: type,
-            containerId: typeNo,
-            chapterTitle: balaghaSectionTitles[type] ?? 'نہج البلاغہ',
-            sectionTitle: 'مقدمہ',
-          )));
-    }
 
     final rows = await db.rawQuery('''
       SELECT x.ID AS record_id, x.AR AS arabic, x.UR AS urdu, x.ParaNo AS page_no,
@@ -1467,56 +1451,9 @@ class LibraryRepository {
       paragraphs.add(passage);
     }
 
-    // `balaghatext_hawashi.ParaNo` is the note's own place in the entry's
-    // footnote sequence, NOT the paragraph it annotates: sermon 1 stores 74
-    // notes numbered 1 to 75 above 30 paragraphs, so every number in between
-    // addresses two different things. Pairing a note with the paragraph of the
-    // same number is what made the commentary read as if it belonged to
-    // another passage («متن کچھ، حاشیہ کچھ»). The notes are therefore shown
-    // where a printed Nahj al-Balagha puts them — after the matn, numbered, in
-    // the book's own order — and a note stays under a paragraph only when the
-    // matn itself still carries its printed marker (e.g. «الْفَانِ٢»).
-    if (type != 5) {
-      final notes = await _balaghaNoteRows(db, type, typeNo);
-      if (notes.isNotEmpty) {
-        final attached = <int, List<String>>{};
-        for (final passage in paragraphs) {
-          for (final mark in _markerNumbers(passage.arabic)) {
-            if (mark <= notes.length) {
-              attached.putIfAbsent(passage.recordId, () => <String>[]).add(notes[mark - 1].urdu);
-            }
-          }
-        }
-        return <Passage>[
-          for (final passage in paragraphs)
-            if ((attached[passage.recordId] ?? const <String>[]).isNotEmpty)
-              passage.copyWith(footnote: attached[passage.recordId]!.join('\n\n'))
-            else
-              passage,
-          Passage(
-            recordId: -(9000000 + type * 10000 + typeNo),
-            arabic: '',
-            urdu: 'حواشی — ${notes.length} حاشیے',
-            containerType: type,
-            containerId: typeNo,
-            chapterTitle: balaghaSectionTitles[type] ?? 'نہج البلاغہ',
-            sectionTitle: 'حواشی',
-            format: 1,
-          ),
-          for (var index = 0; index < notes.length; index++)
-            Passage(
-              recordId: notes[index].recordId,
-              arabic: '',
-              urdu: notes[index].urdu,
-              containerType: type,
-              containerId: typeNo,
-              chapterTitle: balaghaSectionTitles[type] ?? 'نہج البلاغہ',
-              sectionTitle: 'حواشی',
-              locator: 'حاشیہ ${index + 1}',
-            ),
-        ].where((passage) => !passage.isEmpty).toList();
-      }
-    }
+    // Footnotes (حواشی) stay out of the page. The reader keeps the Arabic matn
+    // and the Urdu translation; introductions and the numbered حاشیه block
+    // used to follow the matn and made «متن کچھ، حاشیہ کچھ».
     return paragraphs.where((passage) => !passage.isEmpty).toList();
   }
 
@@ -1598,26 +1535,97 @@ class LibraryRepository {
 
   // --------------------------------------------------------------- lookups
 
-  /// A handful of short lines for the home screen's **آیت / حدیثِ وقت** card.
+  /// A handful of short lines for the home screen's **آیت / حدیثِ وقت** card
+  /// and the launcher widget.
   ///
-  /// A short Quran verse (with its Urdu translation) and a short narration from
-  /// Mizan al-Hikmah per slot while the two books are installed — the card's
-  /// next button walks this list, so a tap never waits on the database. The
-  /// caller picks one at random; the list comes back shuffled.
+  /// A short Quran verse (with its Urdu translation) and a short saying from
+  /// Ghurar al-Hikam while those books are installed — the card's next button
+  /// walks this list, so a tap never waits on the database. Mizan al-Hikmah and
+  /// Hidayat al-Ilm still contribute when they are installed, so a phone that
+  /// already used them does not lose that rotation. The list comes back shuffled.
   ///
-  /// Returns an empty list when neither book is installed (the card then shows
-  /// its built-in lines) or when a book cannot be opened.
+  /// Returns an empty list when none of the books is installed (the card then
+  /// shows its built-in lines) or when a book cannot be opened. Whatever was
+  /// fetched is also written for the home-screen widget, which cannot open the
+  /// Flutter database itself until this process has run once.
   Future<List<MomentPassage>> momentPassages({int limit = 6, math.Random? random}) async {
     if (!_initialized || limit <= 0) return const <MomentPassage>[];
     final lines = <MomentPassage>[];
     final quran = BookDefinition.bookFor(CorpusSource.quran);
+    final ghurar = BookDefinition.byKey('hakam');
     final mizan = BookDefinition.byKey('mezan');
     final hidaya = BookDefinition.byKey('hidaya');
     if (quran != null && isInstalled(quran)) lines.addAll(await _quranMoments(quran, limit));
+    if (ghurar != null && isInstalled(ghurar)) lines.addAll(await _hadithMoments(ghurar, limit));
     if (mizan != null && isInstalled(mizan)) lines.addAll(await _hadithMoments(mizan, limit));
     if (hidaya != null && isInstalled(hidaya)) lines.addAll(await _hidayaMoments(hidaya, limit));
     lines.shuffle(random ?? math.Random());
+    if (lines.isNotEmpty) unawaited(_publishWidgetMoments(lines));
     return lines;
+  }
+
+  /// Where the launcher widget should look for `quran.db` and `hakam.db`.
+  Future<void> _rememberWidgetDatabaseDir() async {
+    if (_databaseDirectory.isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('widget_db_dir', _databaseDirectory);
+    } catch (_) {}
+  }
+
+  /// The widget reads this JSON from the same preferences file as the next
+  /// prayer. Each object is `{text, reference, kind}`.
+  Future<void> _publishWidgetMoments(List<MomentPassage> lines) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('widget_db_dir', _databaseDirectory);
+      await prefs.setString(
+        'widget_moments',
+        jsonEncode(<Map<String, String>>[
+          for (final line in lines)
+            <String, String>{
+              'text': line.urdu.trim().isNotEmpty ? line.urdu.trim() : line.arabic.trim(),
+              'reference': line.source,
+              'kind': line.kind,
+            },
+        ]),
+      );
+      const channel = MethodChannel('com.shiaai.app/widget');
+      await channel.invokeMethod<void>('refresh');
+    } catch (_) {}
+  }
+
+  /// The chapter a section belongs to, so "back" from a last-seen passage can
+  /// land on that chapter instead of the screen the reader happened to open from.
+  ///
+  /// Fatawa and Sahifa use the section id as the chapter id. Hadith and the
+  /// encyclopaedia look the parent up. Returns null when the book has no such
+  /// ladder (Quran, Nahj, Mafatih resolve their own containers).
+  Future<int?> chapterIdFor(BookDefinition book, int sectionId) async {
+    if (sectionId == 0) return null;
+    if (book.source == CorpusSource.fatwa || book.source == CorpusSource.sahifa) {
+      return sectionId;
+    }
+    try {
+      final db = await _openBook(book);
+      if (book.source == CorpusSource.encyclopedia) {
+        final rows = await db.rawQuery(
+          'SELECT group_id AS cid FROM articles WHERE id = ? LIMIT 1',
+          [sectionId],
+        );
+        return rows.isEmpty ? null : _asInt(rows.first['cid']);
+      }
+      if (book.source == CorpusSource.hadith) {
+        final rows = await db.rawQuery(
+          'SELECT Chapid AS cid FROM Sections WHERE Secid = ? LIMIT 1',
+          [sectionId],
+        );
+        return rows.isEmpty ? null : _asInt(rows.first['cid']);
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
   }
 
   /// Short ayahs: a translation of 40–130 characters, so the card holds it in
@@ -1631,14 +1639,16 @@ class LibraryRepository {
                q.chapter AS container_type, q.chapter AS container_id, q.page AS page_no,
                q.juz AS juz, q.verse AS verse, COALESCE(cp.Name, '') AS surah_name
         FROM Quran AS q LEFT JOIN ChapterProperty AS cp ON cp.Id = q.chapter
-        WHERE LENGTH(COALESCE(q.tr, '')) BETWEEN 40 AND 130
-          AND LENGTH(COALESCE(q.Arabic, '')) BETWEEN 10 AND 110
+        WHERE LENGTH(COALESCE(q.tr, '')) BETWEEN 12 AND 240
+          AND LENGTH(COALESCE(q.Arabic, '')) BETWEEN 6 AND 220
         ORDER BY RANDOM() LIMIT ?
       ''', [limit]);
       for (final row in rows) {
         final passage = _quranPassage(row);
         if (passage.arabic.isEmpty || passage.urdu.isEmpty) continue;
-        final chapter = _asInt(row['chapter']) ?? 0;
+        // `chapter` is selected as container_type. Reading the bare name
+        // always came back null, so the Urdu surah name never appeared.
+        final chapter = passage.containerType ?? _asInt(row['container_type']) ?? 0;
         final name = chapter >= 1 && chapter <= urduSurahNames.length
             ? urduSurahNames[chapter - 1]
             : (row['surah_name'] ?? '').toString();
@@ -1673,18 +1683,32 @@ class LibraryRepository {
                COALESCE(s.title, '') AS section_title
         FROM Parags AS p
         LEFT JOIN Sections AS s ON s.Secid = p.Secid
-        WHERE LENGTH(COALESCE(p.mean, '')) BETWEEN 30 AND 130
-          AND LENGTH(COALESCE(p.txt, '')) BETWEEN 10 AND 190
+        WHERE LENGTH(COALESCE(p.mean, '')) BETWEEN 12 AND 220
+          AND LENGTH(COALESCE(p.txt, '')) BETWEEN 8 AND 240
         ORDER BY RANDOM() LIMIT ?
       ''', [limit]);
-      for (final row in rows) {
+      // A book whose lines are all longer than the card still has to feed the
+      // moment: the card ellipsizes, an empty list does not.
+      final usable = rows.isNotEmpty
+          ? rows
+          : await db.rawQuery('''
+        SELECT COALESCE(NULLIF(p.ID, ''), -p.rowid) AS record_id, p.txt AS arabic, p.mean AS urdu,
+               p.Secid AS section_id, p.paganum AS page_no,
+               COALESCE(s.title, '') AS section_title
+        FROM Parags AS p
+        LEFT JOIN Sections AS s ON s.Secid = p.Secid
+        WHERE LENGTH(COALESCE(p.mean, '')) > 8 AND LENGTH(COALESCE(p.txt, '')) > 4
+        ORDER BY RANDOM() LIMIT ?
+      ''', [limit]);
+      for (final row in usable) {
         final passage = Passage.fromMap(row);
         if (passage.arabic.isEmpty || passage.urdu.isEmpty) continue;
+        final section = passage.sectionTitle.trim();
         lines.add(MomentPassage(
           kind: 'حدیث',
           arabic: passage.arabic,
           urdu: passage.urdu,
-          source: book.titleUrdu,
+          source: section.isEmpty ? book.titleUrdu : '${book.titleUrdu} — $section',
           book: book,
           recordId: passage.recordId,
           sectionId: passage.sectionId,
@@ -1799,39 +1823,9 @@ class LibraryRepository {
           locator: 'دعا',
         );
       case CorpusSource.balagha:
-        if (recordId < -1000000) {
-          final rows = await db.rawQuery('''
-            SELECT ID AS record_id, mqar AS arabic, mqur AS urdu, Type AS container_type,
-                   0 AS container_id, 'مقدمہ' AS section_title
-            FROM balaghatext_muqadamat WHERE ID = ?
-          ''', [-1000000 - recordId]);
-          if (rows.isEmpty) return null;
-          final row = rows.first;
-          return Passage(recordId: recordId, arabic: _compact((row['arabic'] ?? '').toString()),
-            urdu: _compact((row['urdu'] ?? '').toString()),
-            containerType: _asInt(row['container_type']), containerId: 0, sectionTitle: 'مقدمہ');
-        }
-        if (recordId < 0) {
-          final prose = await db.rawQuery('''
-            SELECT h.ID AS record_id, h.hawashi AS urdu, h.Type AS container_type,
-                   h.TypeNo AS container_id
-            FROM balaghatext_hawashi AS h
-            WHERE h.ID = ?
-            LIMIT 1
-          ''', [-recordId]);
-          if (prose.isEmpty) return null;
-          final row = prose.first;
-          final type = _asInt(row['container_type']) ?? 5;
-          return Passage(
-            recordId: recordId,
-            arabic: '',
-            urdu: _compact((row['urdu'] ?? '').toString()),
-            containerType: type,
-            containerId: _asInt(row['container_id']),
-            chapterTitle: balaghaSectionTitles[type] ?? 'نہج البلاغہ',
-            sectionTitle: type == 5 ? 'مقدمہ' : 'حاشیہ',
-          );
-        }
+        // حواشی and مقدمے are not part of the reader any more. A negative id
+        // used to point at those tables; it now resolves to nothing.
+        if (recordId <= 0) return null;
         final rows = await db.rawQuery('''
           SELECT x.ID AS record_id, x.AR AS arabic, x.UR AS urdu, x.ParaNo AS page_no,
                  x.Type AS container_type, x.TypeNo AS container_id,
@@ -1844,20 +1838,12 @@ class LibraryRepository {
         if (rows.isEmpty) return null;
         final row = rows.first;
         final type = _asInt(row['container_type']) ?? 1;
-        // Only the note the paragraph itself marks is attached here; the rest
-        // are read in the entry's numbered حواشی, where they belong.
-        final notes = await _balaghaNoteRows(db, type, _asInt(row['container_id']) ?? 0);
-        final marks = _markerNumbers(_compact((row['arabic'] ?? '').toString()));
-        final footnote = <String>[
-          for (final mark in marks)
-            if (mark <= notes.length) notes[mark - 1].urdu,
-        ].join('\n\n');
+        if (type < 1 || type > 3) return null;
         return Passage(
           recordId: recordId,
           arabic: _compact((row['arabic'] ?? '').toString()),
           urdu: repairNahjulBalaghaUrdu(recordId, _compact((row['urdu'] ?? '').toString())),
           page: _asInt(row['page_no']),
-          footnote: footnote,
           containerType: type,
           containerId: _asInt(row['container_id']),
           chapterTitle: balaghaSectionTitles[type] ?? 'نہج البلاغہ',

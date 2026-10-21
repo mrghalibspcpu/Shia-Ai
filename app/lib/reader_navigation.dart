@@ -87,28 +87,25 @@ Future<void> pushReaderFor(
         ),
       ));
     case CorpusSource.balagha:
-      final type = resolved?.containerType ?? 1;
+      // خطبات، مکتوبات اور حکمتیں only. A note, a مقدمه, or a type outside
+      // 1–3 opens the book itself instead of the old notes reader.
+      final type = resolved?.containerType ?? 0;
       final typeNo = resolved?.containerId ?? 0;
+      if (type < 1 || type > 3 || typeNo <= 0 || (targetRecord ?? 0) <= 0) {
+        await navigator.push(MaterialPageRoute(
+          builder: (_) => BalaghaHomeScreen(library: library),
+        ));
+        return;
+      }
       await navigator.push(MaterialPageRoute(
-        builder: (_) => (targetRecord ?? 0) < 0 && (targetRecord ?? 0) > -1000000 && type != 5
-            ? BalaghaNotesReaderScreen(library: library, type: type, typeNo: typeNo,
-                initialRecordId: targetRecord, searchQuery: searchQuery)
-            : typeNo > 0
-            ? BalaghaReaderScreen(
-                library: library,
-                initialRecordId: targetRecord,
-                searchQuery: searchQuery,
-                type: type,
-                typeNo: typeNo,
-                title: resolved?.sectionTitle ?? title ?? '',
-              )
-            : BalaghaIntroductionScreen(
-                library: library,
-                initialRecordId: targetRecord,
-                searchQuery: searchQuery,
-                type: type,
-                title: title ?? '${balaghaSectionTitles[type] ?? ''} — مقدمہ',
-              ),
+        builder: (_) => BalaghaReaderScreen(
+          library: library,
+          initialRecordId: targetRecord,
+          searchQuery: searchQuery,
+          type: type,
+          typeNo: typeNo,
+          title: resolved?.sectionTitle ?? title ?? '',
+        ),
       ));
   }
 }

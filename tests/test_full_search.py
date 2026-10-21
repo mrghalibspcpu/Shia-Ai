@@ -16,7 +16,7 @@ class FullSearchCoverageTests(unittest.TestCase):
             'hadith': "WHERE LENGTH(COALESCE(p.txt, '')) > 0 OR LENGTH(COALESCE(p.mean, '')) > 0",
             'quran': 'FROM Quran AS q\n          LEFT JOIN ChapterProperty AS cp ON cp.Id = q.chapter\n          ORDER BY q.ID',
             'dua': 'SELECT m.rowid AS record_id, m.M_name AS section_title',
-            'balagha': 'UNION ALL\n          SELECT -h.ID',
+            'balagha': 'WHERE x.Type BETWEEN 1 AND 3\n          ORDER BY record_id',
             'sahifa': 'SELECT d.ID AS record_id, d.t_id * 10000',
             'fatwa': 'SELECT q.rowid AS record_id, q.category_id AS section_id',
             'encyclopedia': 'FROM sections AS s JOIN articles AS a ON a.id = s.article_id\n          ORDER BY s.article_id, s.ordinal',
@@ -30,11 +30,15 @@ class FullSearchCoverageTests(unittest.TestCase):
                         query = f'SELECT * FROM ({query}) ORDER BY record_id LIMIT ? OFFSET ?'
                     expected = sum(db.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0]
                                    for t in ({'hadith': ['Parags'], 'quran': ['Quran'], 'dua': ['M_items'],
-                                              'balagha': ['balaghatext', 'balaghatext_hawashi', 'balaghatext_muqadamat'],
+                                              'balagha': ['balaghatext'],
                                               'sahifa': ['saheefa_data'], 'fatwa': ['question_answers'],
                                               'encyclopedia': ['sections']}[spec.source]))
                     if spec.source == 'hadith':
                         expected = db.execute("SELECT COUNT(*) FROM Parags WHERE LENGTH(COALESCE(txt,''))>0 OR LENGTH(COALESCE(mean,''))>0").fetchone()[0]
+                    elif spec.source == 'balagha':
+                        expected = db.execute(
+                            "SELECT COUNT(*) FROM balaghatext WHERE Type BETWEEN 1 AND 3"
+                        ).fetchone()[0]
                     elif spec.source == 'sahifa':
                         # Only the book's 83 supplications are indexed; the
                         # remaining t_id values are site furniture.

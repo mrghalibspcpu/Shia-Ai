@@ -44,9 +44,10 @@ const double _rowGap = 8;
 const double _railWidth = 40;
 const double _searchHeight = 46;
 
-/// Share of the free column the tasbeeh dial keeps for itself; the rest goes to
-/// the آیت/حدیث card directly above it.
-const double _dialShare = 0.88;
+/// The mini tasbeeh takes the whole width it can, and grows upward until its
+/// top edge meets the bottom edge of the آیت/حدیث card. Nothing is held back
+/// for a gap between them.
+const double _dialShare = 1;
 const double _rightWidth = 96;
 
 /// The dashboard and its dock share this width cap and the same edge inset.
@@ -459,8 +460,9 @@ class HomeDashboard extends StatelessWidget {
   /// The rows line up with the five collection cards of the right column: the
   /// title rail and the mini prayer card run down to just above the moment
   /// card, whose TOP edge sits level with the TOP edge of the third card
-  /// (مفاتیح الجنان و صحیفہ سجادیہ); the tasbeeh dial then sits low in what is
-  /// left, resting on the search bar's upper edge.
+  /// (مفاتیح الجنان و صحیفہ سجادیہ). The mini tasbeeh then fills everything
+  /// between that card and the search bar: its top edge is the moment card's
+  /// bottom edge, and its bottom edge rests on the search bar.
   Widget _leftColumn(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
       final height = constraints.maxHeight;
@@ -469,16 +471,13 @@ class HomeDashboard extends StatelessWidget {
       // Two cards and two gaps down is the duas card's top edge; the moment
       // card starts there, so the prayer/title row ends one row-gap above it.
       final prayerHeight = (2 * cardHeight + 2 * _gap - _rowGap).clamp(150.0, height - 180.0).toDouble();
-      // The card never shrinks below a readable height, whatever is left of
-      // the column goes to the dial and the آیت/حدیث card above it.
+      // The card never shrinks below a readable height. Everything under it,
+      // down to the search bar, belongs to the dial — expanded from the top
+      // until the two containers touch.
       final minimumMoment = (height * 0.13).clamp(66.0, 88.0).toDouble();
-      final roomForDial = height - prayerHeight - minimumMoment - 2 * _rowGap - _searchHeight;
-      // The dial takes a little less than the whole room left over, and the
-      // آیت/حدیث card takes the difference: its lower edge now reaches down
-      // towards the dial instead of stopping well above it. The dial still
-      // fills its own box, so it keeps sitting on the search bar's edge.
-      final dialDiameter = math.min(constraints.maxWidth, roomForDial) * _dialShare;
-      final momentHeight = height - prayerHeight - 2 * _rowGap - _searchHeight - dialDiameter;
+      final roomForDial = height - prayerHeight - minimumMoment - _rowGap - _searchHeight;
+      final dialDiameter = math.min(constraints.maxWidth, math.max(72.0, roomForDial)) * _dialShare;
+      final momentHeight = height - prayerHeight - _rowGap - _searchHeight - dialDiameter;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -495,10 +494,8 @@ class HomeDashboard extends StatelessWidget {
           ),
           const SizedBox(height: _rowGap),
           SizedBox(height: momentHeight, child: _MomentCard(library: library)),
-          const SizedBox(height: _rowGap),
-          // The dial hugs the bottom of its box, so its lower edge meets the
-          // search bar's upper edge instead of floating in the middle.
-          const Expanded(child: _TasbeehDial()),
+          // No gap: the dial's top edge is the moment card's bottom edge.
+          SizedBox(height: dialDiameter, child: const _TasbeehDial()),
           SizedBox(
             key: const ValueKey<String>('home-search'),
             height: _searchHeight,
@@ -1119,8 +1116,9 @@ class _MomentCardState extends State<_MomentCard> {
   }
 
   void _onCatalogChanged() {
-    // Books were installed/removed: a real ayah may be available now.
-    if (_lines.isEmpty) unawaited(_roll());
+    // A Quran or Ghurar download has to start feeding the card even when the
+    // previous roll already had lines from another book.
+    unawaited(_roll());
   }
 
   Future<void> _roll() async {
@@ -1409,14 +1407,14 @@ class _TasbeehDialState extends State<_TasbeehDial> {
     final arabicWird = !controller.preset.custom || looksArabic(controller.step.arabic);
     return LayoutBuilder(
       builder: (context, constraints) {
-        final diameter = math.min(constraints.maxWidth, constraints.maxHeight) * 0.99;
+        final diameter = math.min(constraints.maxWidth, constraints.maxHeight);
         final radius = diameter / 2;
         final bead = diameter * 0.50;
         final sideButton = diameter * 0.19;
-        // Bottom-aligned: the dial sits down against the search bar's top
-        // edge, leaving any spare room above it instead of around it.
+        // The box is exactly the gap between the moment card and the search
+        // bar. Filling it puts the dial's top edge on the card's bottom edge.
         return Align(
-          alignment: Alignment.bottomCenter,
+          alignment: Alignment.topCenter,
           child: SizedBox.square(
             key: const ValueKey<String>('home-tasbeeh'),
             dimension: diameter,

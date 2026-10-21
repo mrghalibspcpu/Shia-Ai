@@ -90,10 +90,19 @@ class _BalaghaHomeScreenState extends State<BalaghaHomeScreen> {
 }
 
 class BalaghaSectionScreen extends StatelessWidget {
-  const BalaghaSectionScreen({super.key, required this.library, required this.section});
+  const BalaghaSectionScreen({
+    super.key,
+    required this.library,
+    required this.section,
+    this.focusTypeNo,
+  });
 
   final LibraryRepository library;
   final BalaghaSection section;
+
+  /// The sermon, letter or saying that was opened, so back from last seen
+  /// shows that row.
+  final int? focusTypeNo;
 
   @override
   Widget build(BuildContext context) {
@@ -110,8 +119,13 @@ class BalaghaSectionScreen extends StatelessWidget {
           if (entries.isEmpty && !section.hasIntroduction) {
             return const CollectionMessage('اس حصے میں کوئی عنوان نہیں۔');
           }
-          return ListView.builder(
+          final focus = focusTypeNo;
+          final focusIndex = focus == null
+              ? 0
+              : entries.indexWhere((entry) => entry.typeNo == focus) + (section.hasIntroduction ? 1 : 0);
+          return ScrollablePositionedList.builder(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 26),
+            initialScrollIndex: focusIndex < 0 ? 0 : focusIndex,
             itemCount: entries.length + (section.hasIntroduction ? 1 : 0),
             itemBuilder: (context, index) {
               if (section.hasIntroduction && index == 0) {
@@ -131,7 +145,13 @@ class BalaghaSectionScreen extends StatelessWidget {
                 );
               }
               final entry = entries[index - (section.hasIntroduction ? 1 : 0)];
-              return ChapterWallpaperCard(
+              final highlighted = focus != null && entry.typeNo == focus;
+              return DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  border: highlighted ? Border.all(color: kGold, width: 1.8) : null,
+                ),
+                child: ChapterWallpaperCard(
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
@@ -154,6 +174,7 @@ class BalaghaSectionScreen extends StatelessWidget {
                     ),
                   )),
                 ),
+              ),
               );
             },
           );

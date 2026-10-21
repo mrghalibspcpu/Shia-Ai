@@ -192,8 +192,17 @@ def balagha(connection: sqlite3.Connection) -> None:
     check("balagha: five divisions", len(sections) == 5, f"{len(sections)}")
     entries = run(connection, "WHERE t.TypeID = ?", (1,))
     check("balagha: khutba entries", len(entries) == 238, f"{len(entries)}")
-    prose = run(connection, "FROM balaghatext_hawashi WHERE Type = 5 AND TypeNo = ?", (1,))
-    check("balagha: introduction prose", len(prose) > 10, f"{len(prose)} paragraphs")
+    # Introductions and footnotes are no longer loaded onto the matn page.
+    # The type-5 prose query and the negative-id lookup were removed on purpose.
+    source = REPOSITORY.read_text(encoding="utf-8")
+    check(
+        "balagha: matn page does not load type-5 prose",
+        "FROM balaghatext_hawashi WHERE Type = 5 AND TypeNo = ?" not in source,
+    )
+    check(
+        "balagha: a negative id is not a passage",
+        "WHERE h.ID = ?" not in source and "if (recordId <= 0) return null;" in source,
+    )
     main = run(connection, "WHERE x.Type = ? AND x.TypeNo = ?", (1, 3))
     check("balagha: khutba 3 paragraphs", len(main) > 10, f"{len(main)}")
     # The book's own typography comes from ParaFormat: 1 title, 2 text,
@@ -250,17 +259,12 @@ def balagha(connection: sqlite3.Connection) -> None:
     check("balagha: section introduction", len(intro) > 10, f"{len(intro)}")
     lookup = run(connection, "WHERE x.ID = ?", (44,))
     check("balagha: paragraph lookup by ID", len(lookup) == 1)
-    # Introductions are keyed by negative ids, resolved back through hawashi.
-    prose_ids = run(connection, "FROM balaghatext_hawashi WHERE Type = 5 AND TypeNo = ?", (1,))
-    prose_id = prose_ids[0][0] if prose_ids else 0
-    # The client stores recordId = -hawashiID and binds `-recordId` back.
-    resolved = run(connection, "WHERE h.ID = ?", (prose_id,))
-    check(
-        "balagha: introduction resolves from a negative id",
-        len(resolved) == 1 and bool(resolved[0][1]),
-        f"recordId {-prose_id} -> {len(resolved)} row, "
-        f"{len(str(resolved[0][1])) if resolved else 0} characters",
+    indexed = run(
+        connection,
+        "WHERE x.Type BETWEEN 1 AND 3\n          ORDER BY record_id",
+        (20, 0),
     )
+    check("balagha: search index is matn only", len(indexed) > 0 and all(1 <= row[4] <= 3 for row in indexed))
     # Negating a hawashi id can only be safe if both id spaces are positive.
     lowest = connection.execute(
         "SELECT (SELECT MIN(ID) FROM balaghatext), (SELECT MIN(ID) FROM balaghatext_hawashi)"
@@ -428,7 +432,7 @@ def build_index(paths: dict[str, Path]) -> sqlite3.Connection:
         "alkafi": "WHERE LENGTH(COALESCE(p.txt, '')) > 0 OR LENGTH(COALESCE(p.mean, '')) > 0",
         "quran": "FROM Quran AS q\n          LEFT JOIN ChapterProperty AS cp ON cp.Id = q.chapter\n          ORDER BY q.ID",
         "mafatih": "SELECT m.rowid AS record_id, m.M_name AS section_title",
-        "nahjul_balagha": "UNION ALL\n          SELECT -h.ID",
+        "nahjul_balagha": "WHERE x.Type BETWEEN 1 AND 3\n          ORDER BY record_id",
         "sahifa": "SELECT d.ID AS record_id, d.t_id * 10000",
         "khamenei": "SELECT q.rowid AS record_id, q.category_id AS section_id",
         "sistani": "SELECT q.rowid AS record_id, q.category_id AS section_id",
