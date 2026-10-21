@@ -29,7 +29,7 @@ Future<void> openLastRead(
   final navigator = Navigator.of(context);
   Passage? passage;
   final recordId = entry.recordId;
-  if (recordId != null && recordId != 0) {
+  if (recordId != 0) {
     try {
       passage = await library.getPassageById(book, recordId);
     } catch (_) {

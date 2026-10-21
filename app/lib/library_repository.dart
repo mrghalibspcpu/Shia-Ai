@@ -63,7 +63,7 @@ class IndexBuildState {
 /// download instead of crashing.
 /// A footnote marker printed inside the matn: an Arabic letter followed by one
 /// or two Arabic-Indic digits, e.g. the «٢» of «الْوَالِدِ الْفَانِ٢».
-final RegExp _inlineMarker = RegExp(r'[\u0600-\u06FF][\u0660-\u0669]{1,2}');
+
 
 class LibraryRepository {
   LibraryRepository();
@@ -1478,20 +1478,6 @@ class LibraryRepository {
       ));
     }
     return notes;
-  }
-
-  /// Note numbers the printed matn marks inside one paragraph
-  /// («الْوَالِدِ الْفَانِ٢» marks note 2).
-  Set<int> _markerNumbers(String arabic) {
-    final marks = <int>{};
-    for (final match in _inlineMarker.allMatches(arabic)) {
-      var number = 0;
-      for (final unit in match.group(0)!.substring(1).runes) {
-        number = number * 10 + (unit - 0x660);
-      }
-      if (number > 0) marks.add(number);
-    }
-    return marks;
   }
 
   /// The entry's notes on their own page, numbered the way the printed book

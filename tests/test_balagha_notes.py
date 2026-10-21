@@ -14,7 +14,6 @@ the commentary read as if it belonged to another passage («متن کچھ، حا
 """
 from __future__ import annotations
 
-import re
 import sqlite3
 import sys
 import unittest
@@ -132,11 +131,9 @@ class ReaderWiringTests(unittest.TestCase):
         self.assertIn("if (book == null || type < 1 || type > 3 || typeNo <= 0) return const [];", self.source)
         self.assertIn("if (recordId <= 0) return null;", self.source)
 
-    def test_only_a_printed_marker_keeps_a_note_under_its_paragraph(self):
-        self.assertIn("_markerNumbers(", self.source)
-        marker = re.search(r"RegExp\(r'\[(.+?)\]\[(.+?)\]", self.source)
-        self.assertIsNotNone(marker)
-        self.assertIn("u0660", self.source, "Arabic-Indic digits carry the marker")
+    def test_printed_markers_no_longer_attach_notes_to_the_matn(self):
+        self.assertNotIn("_markerNumbers(", self.source)
+        self.assertNotIn("_inlineMarker", self.source)
 
 
 if __name__ == "__main__":  # pragma: no cover
