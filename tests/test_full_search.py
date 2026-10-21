@@ -22,7 +22,7 @@ class FullSearchCoverageTests(unittest.TestCase):
             'encyclopedia': 'FROM sections AS s JOIN articles AS a ON a.id = s.article_id\n          ORDER BY s.article_id, s.ordinal',
         }
         with collect_databases() as collected:
-            self.assertEqual(len(collected), 21)
+            self.assertEqual(len(collected), 22)
             for spec, path in collected:
                 with self.subTest(book=spec.key), sqlite3.connect(path) as db:
                     query = extract_query(fragments[spec.source])
@@ -54,7 +54,10 @@ class FullSearchCoverageTests(unittest.TestCase):
                         self.assertEqual(len(seen), 6236)
                         self.assertIn(db.execute('SELECT ID FROM Quran WHERE chapter=114 AND verse=6').fetchone()[0], seen)
                     elif spec.source == 'fatwa':
-                        self.assertEqual(len(seen), 428 if spec.key == 'khamenei' else 1619)
+                        self.assertEqual(
+                            len(seen),
+                            {'khamenei': 428, 'sistani': 1619, 'najafi': 8104}[spec.key],
+                        )
                     elif spec.source == 'sahifa':
                         self.assertEqual(len(seen), 4318)
                         self.assertEqual(

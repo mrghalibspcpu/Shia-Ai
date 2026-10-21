@@ -1,7 +1,7 @@
 name: shiaverse
 publish_to: "none"
 description: Offline Shia library — Quran, Mafatih al-Jinan, Nahj al-Balagha, and 14 hadith books.
-version: 1.23.0+33
+version: 1.24.0+34
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -49,6 +49,9 @@ flutter:
     - assets/images/hashtech.png
     - assets/images/marja_khamenei.png
     - assets/images/marja_sistani.png
+    # 1.24: the marja portrait for آیت اللہ حافظ بشیر حسین نجفی (دینی مسائل),
+    # cropped from the 554 px upload to the 288 x 420 frame the other two use.
+    - assets/images/marja_najafi.png
     # The prayer banner's wallpaper and the three synthesised alert sounds.
     # ~30 kB and ~130 kB: no downloads, no third-party audio.
     - assets/images/prayer_hero.jpg

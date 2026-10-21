@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shiaverse/library_repository.dart';
 import 'package:shiaverse/models.dart';
@@ -42,9 +44,10 @@ void main() {
   });
 
   group('corpus catalogue', () {
-    test('lists the 14 hadith books plus the four new collections', () {
-      // The curated encyclopaedia is the extra collection (نئی کتابیں).
-      expect(BookDefinition.all, hasLength(21));
+    test('lists the 14 hadith books plus the curated collections', () {
+      // Ten extra collections: Quran, Mafatih, Sahifa, Nahj al-Balagha, the
+      // curated encyclopaedia and the three marjas.
+      expect(BookDefinition.all, hasLength(22));
       expect(BookDefinition.hadithBooks, hasLength(14));
       expect(
         BookDefinition.newBooks.map((book) => book.key),
@@ -226,14 +229,27 @@ void main() {
   });
 
   group('fatawa library entry', () {
-    test('offers both marjas behind one tile', () {
-      expect(fatawaBooks.map((book) => book.key).toList(), ['khamenei', 'sistani']);
+    test('offers every marja behind one tile', () {
+      expect(
+        fatawaBooks.map((book) => book.key).toList(),
+        ['khamenei', 'sistani', 'najafi'],
+      );
       for (final book in fatawaBooks) {
         expect(book.source, CorpusSource.fatwa);
         expect(book.marjaName, isNotEmpty);
         expect(book.imageAsset, isNotNull);
       }
       expect(kFatawaCollectionTitle, contains('دینی مسائل'));
+    });
+
+    test('the Najafi edition is the marja\'s own 8,104 rulings', () {
+      final najafi = BookDefinition.byKey('najafi')!;
+      expect(najafi.fileName, 'najafi_urdu_fatawa.sqlite');
+      expect(najafi.marjaName, contains('حافظ بشیر حسین نجفی'));
+      expect(najafi.imageAsset, 'assets/images/marja_najafi.png');
+      // The portrait is bundled, or the card would fall back to an icon.
+      final pubspec = File('pubspec.yaml').readAsStringSync();
+      expect(pubspec, contains(najafi.imageAsset!));
     });
 
     test('the home row keeps one card per collection, never two fatawa', () {

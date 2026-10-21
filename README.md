@@ -1,5 +1,41 @@
 # ShiaVerse
 
+## New in 1.24 — the lens plate, a third marja, the notes in their place
+
+- **Xplore is the camera-lens plate of the design.** The page is one full-screen
+  portrait body of brushed metal: five amber lenses climb it diagonally
+  (تسبیح ← نماز ← چاند کی رویت ← اسلامی تقویم ← Xplore Xtra), the sixth
+  destination — **اثنا عشری انسائکلوپیڈیا** — sits on a red bevel plate hanging
+  off the left edge, and the red plate in the bottom-right corner carries the
+  **radial menu** button. The button is no longer a bar at the bottom centre of
+  the page: it lives in its plate, as the artwork places it, and fans the five
+  destinations out over the plate when tapped. `docs/previews/explore.png` is
+  the layout re-drawn at the app's own fractions
+  (`scripts/render_explore_preview.py`).
+- **دینی مسائل gains a third marja: آیت اللہ العظمیٰ شیخ حافظ بشیر حسین نجفی.**
+  8,104 Urdu question/answer pairs in 417 chapters, every one carrying the
+  official alnajafy.com page it came from and the publisher's own reference
+  number, so a reader can check a ruling at its source exactly as with the
+  Khamenei and Sistani editions. The Drive archive
+  (`Hafiz_Bashir_Hussain_Najafi_Urdu_Fatawa_Compact.sqlite`) is a provenance
+  database of 4 tables, 11 views and 8 mirrors; `scripts/build_najafi_fatawa_db.py`
+  rewrites it into the two-table shape the other marjas use, drops only the
+  provenance machinery, keeps the archive's own translation note, and writes
+  `assets/najafi_urdu_fatawa.sqlite(.gz)`. The card uses the uploaded portrait,
+  cropped to the same 288 × 420 frame as the other two.
+- **نہج البلاغہ: the commentary now stands with the text it belongs to.** The
+  `balaghatext_hawashi.ParaNo` column is the note's place in an entry's
+  footnote *sequence*, not the paragraph it annotates — sermon 1 holds 74 notes
+  numbered 1–75 above 30 paragraphs, sermon 3 holds 151 notes numbered 1–152
+  above 20 — so pairing a note with the paragraph of the same number put
+  «حاشیہ» under the wrong متن, which is exactly how it read. Notes are now
+  shown after the matn in the book's own order, each labelled
+  **حاشیہ ۱، حاشیہ ۲ …**, and a note stays under a paragraph only where the
+  printed matn still carries its own marker («الْوَالِدِ الْفَانِ٢»). One case,
+  151 notes, is pinned by a test.
+- Version 1.24.0 (versionCode 34) — it installs over the published 1.23.0
+  (versionCode 33) without losing downloaded books.
+
 ## New in 1.22 — a reading plan, a proofread Nahj al-Balagha, bigger prayer names
 
 - **Xplore gains «روزانہ مطالعہ»** — pick the Quran (ختمِ قرآن) or one section
@@ -199,8 +235,12 @@ all run on the device.
 - `assets/athna_ashari_encyclopedia.db.gz` — the prose-only encyclopaedia
   edition (~2.5 MB gzipped / ~10 MB expanded), rebuilt from the Drive corpus by
   `scripts/build_encyclopedia_db.py`.
+- `assets/najafi_urdu_fatawa.sqlite.gz` — the third marja's fatawa (~3 MB
+  gzipped / ~15 MB expanded), built from the Drive archive by
+  `scripts/build_najafi_fatawa_db.py`.
 - `assets/database-manifest.json` — sizes, SHA-256 digests, row counts, titles,
-  and download locations for all 21 databases (the encyclopaedia included).
+  and download locations for all 22 databases (the encyclopaedia and the third
+  marja included).
   `app/assets/database-manifest.json` is the identical copy bundled into the APK.
 - `scripts/` — normalisation, packaging, publishing, and verification tools.
 - `docs/apk-analysis.md` — findings and signing/licensing limits of the supplied

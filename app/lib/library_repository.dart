@@ -61,6 +61,10 @@ class IndexBuildState {
 /// Whatever is present on disk is indexed for full-text search; books that are
 /// not installed yet are simply reported as unavailable so the UI can offer a
 /// download instead of crashing.
+/// A footnote marker printed inside the matn: an Arabic letter followed by one
+/// or two Arabic-Indic digits, e.g. the «٢» of «الْوَالِدِ الْفَانِ٢».
+final RegExp _inlineMarker = RegExp(r'[\u0600-\u06FF][\u0660-\u0669]{1,2}');
+
 class LibraryRepository {
   LibraryRepository();
 
@@ -1445,65 +1449,114 @@ class LibraryRepository {
       paragraphs.add(passage);
     }
 
-    final footnotes = await _footnotesByParagraph(db, type, typeNo);
-    return [
-      for (final passage in paragraphs)
-        if (passage.page != null && (footnotes[passage.page] ?? '').isNotEmpty)
-          passage.copyWith(footnote: footnotes[passage.page]!)
-        else
-          passage,
-    ].where((passage) => !passage.isEmpty).toList();
-  }
-
-  /// Every footnote of one entry, grouped by the paragraph it annotates.
-  Future<Map<int, String>> _footnotesByParagraph(Database db, int type, int typeNo) async {
-    if (type == 5) return const {};
-    final rows = await db.rawQuery('''
-      SELECT ParaNo AS para, hawashi AS body FROM balaghatext_hawashi
-      WHERE Type = ? AND TypeNo = ? AND ParaNo IS NOT NULL
-      ORDER BY ParaNo, ID
-    ''', [type, typeNo]);
-    final grouped = <int, List<String>>{};
-    for (final row in rows) {
-      final para = _asInt(row['para']);
-      final body = _compact((row['body'] ?? '').toString());
-      if (para == null || body.isEmpty) continue;
-      grouped.putIfAbsent(para, () => []).add(body);
+    // `balaghatext_hawashi.ParaNo` is the note's own place in the entry's
+    // footnote sequence, NOT the paragraph it annotates: sermon 1 stores 74
+    // notes numbered 1 to 75 above 30 paragraphs, so every number in between
+    // addresses two different things. Pairing a note with the paragraph of the
+    // same number is what made the commentary read as if it belonged to
+    // another passage («متن کچھ، حاشیہ کچھ»). The notes are therefore shown
+    // where a printed Nahj al-Balagha puts them — after the matn, numbered, in
+    // the book's own order — and a note stays under a paragraph only when the
+    // matn itself still carries its printed marker (e.g. «الْفَانِ٢»).
+    if (type != 5) {
+      final notes = await _balaghaNoteRows(db, type, typeNo);
+      if (notes.isNotEmpty) {
+        final attached = <int, List<String>>{};
+        for (final passage in paragraphs) {
+          for (final mark in _markerNumbers(passage.arabic)) {
+            if (mark <= notes.length) {
+              attached.putIfAbsent(passage.recordId, () => <String>[]).add(notes[mark - 1].urdu);
+            }
+          }
+        }
+        return <Passage>[
+          for (final passage in paragraphs)
+            if ((attached[passage.recordId] ?? const <String>[]).isNotEmpty)
+              passage.copyWith(footnote: attached[passage.recordId]!.join('\n\n'))
+            else
+              passage,
+          Passage(
+            recordId: -(9000000 + type * 10000 + typeNo),
+            arabic: '',
+            urdu: 'حواشی — ${notes.length} حاشیے',
+            containerType: type,
+            containerId: typeNo,
+            chapterTitle: balaghaSectionTitles[type] ?? 'نہج البلاغہ',
+            sectionTitle: 'حواشی',
+            format: 1,
+          ),
+          for (var index = 0; index < notes.length; index++)
+            Passage(
+              recordId: notes[index].recordId,
+              arabic: '',
+              urdu: notes[index].urdu,
+              containerType: type,
+              containerId: typeNo,
+              chapterTitle: balaghaSectionTitles[type] ?? 'نہج البلاغہ',
+              sectionTitle: 'حواشی',
+              locator: 'حاشیہ ${index + 1}',
+            ),
+        ].where((passage) => !passage.isEmpty).toList();
+      }
     }
-    return grouped.map((para, bodies) => MapEntry(para, bodies.join('\n\n')));
+    return paragraphs.where((passage) => !passage.isEmpty).toList();
   }
 
-  /// Footnotes (`balaghatext_hawashi`) attached to one paragraph.
-  Future<List<Passage>> getBalaghaFootnotes(int type, int typeNo, int paraNo) async {
-    final book = BookDefinition.bookFor(CorpusSource.balagha);
-    if (book == null) return const [];
-    final db = await _openBook(book);
+  /// The notes of one entry in the book's own order, each with a negative
+  /// record id so it can never collide with a matn paragraph.
+  Future<List<Passage>> _balaghaNoteRows(Database db, int type, int typeNo) async {
     final rows = await db.rawQuery('''
-      SELECT ID AS record_id, hawashi AS urdu, hawashiflag AS flag
-      FROM balaghatext_hawashi
-      WHERE Type = ? AND TypeNo = ? AND ParaNo = ?
-      ORDER BY ID
-    ''', [type, typeNo, paraNo]);
-    return rows.map((row) => Passage(
-          recordId: _asInt(row['record_id']) ?? 0,
-          arabic: '',
-          urdu: _compact((row['urdu'] ?? '').toString()),
-          containerType: type,
-          containerId: typeNo,
-          locator: (row['flag'] ?? '').toString(),
-        )).toList();
+      SELECT ID AS record_id, hawashi AS body FROM balaghatext_hawashi
+      WHERE Type = ? AND TypeNo = ? ORDER BY ID
+    ''', [type, typeNo]);
+    final notes = <Passage>[];
+    for (final row in rows) {
+      final body = _compact((row['body'] ?? '').toString());
+      if (body.isEmpty) continue;
+      notes.add(Passage(
+        recordId: -(_asInt(row['record_id']) ?? 0),
+        arabic: '',
+        urdu: body,
+        containerType: type,
+        containerId: typeNo,
+        sectionTitle: 'حواشی',
+      ));
+    }
+    return notes;
   }
 
+  /// Note numbers the printed matn marks inside one paragraph
+  /// («الْوَالِدِ الْفَانِ٢» marks note 2).
+  Set<int> _markerNumbers(String arabic) {
+    final marks = <int>{};
+    for (final match in _inlineMarker.allMatches(arabic)) {
+      var number = 0;
+      for (final unit in match.group(0)!.substring(1).runes) {
+        number = number * 10 + (unit - 0x660);
+      }
+      if (number > 0) marks.add(number);
+    }
+    return marks;
+  }
+
+  /// The entry's notes on their own page, numbered the way the printed book
+  /// numbers them (`حاشیہ ۳`), in the book's own order.
   Future<List<Passage>> getBalaghaNotes(int type, int typeNo) async {
     final book = BookDefinition.bookFor(CorpusSource.balagha)!;
     final db = await _openBook(book);
-    final rows = await db.rawQuery('''
-      SELECT ID, hawashi, ParaNo FROM balaghatext_hawashi
-      WHERE Type = ? AND TypeNo = ? ORDER BY ID
-    ''', [type, typeNo]);
-    return rows.map((row) => Passage(recordId: -(_asInt(row['ID']) ?? 0),
-      arabic: '', urdu: _compact((row['hawashi'] ?? '').toString()),
-      containerType: type, containerId: typeNo, sectionTitle: 'حاشیہ')).toList();
+    final notes = await _balaghaNoteRows(db, type, typeNo);
+    return <Passage>[
+      for (var index = 0; index < notes.length; index++)
+        Passage(
+          recordId: notes[index].recordId,
+          arabic: '',
+          urdu: notes[index].urdu,
+          containerType: type,
+          containerId: typeNo,
+          sectionTitle: 'حواشی',
+          locator: 'حاشیہ ${index + 1}',
+        ),
+    ];
   }
 
   Future<List<Passage>> getBalaghaIntroduction(int type) async {
@@ -1773,13 +1826,20 @@ class LibraryRepository {
         if (rows.isEmpty) return null;
         final row = rows.first;
         final type = _asInt(row['container_type']) ?? 1;
-        final footnotes = await _footnotesByParagraph(db, type, _asInt(row['container_id']) ?? 0);
+        // Only the note the paragraph itself marks is attached here; the rest
+        // are read in the entry's numbered حواشی, where they belong.
+        final notes = await _balaghaNoteRows(db, type, _asInt(row['container_id']) ?? 0);
+        final marks = _markerNumbers(_compact((row['arabic'] ?? '').toString()));
+        final footnote = <String>[
+          for (final mark in marks)
+            if (mark <= notes.length) notes[mark - 1].urdu,
+        ].join('\n\n');
         return Passage(
           recordId: recordId,
           arabic: _compact((row['arabic'] ?? '').toString()),
           urdu: repairNahjulBalaghaUrdu(recordId, _compact((row['urdu'] ?? '').toString())),
           page: _asInt(row['page_no']),
-          footnote: footnotes[_asInt(row['page_no'])] ?? '',
+          footnote: footnote,
           containerType: type,
           containerId: _asInt(row['container_id']),
           chapterTitle: balaghaSectionTitles[type] ?? 'نہج البلاغہ',

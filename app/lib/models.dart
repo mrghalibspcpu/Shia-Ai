@@ -24,15 +24,15 @@ extension CorpusSourceX on CorpusSource {
       };
 }
 
-/// The two Urdu fatawa books are offered as ONE library entry — the reader
-/// picks a marja on the next screen instead of choosing between two nearly
-/// identical tiles on the home row.
+/// The Urdu fatawa books are offered as ONE library entry — the reader picks a
+/// marja on the next screen instead of choosing between nearly identical tiles
+/// on the home row.
 const String kFatawaCollectionKey = 'dini_masail';
 const String kFatawaCollectionTitle = 'دینی مسائل (احکام و فتاویٰ)';
 const String kFatawaCollectionSubtitle = 'فتاویٰ، احکامِ شرعیہ اور سوال و جواب';
 const String kFatawaCollectionHint = 'اپنا مرجعِ تقلید منتخب کریں';
 
-/// Every fatwa book, in marja order (Khamenei, then Sistani).
+/// Every fatwa book, in marja order (Khamenei, Sistani, then Najafi).
 List<BookDefinition> get fatawaBooks =>
     BookDefinition.all.where((book) => book.source == CorpusSource.fatwa).toList();
 
@@ -109,6 +109,14 @@ class BookDefinition {
       description: 'اردو سوال و جواب، اصل ماخذ کے ساتھ', source: CorpusSource.fatwa, recordLabel: 'مسئلہ',
       imageAsset: 'assets/images/marja_sistani.png',
       marjaName: 'آیت اللہ سید علی حسینی سیستانی'),
+    // 1.24: 8,104 Urdu question/answer pairs from the marja's own website,
+    // rebuilt by scripts/build_najafi_fatawa_db.py. Same two-table shape as
+    // the other two marjas, so the reader needs no special case for it.
+    BookDefinition(key: 'najafi', fileName: 'najafi_urdu_fatawa.sqlite',
+      titleUrdu: 'فتاویٰ — آیت اللہ حافظ بشیر حسین نجفی', titleLatin: 'Hafiz Bashir Hussain Najafi Urdu Fatawa',
+      description: 'اردو سوال و جواب، اصل ماخذ کے ساتھ', source: CorpusSource.fatwa, recordLabel: 'مسئلہ',
+      imageAsset: 'assets/images/marja_najafi.png',
+      marjaName: 'آیت اللہ العظمیٰ شیخ حافظ بشیر حسین نجفی'),
     BookDefinition(key: 'tahzeeb', fileName: 'Tahzeeb.db', titleUrdu: 'تہذیب الاحکام', titleLatin: 'Tahdhib al-Ahkam'),
     BookDefinition(key: 'alkafi', fileName: 'alkafi.db', titleUrdu: 'الکافی', titleLatin: 'Al-Kafi'),
     BookDefinition(key: 'alkhisal', fileName: 'alkhisal.db', titleUrdu: 'الخصال', titleLatin: 'Al-Khisal'),

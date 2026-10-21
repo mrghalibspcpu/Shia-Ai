@@ -217,8 +217,35 @@ def balagha(connection: sqlite3.Connection) -> None:
         "SELECT COUNT(*) FROM balaghatext WHERE ParaFormat = 4 AND trim(AR) LIKE '%٭%'"
     ).fetchone()[0]
     check("balagha: separator rows carry the ornament", separators > 100, f"{separators}")
-    footnotes = run(connection, "WHERE Type = ? AND TypeNo = ? AND ParaNo IS NOT NULL", (1, 3))
+    # Since 1.24 the reader loads an entry's notes in the book's own order and
+    # never pairs them with a paragraph by number: `balaghatext_hawashi.ParaNo`
+    # is the note's place in the footnote sequence (sermon 1 has 74 notes
+    # numbered 1-75 above 30 paragraphs), so the same number on a paragraph is
+    # a different thing entirely — that mismatch is what put a comment about
+    # one passage under another.
+    footnotes = run(
+        connection,
+        "FROM balaghatext_hawashi\n      WHERE Type = ? AND TypeNo = ? ORDER BY ID",
+        (1, 3),
+    )
     check("balagha: footnotes for khutba 3", len(footnotes) > 0, f"{len(footnotes)}")
+    numbers = [
+        row[0]
+        for row in connection.execute(
+            "SELECT ParaNo FROM balaghatext_hawashi WHERE Type = 1 AND TypeNo = 3 ORDER BY ID"
+        )
+    ]
+    paragraphs = connection.execute(
+        "SELECT COUNT(*) FROM balaghatext WHERE Type = 1 AND TypeNo = 3"
+    ).fetchone()[0]
+    check(
+        "balagha: note numbers are a sequence, not paragraph ids",
+        len(numbers) > 0
+        and len(set(numbers)) == len(numbers)
+        and numbers == sorted(numbers)
+        and max(numbers) > paragraphs,
+        f"{len(numbers)} notes numbered 1..{max(numbers)} over {paragraphs} paragraphs",
+    )
     intro = run(connection, "FROM balaghatext_muqadamat WHERE Type = ?", (1,))
     check("balagha: section introduction", len(intro) > 10, f"{len(intro)}")
     lookup = run(connection, "WHERE x.ID = ?", (44,))
