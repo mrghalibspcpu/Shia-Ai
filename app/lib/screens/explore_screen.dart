@@ -802,7 +802,10 @@ class _RadialMenuState extends State<_RadialMenu> with SingleTickerProviderState
       left: dx - itemSize / 2,
       top: dy - itemSize / 2,
       width: itemSize,
-      height: itemSize + 20,
+      // Room for the dial plus its caption. The dial is a circle of
+      // `itemSize`; the old `+ 20` left the caption one pixel too tall, which
+      // Flutter paints as an overflow stripe under every menu item.
+      height: itemSize + 26,
       child: Opacity(
         opacity: t,
         child: Transform.scale(
@@ -837,15 +840,21 @@ class _RadialMenuState extends State<_RadialMenu> with SingleTickerProviderState
                   ),
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                destination.label,
-                style: const TextStyle(
-                  fontFamily: 'sans-serif',
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+              const SizedBox(height: 5),
+              // Flexible, so a long label shrinks instead of overflowing the
+              // fixed-height box the menu positions the item in.
+              Flexible(
+                child: Text(
+                  destination.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'sans-serif',
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                  ),
                 ),
               ),
             ],

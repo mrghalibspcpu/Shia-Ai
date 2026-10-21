@@ -822,6 +822,9 @@ void main() {
       expect(find.text('Bookmarks'), findsOneWidget);
       expect(find.text('مینو بند کریں'), findsWidgets);
       await shoot(tester, 'explore-1-24-menu');
+      // The five dials carry a caption under each one; a caption one pixel too
+      // tall shows up here, not on a reader's phone.
+      expect(tester.takeException(), isNull);
 
       await finish(tester, prayer, tasbeeh);
     });
