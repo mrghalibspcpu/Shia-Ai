@@ -498,22 +498,6 @@ class _RedPlate extends StatelessWidget {
   final Color tint;
   final MoreFeature? feature;
 
-  /// Whether [title] is painted on one line inside the engraving at [size].
-  bool _fitsOneLine(BuildContext context, double size, double disc) {
-    final painter = TextPainter(
-      text: TextSpan(
-        text: title,
-        style: TextStyle(fontSize: size * 0.098, fontWeight: FontWeight.w800),
-      ),
-      textDirection: TextDirection.rtl,
-      textAlign: TextAlign.center,
-      maxLines: 2,
-    )..layout(maxWidth: disc * 0.80);
-    final lines = painter.computeLineMetrics().length;
-    painter.dispose();
-    return lines <= 1;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Semantics(
