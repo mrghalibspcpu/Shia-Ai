@@ -223,6 +223,32 @@ jobs:
             echo "Production signing secrets are incomplete; building with the Android debug key. This APK is for testing only."
           fi
 
+      # Flutter's Gradle plugin downloads NDK 28.2 on demand. A truncated
+      # archive makes sdkmanager fail the whole APK with "unknown archive".
+      # Install it here, and delete the partial zip before each retry.
+      - name: Install Android NDK
+        run: |
+          set -euo pipefail
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          manager="$sdk/cmdline-tools/latest/bin/sdkmanager"
+          ndk_dir="$sdk/ndk/28.2.13676358"
+          if [[ -x "$ndk_dir/ndk-build" ]]; then
+            echo "NDK 28.2.13676358 already installed"
+            exit 0
+          fi
+          yes | "$manager" --licenses >/dev/null || true
+          for attempt in 1 2 3 4; do
+            if yes | "$manager" --install "ndk;28.2.13676358"; then
+              exit 0
+            fi
+            echo "NDK install attempt $attempt failed; clearing the partial archive"
+            rm -rf "$ndk_dir" "$sdk/.temp" "$sdk/temp" "$HOME/.android/cache"
+            find "$sdk" /tmp -name '*28.2.13676358*.zip' -delete 2>/dev/null || true
+            sleep $((attempt * 8))
+          done
+          echo "::error title=NDK install failed::Could not unpack NDK 28.2.13676358"
+          exit 1
+
       - name: Build APK
         working-directory: app
         shell: bash
