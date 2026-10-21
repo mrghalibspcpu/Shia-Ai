@@ -36,6 +36,8 @@ import 'package:shiaverse/services/prayer_locations.dart';
 import 'package:shiaverse/services/prayer_scope.dart';
 import 'package:shiaverse/services/tasbeeh_controller.dart';
 import 'package:shiaverse/widgets/home_dashboard.dart';
+import 'package:shiaverse/widgets/more_features.dart';
+import 'package:shiaverse/screens/explore_screen.dart';
 
 /// Layout checks for the 1.12 home dashboard and readers and the screens around it on a
 /// small (360 dp) phone, with the app's real fonts: any overflow fails the
@@ -753,6 +755,77 @@ void main() {
       expect(line.isOpenable, isFalse);
     }
   });
+
+  /// The Xplore lens plate: six destinations on the plate and the radial menu
+  /// in its bottom-right corner. Titled exactly like `main.dart` names them, so
+  /// every lens finds its feature and nothing is drawn as a dead control.
+  List<MoreFeature> exploreFeatures(void Function(String) onOpen) => <MoreFeature>[
+        for (final (title, subtitle, icon) in <(String, String, IconData)>[
+          ('تسبیح و ذکر', 'تسبیحِ زہرا (س) اور اپنے ورد کا مکمل کاؤنٹر', Icons.touch_app),
+          ('نماز کے اوقات', 'اہلِ تشیع (جعفری) اوقات، مقام اور قرات کا وقت', Icons.schedule),
+          ('چاند کی رویت', 'ہجری مہینے کا آغاز، آپ ہی کے شہر کے حساب سے', Icons.nightlight_round),
+          ('اسلامی تقویم', 'محرم سے ذو الحجہ تک، اس سال کی تاریخوں کے ساتھ', Icons.calendar_month_rounded),
+          ('Xplore Xtra', 'روزانہ مطالعہ، آنے والی سہولتیں اور روزمرہ کے چھوٹے tools',
+              Icons.auto_awesome_rounded),
+          ('اثنا عشری انسائکلوپیڈیا', 'بارہ ائمہ، اہلِ بیت، عقائد، عبادات اور معتبر ماخذ',
+              Icons.menu_book_rounded),
+        ])
+          MoreFeature(
+            title: title,
+            subtitle: subtitle,
+            icon: icon,
+            color: const Color(0xFF6B4E9B),
+            onOpen: () => onOpen(title),
+          ),
+      ];
+
+  for (final (label, height) in <(String, double)>[('tall', 800), ('short', 640)]) {
+    testWidgets('the Xplore lens plate fits a 360 dp phone ($label)', (tester) async {
+      phone(tester, height: height);
+      final (prayer, tasbeeh) = await controllersAt(tester, localTime(19, 20));
+      final opened = <String>[];
+      final observer = RouteObserver<PageRoute<dynamic>>();
+      await tester.pumpWidget(host(
+        prayer,
+        tasbeeh,
+        ExploreScreen(
+          features: exploreFeatures(opened.add),
+          onAction: (_) {},
+          onHubVisibilityChanged: (_) {},
+          routeObserver: observer,
+        ),
+      ));
+      await settle(tester);
+      expect(find.textContaining('Xplore'), findsWidgets);
+      // Nothing may overflow: an overflowing plate is a failed layout.
+      expect(tester.takeException(), isNull);
+      await shoot(tester, 'explore-1-24-$label');
+
+      // Every lens is a live control.
+      for (final title in <String>['تسبیح', 'نماز']) {
+        final lens = find.text(title);
+        if (lens.evaluate().isEmpty) continue;
+        await tester.tap(lens.first, warnIfMissed: false);
+        await tester.pump();
+      }
+      expect(opened, isNotEmpty);
+
+      // The radial menu opens from its plate in the bottom-right corner, not
+      // from the middle of the page.
+      final plate = find.text('Radial menu');
+      expect(plate, findsOneWidget, reason: 'the radial control sits in its own plate');
+      final plateCentre = tester.getCenter(plate);
+      expect(plateCentre.dx, greaterThan(360 * 0.5));
+      expect(plateCentre.dy, greaterThan(height * 0.75));
+      await tester.tap(plate, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(find.text('Bookmarks'), findsOneWidget);
+      expect(find.text('مینو بند کریں'), findsWidgets);
+      await shoot(tester, 'explore-1-24-menu');
+
+      await finish(tester, prayer, tasbeeh);
+    });
+  }
 }
 
 
