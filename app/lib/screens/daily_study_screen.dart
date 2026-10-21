@@ -262,7 +262,7 @@ class _DailyStudyScreenState extends State<DailyStudyScreen> {
         today: today,
         finished: plan.completedDays.contains(portion.day) || finished,
         onOpen: () => unawaited(_openPortion(plan, portion)),
-        onToggle: () => unawaited(_toggleDay(portion.day)),
+        onToggle: () => unawaited(_toggleDay(plan, portion.day)),
       ),
       const SizedBox(height: 14),
       Row(
@@ -371,12 +371,10 @@ class _PlanBuilder extends StatefulWidget {
   const _PlanBuilder({
     required this.activeTracks,
     required this.onStart,
-    this.initialDays,
   });
 
   final Set<StudyTrack> activeTracks;
   final void Function(Set<StudyTrack> tracks, int days) onStart;
-  final int? initialDays;
 
   @override
   State<_PlanBuilder> createState() => _PlanBuilderState();
@@ -386,7 +384,7 @@ class _PlanBuilderState extends State<_PlanBuilder> {
   static const List<int> _lengths = <int>[7, 14, 30, 60, 90, 180];
 
   final Set<StudyTrack> _selected = <StudyTrack>{};
-  late int _days = widget.initialDays ?? 90;
+  int _days = 90;
 
   @override
   void initState() {
@@ -417,16 +415,17 @@ class _PlanBuilderState extends State<_PlanBuilder> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const JustifiedText(
-            'کون سی کتاب؟',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFFFFE1A1)),
+          JustifiedText(
+            widget.activeTracks.isEmpty ? 'کون سی کتابیں؟ (ایک یا زیادہ)' : 'مزید کتاب شامل کریں',
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFFFFE1A1)),
           ),
           const SizedBox(height: 10),
           for (final track in StudyTrack.values) ...<Widget>[
             _TrackRow(
               track: track,
-              selected: track == _track,
-              onTap: () => setState(() => _track = track),
+              selected: _selected.contains(track),
+              alreadyActive: widget.activeTracks.contains(track),
+              onTap: () => _toggle(track),
             ),
             const SizedBox(height: 8),
           ],
@@ -485,10 +484,18 @@ class _PlanBuilderState extends State<_PlanBuilder> {
 }
 
 class _TrackRow extends StatelessWidget {
-  const _TrackRow({required this.track, required this.selected, required this.onTap});
+  const _TrackRow({
+    required this.track,
+    required this.selected,
+    required this.alreadyActive,
+    required this.onTap,
+  });
 
   final StudyTrack track;
   final bool selected;
+
+  /// A plan for this track is already running: shown, never re-tickable.
+  final bool alreadyActive;
   final VoidCallback onTap;
 
   @override
@@ -498,7 +505,7 @@ class _TrackRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
+        onTap: alreadyActive ? null : onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
@@ -537,6 +544,20 @@ class _TrackRow extends StatelessWidget {
                   ],
                 ),
               ),
+              if (alreadyActive) ...<Widget>[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: kForest.withValues(alpha: 0.35),
+                  ),
+                  child: const Text(
+                    'شامل ہے',
+                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: Color(0xFFBFE8D5)),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
