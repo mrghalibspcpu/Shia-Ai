@@ -1,6 +1,79 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <corners android:radius="22dp" />
-    <gradient android:angle="135" android:startColor="#173D36" android:centerColor="#142A2D" android:endColor="#15212A" />
-    <stroke android:width="1dp" android:color="#A87F49" />
-</shape>
+<!-- The widget's plate: a slab of dark green steel with a gold rim, a light
+     falling on its top edge and a shadow gathering under it. Layer by layer
+     it reads as a real object sitting on the wallpaper, not as a flat card. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- the shadow the plate casts on the wallpaper -->
+    <item
+        android:bottom="-2dp"
+        android:left="1dp"
+        android:right="1dp"
+        android:top="4dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp" />
+            <solid android:color="#7A000000" />
+        </shape>
+    </item>
+
+    <!-- the steel of the plate -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp" />
+            <gradient
+                android:angle="135"
+                android:centerColor="#132C31"
+                android:endColor="#0A1218"
+                android:startColor="#1D4E44"
+                android:type="linear" />
+        </shape>
+    </item>
+
+    <!-- the light that falls along the top edge -->
+    <item
+        android:bottom="18dp"
+        android:left="1dp"
+        android:right="1dp"
+        android:top="1dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="23dp" />
+            <gradient
+                android:angle="270"
+                android:centerColor="#1FFFFFFF"
+                android:endColor="#00FFFFFF"
+                android:startColor="#40FFFFFF"
+                android:type="linear" />
+        </shape>
+    </item>
+
+    <!-- the shadow that gathers under the plate -->
+    <item
+        android:bottom="1dp"
+        android:left="1dp"
+        android:right="1dp"
+        android:top="14dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="23dp" />
+            <gradient
+                android:angle="90"
+                android:centerColor="#00000000"
+                android:endColor="#59000000"
+                android:startColor="#00000000"
+                android:type="linear" />
+        </shape>
+    </item>
+
+    <!-- the gold rim of the plate -->
+    <item
+        android:bottom="1dp"
+        android:left="1dp"
+        android:right="1dp"
+        android:top="1dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="23dp" />
+            <stroke
+                android:width="1dp"
+                android:color="#C9A063" />
+        </shape>
+    </item>
+</layer-list>

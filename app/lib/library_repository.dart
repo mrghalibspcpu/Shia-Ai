@@ -1227,6 +1227,24 @@ class LibraryRepository {
     return rows.map(_quranPassage).toList();
   }
 
+  /// The verses of a run of mushaf pages, in order. The daily study opens a
+  /// whole portion this way, so the reader shows the days' pages and not only
+  /// the first one.
+  Future<List<Passage>> getQuranPages(int firstPage, int lastPage) async {
+    final book = BookDefinition.bookFor(CorpusSource.quran);
+    if (book == null) return const [];
+    final db = await _openBook(book);
+    final rows = await db.rawQuery('''
+      SELECT q.ID AS record_id, q.Arabic AS arabic, q.tr AS urdu, q.talighe AS commentary,
+             q.chapter AS container_type, q.chapter AS container_id, q.page AS page_no,
+             q.juz AS juz, q.verse AS verse, COALESCE(cp.Name, '') AS surah_name
+      FROM Quran AS q LEFT JOIN ChapterProperty AS cp ON cp.Id = q.chapter
+      WHERE q.page >= ? AND q.page <= ?
+      ORDER BY q.ID
+    ''', [firstPage, lastPage]);
+    return rows.map(_quranPassage).toList();
+  }
+
   Passage _quranPassage(Map<String, Object?> row) {
     final chapter = _asInt(row['container_type']) ?? 1;
     final verse = _asInt(row['verse']) ?? 0;

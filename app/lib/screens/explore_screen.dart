@@ -8,12 +8,13 @@ import '../widgets/reading_hub.dart';
 /// Full-screen Xplore dashboard.
 ///
 /// The page is the camera-lens plate of the reference artwork, in portrait:
-/// six amber lenses on a brushed-metal body, the sixth destination on a red
-/// bevel plate hanging off the left edge, and the red plate in the bottom-right
-/// corner that carries the radial-menu button. Lens one sits top-left, lens two
-/// steps down towards the middle, three reaches the right edge, four comes back
-/// to the centre, five closes at the bottom-left — the same diagonal climb as
-/// the artwork, so the controls read as a machine and not as a grid.
+/// five amber lenses on a brushed-metal body, and three red plates cut into
+/// the edges of that body — the brand wedge in the top-right corner, the
+/// pointing wedge on the left edge, and the corner wedge in the bottom-right
+/// that carries the radial-menu button. Lens one sits top-left, lens two
+/// steps down towards the middle, three reaches the right edge, four comes
+/// back to the centre, five closes at the bottom-left — the same diagonal
+/// climb as the artwork, so the controls read as a machine and not as a grid.
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({
     super.key,
@@ -102,7 +103,17 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
               // Lens diameter: about 40% of the width on a phone, and never so
               // tall that the five lenses plus the corner plates stop fitting.
               final lens = math.min(width * 0.40, height * 0.20);
-              final anchor = Offset(width * 0.855, height - math.min(64.0, lens * 0.5));
+              // The three red plates, cut into the edges of the body.
+              final brand = _PlateGeometry.brand(width, height);
+              final wedge = _PlateGeometry.wedge(width, height);
+              final corner = _PlateGeometry.corner(width, height);
+              // The radial menu fans out of the round button that sits on the
+              // bottom-right plate, so the menu grows out of the button.
+              final buttonCentre = corner.incentre(corner.size);
+              final anchor = Offset(
+                width - corner.width + buttonCentre.dx,
+                height - corner.height + buttonCentre.dy,
+              );
 
               Widget at(Offset centre, double diameter, Widget child) => Positioned(
                     left: centre.dx - diameter / 2,
@@ -116,11 +127,17 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                 clipBehavior: Clip.none,
                 children: <Widget>[
                   _TopBar(onBack: () => Navigator.maybePop(context)),
+                  Positioned(
+                    left: width - brand.width,
+                    top: 0,
+                    width: brand.width,
+                    height: brand.height,
+                    child: _BrandPlate(geometry: brand),
+                  ),
                   at(
                     Offset(width * 0.20, height * 0.155),
                     lens,
                     _LensControl(
-                      number: 1,
                       title: 'تسبیح',
                       subtitle: 'تسبیح و ذکر',
                       icon: Icons.fingerprint_rounded,
@@ -132,7 +149,6 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                     Offset(width * 0.505, height * 0.335),
                     lens * 1.08,
                     _LensControl(
-                      number: 2,
                       title: 'نماز',
                       subtitle: 'اوقات و قرات',
                       icon: Icons.access_time_filled_rounded,
@@ -144,7 +160,6 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                     Offset(width * 0.795, height * 0.505),
                     lens * 0.94,
                     _LensControl(
-                      number: 3,
                       title: 'چاند کی رویت',
                       subtitle: 'رویتِ ہلال',
                       icon: Icons.nightlight_round,
@@ -156,7 +171,6 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                     Offset(width * 0.515, height * 0.675),
                     lens,
                     _LensControl(
-                      number: 4,
                       title: 'اسلامی تقویم',
                       subtitle: 'ہجری تاریخیں',
                       icon: Icons.calendar_month_rounded,
@@ -168,7 +182,6 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                     Offset(width * 0.215, height * 0.838),
                     lens * 0.88,
                     _LensControl(
-                      number: 5,
                       title: 'Xplore Xtra',
                       subtitle: 'روزانہ مطالعہ',
                       icon: Icons.auto_awesome_rounded,
@@ -177,24 +190,19 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                     ),
                   ),
                   Positioned(
-                    left: -lens * 0.16,
-                    top: height * 0.435 - lens * 0.44,
-                    width: lens * 0.92,
-                    height: lens * 0.92,
-                    child: _RedPlate(
-                      icon: Icons.menu_book_rounded,
-                      title: 'اثنا عشری انسائکلوپیڈیا',
-                      subtitle: 'ائمہ، عقائد، تاریخ',
-                      tint: const Color(0xFF7E2731),
-                      feature: encyclopedia,
-                    ),
+                    left: 0,
+                    top: height * 0.28,
+                    width: wedge.width,
+                    height: wedge.height,
+                    child: _WedgePlate(geometry: wedge, feature: encyclopedia),
                   ),
                   Positioned(
-                    right: -lens * 0.12,
-                    bottom: math.max(4.0, height * 0.012),
-                    width: lens * 1.02,
-                    height: lens * 0.78,
-                    child: _LaunchPlate(
+                    left: width - corner.width,
+                    top: height - corner.height,
+                    width: corner.width,
+                    height: corner.height,
+                    child: _CornerPlate(
+                      geometry: corner,
                       open: _menuOpen,
                       onTap: _toggleMenu,
                       width: width,
@@ -218,7 +226,8 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
   }
 }
 
-/// The brand plate and the back button, painted over the top of the metal.
+/// The back button, painted over the top of the metal. The brand wordmark
+/// lives on the red wedge in the corner, not here.
 class _TopBar extends StatelessWidget {
   const _TopBar({required this.onBack});
 
@@ -252,63 +261,454 @@ class _TopBar extends StatelessWidget {
                   ),
                 ),
               ),
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(22, 9, 18, 11),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topRight,
-                      end: Alignment.bottomLeft,
-                      colors: [Color(0xFFAA2B35), Color(0xFF5E1620)],
-                    ),
-                    borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24)),
-                    border: Border(
-                      left: BorderSide(color: Color(0x88FF9B94), width: 1.2),
-                      bottom: BorderSide(color: Color(0x88FF9B94), width: 1.2),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      const Text(
-                        'Xplore',
-                        style: TextStyle(
-                          fontFamily: 'sans-serif',
-                          fontSize: 21,
-                          height: 1.05,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: .8,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'by ShiaVerse',
-                        style: TextStyle(
-                          fontFamily: 'sans-serif',
-                          fontSize: 10.5,
-                          letterSpacing: 1.1,
-                          color: Colors.white.withValues(alpha: .78),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
         ),
       );
 }
 
+/// The shape of one edge plate: the box it is cut in and the three corners of
+/// the triangle inside that box, in unit coordinates.
+class _PlateGeometry {
+  const _PlateGeometry({
+    required this.width,
+    required this.height,
+    required this.vertices,
+  });
+
+  /// The brand wedge in the top-right corner: the hypotenuse runs from the
+  /// top edge down to the right edge, and the right angle sits in the corner.
+  factory _PlateGeometry.brand(double width, double height) => _PlateGeometry(
+        width: width * 0.62,
+        height: height * 0.185,
+        vertices: const <Offset>[Offset(0, 0), Offset(1, 0), Offset(1, 1)],
+      );
+
+  /// The wedge on the left edge: its base is the edge of the body itself and
+  /// its point reaches into the plate.
+  factory _PlateGeometry.wedge(double width, double height) => _PlateGeometry(
+        width: width * 0.44,
+        height: height * 0.38,
+        vertices: const <Offset>[Offset(0, 0), Offset(0, 1), Offset(1, 0.5)],
+      );
+
+  /// The corner wedge in the bottom right: the right angle sits in the corner
+  /// of the screen, and the hypotenuse runs up the right edge.
+  factory _PlateGeometry.corner(double width, double height) => _PlateGeometry(
+        width: width * 0.46,
+        height: height * 0.34,
+        vertices: const <Offset>[Offset(1, 0), Offset(1, 1), Offset(0, 1)],
+      );
+
+  final double width;
+  final double height;
+  final List<Offset> vertices;
+
+  Size get size => Size(width, height);
+
+  /// The triangle inside a box of [size].
+  Path path(Size size) {
+    final path = Path();
+    for (var index = 0; index < vertices.length; index++) {
+      final vertex = vertices[index];
+      final point = Offset(vertex.dx * size.width, vertex.dy * size.height);
+      if (index == 0) {
+        path.moveTo(point.dx, point.dy);
+      } else {
+        path.lineTo(point.dx, point.dy);
+      }
+    }
+    return path..close();
+  }
+
+  /// The centre of the triangle's inscribed circle: the one point where a
+  /// control can sit without crossing any of the three edges.
+  Offset incentre(Size size) {
+    final points = <Offset>[
+      for (final vertex in vertices)
+        Offset(vertex.dx * size.width, vertex.dy * size.height),
+    ];
+    final a = (points[1] - points[2]).distance;
+    final b = (points[0] - points[2]).distance;
+    final c = (points[0] - points[1]).distance;
+    final perimeter = a + b + c;
+    if (perimeter <= 0) return points.first;
+    return Offset(
+      (a * points[0].dx + b * points[1].dx + c * points[2].dx) / perimeter,
+      (a * points[0].dy + b * points[1].dy + c * points[2].dy) / perimeter,
+    );
+  }
+}
+
+/// A red plate cut into the body of the machine: a triangle with a bevelled
+/// edge, the brushed lines of the red steel, and the control that lives on it.
+class _TrianglePlate extends StatelessWidget {
+  const _TrianglePlate({
+    required this.geometry,
+    required this.child,
+    required this.tint,
+    required this.sheen,
+  });
+
+  final _PlateGeometry geometry;
+  final Widget child;
+  final Color tint;
+  final Color sheen;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _TrianglePainter(geometry: geometry, tint: tint, sheen: sheen),
+      child: ClipPath(
+        clipper: _TriangleClipper(geometry),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// Keeps whatever sits on a plate inside the plate.
+class _TriangleClipper extends CustomClipper<Path> {
+  const _TriangleClipper(this.geometry);
+
+  final _PlateGeometry geometry;
+
+  @override
+  Path getClip(Size size) => geometry.path(size);
+
+  @override
+  bool shouldReclip(covariant _TriangleClipper oldClipper) =>
+      oldClipper.geometry.width != geometry.width ||
+      oldClipper.geometry.height != geometry.height ||
+      !identical(oldClipper.geometry.vertices, geometry.vertices);
+}
+
+/// The red plate: a bevelled edge, brushed steel, and the shadow the plate
+/// casts on the metal body.
+class _TrianglePainter extends CustomPainter {
+  const _TrianglePainter({
+    required this.geometry,
+    required this.tint,
+    required this.sheen,
+  });
+
+  final _PlateGeometry geometry;
+  final Color tint;
+  final Color sheen;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = geometry.path(size);
+
+    // The plate stands off the metal: a soft shadow under the whole triangle.
+    canvas.save();
+    canvas.translate(0, 7);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = const Color(0xCC04080B)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
+    );
+    canvas.restore();
+
+    // The body of the plate, lit from the top-left.
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[sheen, tint, const Color(0xFF3A0E14)],
+          stops: const <double>[0, .48, 1],
+        ).createShader(Offset.zero & size),
+    );
+
+    // The brushed lines of the plate, and a soft sheen across its top.
+    canvas.save();
+    canvas.clipPath(path);
+    final hatch = Paint()
+      ..color = Colors.white.withValues(alpha: .05)
+      ..strokeWidth = .8;
+    for (var offset = -size.height; offset < size.width; offset += 7) {
+      canvas.drawLine(
+        Offset(offset, size.height),
+        Offset(offset + size.height, 0),
+        hatch,
+      );
+    }
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, size.height * .38),
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[
+            Colors.white.withValues(alpha: .10),
+            Colors.transparent,
+          ],
+        ).createShader(Offset.zero & size),
+    );
+    canvas.restore();
+
+    // The bevel: a dark rim, and a bright edge where the light catches it.
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..color = const Color(0x66000000),
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4
+        ..color = const Color(0xAAFFC0B4),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrianglePainter oldDelegate) =>
+      oldDelegate.tint != tint ||
+      oldDelegate.sheen != sheen ||
+      oldDelegate.geometry.width != geometry.width ||
+      oldDelegate.geometry.height != geometry.height ||
+      !identical(oldDelegate.geometry.vertices, geometry.vertices);
+}
+
+/// The wordmark on the top-right wedge, laid along the plate's hypotenuse.
+class _BrandPlate extends StatelessWidget {
+  const _BrandPlate({required this.geometry});
+
+  final _PlateGeometry geometry;
+
+  @override
+  Widget build(BuildContext context) {
+    return _TrianglePlate(
+      geometry: geometry,
+      tint: const Color(0xFF8E2330),
+      sheen: const Color(0xFFC23C4B),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final size = Size(constraints.maxWidth, constraints.maxHeight);
+          final centre = geometry.incentre(size);
+          // The wordmark lies along the hypotenuse, at the angle of the plate.
+          final angle = math.atan2(size.height, size.width);
+          final blockWidth = size.width * 0.44;
+          const blockHeight = 42.0;
+          return Stack(
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              Positioned(
+                left: centre.dx - blockWidth / 2,
+                top: centre.dy - blockHeight / 2,
+                width: blockWidth,
+                height: blockHeight,
+                child: Transform.rotate(
+                  angle: angle,
+                  child: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          'Xplore',
+                          style: TextStyle(
+                            fontFamily: 'sans-serif',
+                            fontSize: 21,
+                            height: 1.05,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: .8,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(height: 3),
+                        Text(
+                          'by ShiaVerse',
+                          style: TextStyle(
+                            fontFamily: 'sans-serif',
+                            fontSize: 10.5,
+                            letterSpacing: 1.1,
+                            color: Color(0xCCFFFFFF),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// The wedge on the left edge: the encyclopaedia, cut into the body's edge.
+class _WedgePlate extends StatelessWidget {
+  const _WedgePlate({required this.geometry, required this.feature});
+
+  final _PlateGeometry geometry;
+  final MoreFeature? feature;
+
+  @override
+  Widget build(BuildContext context) {
+    final encyclopedia = feature;
+    return Semantics(
+      button: true,
+      label: encyclopedia == null
+          ? 'اثنا عشری انسائکلوپیڈیا'
+          : '${encyclopedia.title} — ${encyclopedia.subtitle}',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: encyclopedia?.onOpen,
+          child: _TrianglePlate(
+            geometry: geometry,
+            tint: const Color(0xFF7E2731),
+            sheen: const Color(0xFFA93040),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final size = Size(constraints.maxWidth, constraints.maxHeight);
+                final centre = geometry.incentre(size);
+                const iconSize = 38.0;
+                final labelWidth = size.width * 0.62;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: <Widget>[
+                    // The glyph sits above the middle of the wedge, where the
+                    // triangle is still wide enough to hold it.
+                    Positioned(
+                      left: centre.dx - iconSize / 2,
+                      top: size.height * 0.39 - iconSize / 2,
+                      width: iconSize,
+                      height: iconSize,
+                      child: const Icon(
+                        Icons.menu_book_rounded,
+                        color: Color(0xFFFFE1CE),
+                        size: iconSize,
+                      ),
+                    ),
+                    Positioned(
+                      left: centre.dx - labelWidth / 2,
+                      top: size.height * 0.485,
+                      width: labelWidth,
+                      height: 32,
+                      child: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Text(
+                              'انسائکلوپیڈیا',
+                              style: TextStyle(
+                                fontSize: 13,
+                                height: 1.2,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              'بارہ ائمہ • عقائد',
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                height: 1.3,
+                                color: Color(0xFFFFD9C9),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The corner wedge in the bottom right: the plate that carries the radial
+/// menu, the same affordance as the app-wide hub, redrawn in this plate's
+/// language.
+class _CornerPlate extends StatelessWidget {
+  const _CornerPlate({
+    required this.geometry,
+    required this.open,
+    required this.onTap,
+    required this.width,
+  });
+
+  final _PlateGeometry geometry;
+  final bool open;
+  final VoidCallback onTap;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: open ? 'مینو بند کریں' : 'مینو کھولیں',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: _TrianglePlate(
+            geometry: geometry,
+            tint: const Color(0xFF8B2635),
+            sheen: const Color(0xFFB43643),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final size = Size(constraints.maxWidth, constraints.maxHeight);
+                final centre = geometry.incentre(size);
+                final buttonSize = math.min(60.0, width * 0.16);
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: <Widget>[
+                    Positioned(
+                      left: centre.dx - buttonSize / 2,
+                      top: centre.dy - buttonSize / 2,
+                      width: buttonSize,
+                      height: buttonSize,
+                      child: _RadialButton(open: open, size: buttonSize),
+                    ),
+                    Positioned(
+                      left: centre.dx - size.width * 0.32,
+                      top: centre.dy + buttonSize / 2 + 2,
+                      width: size.width * 0.64,
+                      height: 20,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          open ? 'مینو بند کریں' : 'Radial menu',
+                          textDirection: TextDirection.rtl,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFFFE3D6),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// One camera lens: a knurled metal barrel, an amber glass element, and the
 /// destination engraved on a dark disc at the centre.
 class _LensControl extends StatelessWidget {
   const _LensControl({
-    required this.number,
     required this.title,
     required this.subtitle,
     required this.icon,
@@ -316,7 +716,6 @@ class _LensControl extends StatelessWidget {
     required this.feature,
   });
 
-  final int number;
   final String title;
   final String subtitle;
   final IconData icon;
@@ -449,194 +848,12 @@ class _LensControl extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // An engraved control number on the barrel, as on the body.
-                  Positioned(
-                    top: size * 0.055,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: size * 0.05, vertical: size * 0.008),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(size),
-                        color: const Color(0x99121A20),
-                        border: Border.all(color: const Color(0x55D9C3A6), width: .8),
-                      ),
-                      child: Text(
-                        '$number',
-                        style: TextStyle(
-                          fontFamily: 'sans-serif',
-                          fontSize: size * 0.085,
-                          height: 1,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFFE7D8C4),
-                        ),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
           ),
         );
       }),
-    );
-  }
-}
-
-/// A bevel plate in the body's red: same destinations as a lens, different
-/// material. Used for the encyclopaedia at the left edge.
-class _RedPlate extends StatelessWidget {
-  const _RedPlate({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.tint,
-    required this.feature,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color tint;
-  final MoreFeature? feature;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: '$title — $subtitle',
-      child: Transform.rotate(
-        angle: -0.07,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(26),
-            onTap: feature?.onOpen,
-            child: Ink(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(26),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: <Color>[Color.lerp(tint, Colors.white, .22)!, tint, const Color(0xFF2A0D12)],
-                ),
-                border: Border.all(color: const Color(0x99FFA29A), width: 1.2),
-                boxShadow: const [
-                  BoxShadow(color: Color(0xCC05090C), blurRadius: 18, offset: Offset(0, 9)),
-                ],
-              ),
-              child: Stack(
-                children: <Widget>[
-                  Positioned.fill(
-                    child: CustomPaint(painter: _HatchPainter(color: const Color(0x33FFFFFF))),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: <Widget>[
-                        Icon(icon, color: const Color(0xFFFFE1CE), size: 26),
-                        const SizedBox(height: 8),
-                        Flexible(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              title,
-                              textAlign: TextAlign.center,
-                              maxLines: 3,
-                              textDirection: TextDirection.rtl,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                height: 1.35,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            subtitle,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            textDirection: TextDirection.rtl,
-                            style: const TextStyle(fontSize: 10, color: Color(0xFFFFD9C9)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The bottom-right red plate. It holds the round radial-menu button, and is
-/// the only place in the app where that button lives inside Xplore.
-class _LaunchPlate extends StatelessWidget {
-  const _LaunchPlate({required this.open, required this.onTap, required this.width});
-
-  final bool open;
-  final VoidCallback onTap;
-  final double width;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: open ? 'مینو بند کریں' : 'مینو کھولیں',
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: const BorderRadius.only(topLeft: Radius.circular(30)),
-          onTap: onTap,
-          child: Ink(
-            decoration: const BoxDecoration(
-              borderRadius: BorderRadius.only(topLeft: Radius.circular(30)),
-              gradient: LinearGradient(
-                begin: Alignment.bottomRight,
-                end: Alignment.topLeft,
-                colors: [Color(0xFF42121A), Color(0xFF8B2635), Color(0xFFB43643)],
-              ),
-              border: Border(
-                top: BorderSide(color: Color(0x88FFA29A), width: 1.2),
-                left: BorderSide(color: Color(0x88FFA29A), width: 1.2),
-              ),
-            ),
-            child: Stack(
-              children: <Widget>[
-                Positioned.fill(
-                  child: CustomPaint(painter: _HatchPainter(color: const Color(0x22FFFFFF))),
-                ),
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      _RadialButton(open: open, size: math.min(66.0, width * 0.17)),
-                      const SizedBox(height: 7),
-                      Text(
-                        open ? 'مینو بند کریں' : 'Radial menu',
-                        textDirection: TextDirection.rtl,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFFFFE3D6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -1058,29 +1275,4 @@ class _GlassPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _GlassPainter oldDelegate) =>
       oldDelegate.accent != accent || oldDelegate.discRatio != discRatio;
-}
-
-/// Brushed diagonal lines on the red plates, so they read as the same material
-/// family as the lenses.
-class _HatchPainter extends CustomPainter {
-  const _HatchPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = .8;
-    for (var offset = -size.height; offset < size.width; offset += 7) {
-      canvas.drawLine(
-        Offset(offset.toDouble(), size.height),
-        Offset(offset + size.height, 0),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _HatchPainter oldDelegate) => oldDelegate.color != color;
 }

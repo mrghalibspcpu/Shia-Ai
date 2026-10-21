@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +7,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app_theme.dart';
+import '../daily_study.dart';
 import '../library_repository.dart';
 import '../models.dart';
 import '../text_utils.dart' show arabicNumerals, parseReaderNumber;
@@ -384,20 +386,39 @@ class JuzReaderScreen extends StatelessWidget {
   }
 }
 
+/// The mushaf page reader — also the reader the daily study opens.
+///
+/// It can carry a whole run of pages: the daily study opens today's portion
+/// of the mushaf, so the reader shows every page of the day and not only the
+/// first one. At the end of the run the reader offers the next and the
+/// previous run of pages, and the next and the previous surah.
 class QuranPageReaderScreen extends StatelessWidget {
-  const QuranPageReaderScreen({super.key, required this.library, required this.page});
+  const QuranPageReaderScreen({
+    super.key,
+    required this.library,
+    required this.page,
+    this.lastPage,
+  });
 
   final LibraryRepository library;
   final int page;
 
+  /// The last page of the run, when the reader was opened for a portion.
+  final int? lastPage;
+
   @override
   Widget build(BuildContext context) {
+    final end = lastPage ?? page;
+    final range = end > page;
     return _QuranVerseList(
       library: library,
-      title: 'صفحہ $page',
-      subtitle: 'مصحف کا صفحہ',
-      loader: () => library.getQuranPage(page),
-      storageKey: 'quran-page-$page',
+      title: range ? 'صفحات $page تا $end' : 'صفحہ $page',
+      subtitle: range ? 'مصحف کے صفحات — آج کا حصہ' : 'مصحف کا صفحہ',
+      loader: () => library.getQuranPages(page, end),
+      storageKey: 'quran-page-$page-$end',
+      firstPage: page,
+      lastPage: end,
+      surahSections: true,
     );
   }
 }
@@ -417,6 +438,9 @@ class _QuranVerseList extends StatefulWidget {
     this.onPreviousSection,
     this.sectionNavLabel = '',
     this.surahNumber,
+    this.firstPage,
+    this.lastPage,
+    this.surahSections = false,
   });
 
   final LibraryRepository library;
@@ -435,6 +459,15 @@ class _QuranVerseList extends StatefulWidget {
   final VoidCallback? onNextSection;
   final VoidCallback? onPreviousSection;
   final String sectionNavLabel;
+
+  /// The run of mushaf pages the reader shows, when it was opened for a
+  /// portion: the page reader walks from one run to the next.
+  final int? firstPage;
+  final int? lastPage;
+
+  /// The page reader offers the surah before and the surah after the pages it
+  /// shows; the surah reader has its own cross-text navigation.
+  final bool surahSections;
 
   @override
   State<_QuranVerseList> createState() => _QuranVerseListState();
@@ -758,6 +791,11 @@ class _QuranVerseListState extends State<_QuranVerseList> with ReaderDisplayMode
   }
 
   Widget _verseFooter() {
+    final surahs = _surahsOnPages;
+    final previousSurah = surahs == null ? null : surahs.$1 - 1;
+    final nextSurah = surahs == null ? null : surahs.$2 + 1;
+    final firstPage = widget.firstPage;
+    final lastPage = widget.lastPage;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -783,8 +821,81 @@ class _QuranVerseListState extends State<_QuranVerseList> with ReaderDisplayMode
             label: widget.sectionNavLabel,
           ),
         ],
+        // The page reader ends with the surah before and the surah after the
+        // pages it shows, so a reader who opens the Quran from the daily
+        // study can walk on to the next surah without looking anything up.
+        if (widget.surahSections && surahs != null) ...[
+          const SizedBox(height: 10),
+          ReaderPrevNextBar(
+            key: const ValueKey<String>('quran-surah-prev-next'),
+            hasPrevious: previousSurah != null && previousSurah >= 1,
+            hasNext: nextSurah != null && nextSurah <= 114,
+            onPrevious: previousSurah != null && previousSurah >= 1
+                ? () => unawaited(_openSurah(previousSurah))
+                : null,
+            onNext: nextSurah != null && nextSurah <= 114
+                ? () => unawaited(_openSurah(nextSurah))
+                : null,
+            previousLabel: 'پچھلا سورہ',
+            nextLabel: 'اگلا سورہ',
+            label: 'سورہ ${surahs.$1} — اگلا / پچھلا سورہ',
+          ),
+        ],
+        // And with the run of pages before and after this one.
+        if (firstPage != null && lastPage != null) ...[
+          const SizedBox(height: 10),
+          ReaderPrevNextBar(
+            key: const ValueKey<String>('quran-page-prev-next'),
+            hasPrevious: firstPage > 1,
+            hasNext: lastPage < kQuranPages,
+            onPrevious: () => _openPageRun(false),
+            onNext: () => _openPageRun(true),
+            previousLabel: 'پچھلا صفحہ',
+            nextLabel: 'اگلا صفحہ',
+            label: 'صفحات ${arabicNumerals(firstPage)} تا ${arabicNumerals(lastPage)} — اگلا / پچھلا صفحہ',
+          ),
+        ],
       ],
     );
+  }
+
+  /// The first and the last surah on the pages the reader shows.
+  (int, int)? get _surahsOnPages {
+    if (_verses.isEmpty) return null;
+    final first = _verses.first.containerId;
+    final last = _verses.last.containerId;
+    if (first == null || last == null) return null;
+    return (first, last);
+  }
+
+  /// Opens the surah before or after the pages on the screen.
+  Future<void> _openSurah(int number) async {
+    final surahs = await widget.library.getSurahs();
+    final next = surahs.where((s) => s.number == number).toList();
+    if (next.isEmpty || !mounted) return;
+    Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
+      builder: (_) => SurahReaderScreen(library: widget.library, surah: next.first),
+    ));
+  }
+
+  /// Opens the run of pages before or after the one on the screen: the daily
+  /// study's portion is a run of pages, and the reader walks from one run to
+  /// the next.
+  void _openPageRun(bool forward) {
+    final first = widget.firstPage;
+    final last = widget.lastPage;
+    if (first == null || last == null) return;
+    final length = last - first + 1;
+    final start = forward ? last + 1 : math.max(1, first - length);
+    final end = forward ? math.min(kQuranPages, last + length) : first - 1;
+    if (end < start) return;
+    Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
+      builder: (_) => QuranPageReaderScreen(
+        library: widget.library,
+        page: start,
+        lastPage: end,
+      ),
+    ));
   }
 
   int _verseNumber(Passage verse) {

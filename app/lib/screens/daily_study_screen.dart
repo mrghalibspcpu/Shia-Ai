@@ -12,11 +12,12 @@ import 'quran_screen.dart';
 
 /// **روزانہ مطالعہ** — the Xplore feature that turns the library into a habit.
 ///
-/// A reader picks one book (the Quran, or one section of Nahj al-Balagha) and a
-/// length in days; the screen works out today's portion from the plan's start
-/// day, opens the reader at exactly that page/entry, and keeps the streak.
-/// Nothing is downloaded and nothing leaves the phone — the portion is pure
-/// arithmetic over the book's own length, so it keeps working offline forever.
+/// A reader picks one book (the Quran, or one section of Nahj al-Balagha) —
+/// or several books at once — and a length in days; the screen works out
+/// today's portion of every one of them from the plan's start day, opens the
+/// reader at exactly that page/entry, and keeps the streak. Nothing is
+/// downloaded and nothing leaves the phone — the portion is pure arithmetic
+/// over the book's own length, so it keeps working offline forever.
 class DailyStudyScreen extends StatefulWidget {
   const DailyStudyScreen({super.key, required this.library});
 
@@ -32,10 +33,10 @@ class _DailyStudyScreenState extends State<DailyStudyScreen> {
   StudyPlan? _plan;
   bool _loading = true;
 
-  /// Entries of the chosen Nahj al-Balagha section, used for the length and for
-  /// naming the entry a day opens on.
-  List<BalaghaEntry> _entries = const <BalaghaEntry>[];
-  int _units = 0;
+  /// Entries of the chosen Nahj al-Balagha sections, used for the length and
+  /// for naming the entry a day opens on — one list per book of the plan.
+  final Map<StudyTrack, List<BalaghaEntry>> _entries = <StudyTrack, List<BalaghaEntry>>{};
+  final Map<StudyTrack, int> _units = <StudyTrack, int>{};
   String? _dataMissing;
 
   @override
@@ -51,50 +52,61 @@ class _DailyStudyScreenState extends State<DailyStudyScreen> {
       _plan = plan;
       _loading = false;
     });
-    if (plan != null) await _measure(plan.track);
+    if (plan != null) await _measure(plan.tracks);
   }
 
-  /// How many units the chosen track has, asked of the library itself so the
+  /// How many units every chosen track has, asked of the library itself so the
   /// plan never promises a length the installed data cannot fill.
-  Future<void> _measure(StudyTrack track) async {
-    if (track.isQuran) {
-      final installed = widget.library.installedBooks.any((book) => book.source == CorpusSource.quran);
-      if (!mounted) return;
-      setState(() {
-        _units = installed ? kQuranPages : 0;
-        _entries = const <BalaghaEntry>[];
-        _dataMissing = installed ? null : 'قرآنِ کریم کا متن ابھی انسٹال نہیں — ڈیٹا سیکشن سے ڈاؤن لوڈ کریں۔';
-      });
-      return;
-    }
-    final type = track.balaghaType;
-    final installed = widget.library.installedBooks.any((book) => book.source == CorpusSource.balagha);
-    if (type == null || !installed) {
-      if (!mounted) return;
-      setState(() {
-        _units = 0;
-        _entries = const <BalaghaEntry>[];
-        _dataMissing = 'نہج البلاغہ ابھی انسٹال نہیں — ڈیٹا سیکشن سے ڈاؤن لوڈ کریں۔';
-      });
-      return;
-    }
-    List<BalaghaEntry> entries = const <BalaghaEntry>[];
-    try {
-      entries = await widget.library.getBalaghaEntries(type);
-    } catch (_) {
-      entries = const <BalaghaEntry>[];
+  Future<void> _measure(List<StudyTrack> tracks) async {
+    final units = <StudyTrack, int>{};
+    final entries = <StudyTrack, List<BalaghaEntry>>{};
+    String? missing;
+    final quranInstalled =
+        widget.library.installedBooks.any((book) => book.source == CorpusSource.quran);
+    final balaghaInstalled =
+        widget.library.installedBooks.any((book) => book.source == CorpusSource.balagha);
+    for (final track in tracks) {
+      if (track.isQuran) {
+        if (!quranInstalled) {
+          missing ??= 'قرآنِ کریم کا متن ابھی انسٹال نہیں — ڈیٹا سیکشن سے ڈاؤن لوڈ کریں۔';
+          continue;
+        }
+        units[track] = kQuranPages;
+        entries[track] = const <BalaghaEntry>[];
+        continue;
+      }
+      final type = track.balaghaType;
+      if (type == null || !balaghaInstalled) {
+        missing ??= 'نہج البلاغہ ابھی انسٹال نہیں — ڈیٹا سیکشن سے ڈاؤن لوڈ کریں۔';
+        continue;
+      }
+      List<BalaghaEntry> list = const <BalaghaEntry>[];
+      try {
+        list = await widget.library.getBalaghaEntries(type);
+      } catch (_) {
+        list = const <BalaghaEntry>[];
+      }
+      entries[track] = list;
+      units[track] = list.length;
+      if (list.isEmpty) missing ??= 'اس حصے کا متن ابھی دستیاب نہیں۔';
     }
     if (!mounted) return;
     setState(() {
-      _entries = entries;
-      _units = entries.length;
-      _dataMissing = entries.isEmpty ? 'اس حصے کا متن ابھی دستیاب نہیں۔' : null;
+      _entries
+        ..clear()
+        ..addAll(entries);
+      _units
+        ..clear()
+        ..addAll(units);
+      _dataMissing = missing;
     });
   }
 
-  Future<void> _start(StudyTrack track, int days) async {
+  Future<void> _start(List<StudyTrack> tracks, int days) async {
+    if (tracks.isEmpty) return;
     final plan = StudyPlan(
-      track: track,
+      track: tracks.first,
+      extraTracks: tracks.skip(1).toList(),
       days: days,
       startedOn: studyDayKey(DateTime.now()),
     );
@@ -102,11 +114,11 @@ class _DailyStudyScreenState extends State<DailyStudyScreen> {
     if (!mounted) return;
     setState(() {
       _plan = plan;
-      _units = 0;
-      _entries = const <BalaghaEntry>[];
+      _entries.clear();
+      _units.clear();
       _dataMissing = null;
     });
-    await _measure(track);
+    await _measure(plan.tracks);
   }
 
   Future<void> _toggleDay(int day) async {
@@ -136,34 +148,44 @@ class _DailyStudyScreenState extends State<DailyStudyScreen> {
     if (!mounted) return;
     setState(() {
       _plan = null;
-      _entries = const <BalaghaEntry>[];
-      _units = 0;
+      _entries.clear();
+      _units.clear();
       _dataMissing = null;
     });
   }
 
-  Future<void> _openPortion(StudyPlan plan, StudyPortion portion) async {
-    if (plan.track.isQuran) {
+  /// Opens one book of the plan at today's portion of it: the whole run of
+  /// pages or entries, not only its first one.
+  Future<void> _openPortion(StudyTrack track, StudyPortion portion) async {
+    if (track.isQuran) {
       await Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => QuranPageReaderScreen(library: widget.library, page: portion.first),
+        builder: (_) => QuranPageReaderScreen(
+          library: widget.library,
+          page: portion.first,
+          lastPage: portion.last,
+        ),
       ));
       return;
     }
-    final type = plan.track.balaghaType;
+    final type = track.balaghaType;
     if (type == null) return;
     String? title;
-    for (final entry in _entries) {
+    for (final entry in _entries[track] ?? const <BalaghaEntry>[]) {
       if (entry.typeNo == portion.first) {
         title = entry.title;
         break;
       }
     }
+    final label = portion.first == portion.last
+        ? (title ?? '${track.titleUrdu} ${arabicNumerals(portion.first)}')
+        : '${track.titleUrdu} ${arabicNumerals(portion.first)} تا ${arabicNumerals(portion.last)}';
     await Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => BalaghaReaderScreen(
         library: widget.library,
         type: type,
         typeNo: portion.first,
-        title: title ?? '${plan.track.titleUrdu} ${arabicNumerals(portion.first)}',
+        lastTypeNo: portion.last,
+        title: label,
       ),
     ));
   }
@@ -213,33 +235,50 @@ class _DailyStudyScreenState extends State<DailyStudyScreen> {
   List<Widget> _planBody(StudyPlan plan) {
     final now = DateTime.now();
     final today = StudyPortion.dayNumberFor(plan.startedOn, now);
-    final units = _units;
-    if (units <= 0) {
+    // The books whose data is installed: a plan may name more than one book,
+    // and only the installed ones can be read.
+    final ready = <StudyTrack>[
+      for (final track in plan.tracks)
+        if ((_units[track] ?? 0) > 0) track,
+    ];
+    if (ready.isEmpty) {
       return <Widget>[
         if (_dataMissing != null) _Notice(_dataMissing!),
         const SizedBox(height: 14),
-        _PlanBuilder(active: true, onStart: _start, initialTrack: plan.track, initialDays: plan.days),
+        _PlanBuilder(active: true, onStart: _start, initialTracks: plan.tracks, initialDays: plan.days),
       ];
     }
     // A plan day beyond the book's length (the reader finished early or the
     // clock moved) simply shows the last portion instead of an empty card.
-    final portion = StudyPortion.forDay(
-      day: today,
-      days: plan.days,
-      totalUnits: units,
-      unitLabelUrdu: plan.track.unitLabelUrdu,
-    );
+    final portions = <(StudyTrack, StudyPortion)>[
+      for (final track in ready)
+        (
+          track,
+          StudyPortion.forDay(
+            day: today,
+            days: plan.days,
+            totalUnits: _units[track]!,
+            unitLabelUrdu: track.unitLabelUrdu,
+          ),
+        ),
+    ];
     final done = plan.completedDays.length;
     final streak = studyStreak(plan, today);
     final finished = today > plan.days || (done >= plan.days);
+    final day = portions.first.$2.day;
     return <Widget>[
-      _TodayCard(
-        plan: plan,
-        portion: portion,
-        today: today,
-        finished: plan.completedDays.contains(portion.day) || finished,
-        onOpen: () => unawaited(_openPortion(plan, portion)),
-        onToggle: () => unawaited(_toggleDay(portion.day)),
+      for (final (track, portion) in portions) ...<Widget>[
+        _TodayCard(
+          track: track,
+          portion: portion,
+          onOpen: () => unawaited(_openPortion(track, portion)),
+        ),
+        const SizedBox(height: 12),
+      ],
+      _DayCard(
+        finished: plan.completedDays.contains(day) || finished,
+        books: ready.length,
+        onToggle: () => unawaited(_toggleDay(day)),
       ),
       const SizedBox(height: 14),
       Row(
@@ -311,7 +350,7 @@ class _StudyIntro extends StatelessWidget {
               const SizedBox(width: 12),
               const Expanded(
                 child: JustifiedText(
-                  'ایک کتاب، مقررہ دنوں میں',
+                  'ایک یا چند کتابیں، مقررہ دنوں میں',
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white),
                 ),
               ),
@@ -319,8 +358,8 @@ class _StudyIntro extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const JustifiedText(
-            'بڑی کتابیں کھول کر دو صفحے پڑھنا آسان ہے، مکمل کرنا مشکل۔ یہاں اپنی کتاب اور مدت چنیں: '
-            'ایپ ہر دن کا حصہ خود مقرر کر دے گی، آپ صرف آج کا حصہ کھولیں اور مکمل ہونے پر نشان لگا دیں۔ '
+            'بڑی کتابیں کھول کر دو صفحے پڑھنا آسان ہے، مکمل کرنا مشکل۔ یہاں اپنی کتاب (یا ایک سے زیادہ کتابیں) '
+            'اور مدت چنیں: ایپ ہر دن کا حصہ خود مقرر کر دے گی، آپ صرف آج کا حصہ کھولیں اور مکمل ہونے پر نشان لگا دیں۔ '
             'حصے آپ کے شروع کرنے کے دن سے شمار ہوتے ہیں، اور سارا حساب آف لائن چلتا ہے۔',
             style: TextStyle(fontSize: 13.5, height: 1.8, color: Color(0xFFD9EAE2)),
           ),
@@ -331,18 +370,19 @@ class _StudyIntro extends StatelessWidget {
 }
 
 /// Track + length picker. Used both for a fresh plan and for a plan whose data
-/// is not installed yet.
+/// is not installed yet. More than one book can be picked: the plan then walks
+/// all of them over the same number of days.
 class _PlanBuilder extends StatefulWidget {
   const _PlanBuilder({
     required this.active,
     required this.onStart,
-    this.initialTrack,
+    this.initialTracks,
     this.initialDays,
   });
 
   final bool active;
-  final void Function(StudyTrack track, int days) onStart;
-  final StudyTrack? initialTrack;
+  final void Function(List<StudyTrack> tracks, int days) onStart;
+  final List<StudyTrack>? initialTracks;
   final int? initialDays;
 
   @override
@@ -352,8 +392,22 @@ class _PlanBuilder extends StatefulWidget {
 class _PlanBuilderState extends State<_PlanBuilder> {
   static const List<int> _lengths = <int>[7, 14, 30, 60, 90, 180];
 
-  late StudyTrack _track = widget.initialTrack ?? StudyTrack.quran;
+  late List<StudyTrack> _tracks = <StudyTrack>[
+    ...(widget.initialTracks ?? const <StudyTrack>[StudyTrack.quran]),
+  ];
   late int _days = widget.initialDays ?? 90;
+
+  /// Adds or removes a book. The last one never goes: a plan without a book
+  /// has nothing to read.
+  void _toggle(StudyTrack track) {
+    setState(() {
+      if (_tracks.contains(track)) {
+        if (_tracks.length > 1) _tracks.remove(track);
+      } else {
+        _tracks.add(track);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -368,15 +422,20 @@ class _PlanBuilderState extends State<_PlanBuilder> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           const JustifiedText(
-            'کون سی کتاب؟',
+            'کون سی کتابیں؟',
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFFFFE1A1)),
+          ),
+          const SizedBox(height: 4),
+          const JustifiedText(
+            'ایک کتاب چنیں، یا ایک سے زیادہ — سب ایک ہی منصوبے میں چلیں گی۔',
+            style: TextStyle(fontSize: 11.5, height: 1.6, color: Color(0xFFB9CEC4)),
           ),
           const SizedBox(height: 10),
           for (final track in StudyTrack.values) ...<Widget>[
             _TrackRow(
               track: track,
-              selected: track == _track,
-              onTap: () => setState(() => _track = track),
+              selected: _tracks.contains(track),
+              onTap: () => _toggle(track),
             ),
             const SizedBox(height: 8),
           ],
@@ -407,7 +466,7 @@ class _PlanBuilderState extends State<_PlanBuilder> {
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: () => widget.onStart(_track, _days),
+            onPressed: _tracks.isEmpty ? null : () => widget.onStart(_tracks, _days),
             icon: const Icon(Icons.play_arrow_rounded),
             label: JustifiedText(widget.active ? 'منصوبہ نئے سرے سے شروع کریں' : 'منصوبہ شروع کریں'),
             style: FilledButton.styleFrom(
@@ -454,8 +513,9 @@ class _TrackRow extends StatelessWidget {
           ),
           child: Row(
             children: <Widget>[
+              // A tick box, not a radio: more than one book may be picked.
               Icon(
-                selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                selected ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
                 size: 18,
                 color: selected ? kGold : const Color(0xFF8FA79C),
               ),
@@ -488,29 +548,21 @@ class _TrackRow extends StatelessWidget {
   }
 }
 
-/// Today's portion, with its two actions.
+/// Today's portion of one book of the plan, with the button that opens it.
 class _TodayCard extends StatelessWidget {
   const _TodayCard({
-    required this.plan,
+    required this.track,
     required this.portion,
-    required this.today,
-    required this.finished,
     required this.onOpen,
-    required this.onToggle,
   });
 
-  final StudyPlan plan;
+  final StudyTrack track;
   final StudyPortion portion;
-  final int today;
-  final bool finished;
   final VoidCallback onOpen;
-  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
-    final label = portion.isLastDay && today >= plan.days
-        ? 'آخری حصہ'
-        : 'آج کا حصہ — دن ${arabicNumerals(portion.day)}';
+    final label = portion.isLastDay ? 'آخری حصہ' : 'آج کا حصہ — دن ${arabicNumerals(portion.day)}';
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       decoration: BoxDecoration(
@@ -534,7 +586,7 @@ class _TodayCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           JustifiedText(
-            plan.track.titleUrdu,
+            track.titleUrdu,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white),
           ),
           const SizedBox(height: 6),
@@ -553,43 +605,82 @@ class _TodayCard extends StatelessWidget {
             style: const TextStyle(fontSize: 12, color: Color(0xFFB9CEC4)),
           ),
           const SizedBox(height: 14),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: onOpen,
-                  icon: const Icon(Icons.auto_stories_rounded, size: 18),
-                  label: const JustifiedText('پڑھنا شروع کریں'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: kGold,
-                    foregroundColor: const Color(0xFF1B1206),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Tooltip(
-                message: finished ? 'نشان ہٹائیں' : 'آج کا حصہ مکمل',
-                child: InkWell(
+          FilledButton.icon(
+            onPressed: onOpen,
+            icon: const Icon(Icons.auto_stories_rounded, size: 18),
+            label: const JustifiedText('پڑھنا شروع کریں'),
+            style: FilledButton.styleFrom(
+              backgroundColor: kGold,
+              foregroundColor: const Color(0xFF1B1206),
+              padding: const EdgeInsets.symmetric(vertical: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The tick that closes the plan-day: one day of the plan is done when every
+/// book of it has been read.
+class _DayCard extends StatelessWidget {
+  const _DayCard({
+    required this.finished,
+    required this.books,
+    required this.onToggle,
+  });
+
+  final bool finished;
+  final int books;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: finished ? kForest.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.06),
+        border: Border.all(
+          color: finished ? Colors.white.withValues(alpha: 0.5) : kGold.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(
+            finished ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+            color: finished ? Colors.white : kGold,
+            size: 22,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: JustifiedText(
+              finished
+                  ? 'آج کا دن مکمل ہے'
+                  : (books > 1 ? 'آج کی ${arabicNumerals(books)} کتابیں مکمل کریں' : 'آج کا حصہ مکمل کریں'),
+              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: Colors.white),
+            ),
+          ),
+          Tooltip(
+            message: finished ? 'نشان ہٹائیں' : 'آج کا حصہ مکمل',
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: onToggle,
+              child: Container(
+                width: 50,
+                height: 46,
+                decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
-                  onTap: onToggle,
-                  child: Container(
-                    width: 50,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      color: finished ? kForest : Colors.white.withValues(alpha: 0.10),
-                      border: Border.all(color: finished ? Colors.white : kGold.withValues(alpha: 0.55)),
-                    ),
-                    child: Icon(
-                      finished ? Icons.check_rounded : Icons.check_circle_outline,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
+                  color: finished ? kForest : Colors.white.withValues(alpha: 0.10),
+                  border: Border.all(color: finished ? Colors.white : kGold.withValues(alpha: 0.55)),
+                ),
+                child: Icon(
+                  finished ? Icons.check_rounded : Icons.check_circle_outline,
+                  color: Colors.white,
+                  size: 24,
                 ),
               ),
-            ],
+            ),
           ),
         ],
       ),

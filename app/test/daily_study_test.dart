@@ -157,4 +157,77 @@ void main() {
       expect(await StudyPlanStore().load(), isNull);
     });
   });
+
+  group('more than one book at a time', () {
+    test('a plan can carry several books, in order', () {
+      const plan = StudyPlan(
+        track: StudyTrack.quran,
+        extraTracks: <StudyTrack>[StudyTrack.balaghaSermons, StudyTrack.balaghaWisdom],
+        days: 90,
+        startedOn: '2026-10-20',
+      );
+      expect(plan.tracks, <StudyTrack>[
+        StudyTrack.quran,
+        StudyTrack.balaghaSermons,
+        StudyTrack.balaghaWisdom,
+      ]);
+      expect(plan.isMultiBook, isTrue);
+      expect(plan.copyWith(days: 30).days, 30);
+      expect(plan.copyWith(days: 30).tracks.length, 3);
+    });
+
+    test('the extra books survive the round trip through SharedPreferences', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final plan = StudyPlan(
+        track: StudyTrack.quran,
+        extraTracks: <StudyTrack>[StudyTrack.balaghaLetters],
+        days: 30,
+        startedOn: '2026-10-20',
+        completedDays: <int>{1, 2},
+      );
+      await StudyPlanStore().save(plan);
+
+      final restored = await StudyPlanStore().load();
+      expect(restored, isNotNull);
+      expect(restored!.tracks, <StudyTrack>[StudyTrack.quran, StudyTrack.balaghaLetters]);
+      expect(restored.completedDays, <int>{1, 2});
+      expect(restored.days, 30);
+    });
+
+    test('a book that is no longer known is dropped and the plan survives', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'daily_study_plan_v1':
+            '{"track":"quran","extraTracks":["mars","balaghaWisdom"],"days":30,"startedOn":"2026-10-20"}',
+      });
+      final plan = await StudyPlanStore().load();
+      expect(plan, isNotNull);
+      expect(plan!.tracks, <StudyTrack>[StudyTrack.quran, StudyTrack.balaghaWisdom]);
+    });
+
+    test('a single-book plan is not a multi-book plan', () {
+      const plan = StudyPlan(track: StudyTrack.quran, days: 90, startedOn: '2026-10-20');
+      expect(plan.isMultiBook, isFalse);
+      expect(plan.tracks, <StudyTrack>[StudyTrack.quran]);
+    });
+
+    test('every book of a plan is split over the same days', () {
+      // Two books of very different lengths, one plan: both portions end on
+      // their own last unit on the last day.
+      final quran = StudyPortion.forDay(
+        day: 90,
+        days: 90,
+        totalUnits: kQuranPages,
+        unitLabelUrdu: 'صفحہ',
+      );
+      final sermons = StudyPortion.forDay(
+        day: 90,
+        days: 90,
+        totalUnits: 241,
+        unitLabelUrdu: 'نمبر',
+      );
+      expect(quran.last, kQuranPages);
+      expect(sermons.last, 241);
+      expect(quran.days, sermons.days);
+    });
+  });
 }

@@ -680,6 +680,12 @@ class _MiniPrayerCard extends StatelessWidget {
                 ),
                 child: LayoutBuilder(builder: (context, constraints) {
                   final compact = constraints.maxHeight < 205;
+                  // Every prayer name on this card is drawn at one size, so
+                  // the row reads as a single line of type instead of five
+                  // names at five different sizes.
+                  final cellWidth = constraints.maxWidth / miniEntries.length;
+                  final labelSize = _miniLabelSize(miniEntries, cellWidth);
+                  final nameWidth = cellWidth - _miniCellChrome;
                   Widget prayerRow(Iterable<(PrayerEntry, String)> entries) => Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
@@ -688,6 +694,8 @@ class _MiniPrayerCard extends StatelessWidget {
                           child: _MiniPrayerCell(
                             entry: entry,
                             displayLabel: displayLabel,
+                            labelSize: labelSize,
+                            nameWidth: nameWidth,
                             active: runningNow && activeGroup == entry.marker,
                             upcoming: !(runningNow && activeGroup == entry.marker) &&
                                 nextGroup == entry.marker,
@@ -801,6 +809,53 @@ PrayerMarker _miniGroup(PrayerMarker marker) => switch (marker) {
       _ => marker,
     };
 
+/// The margin and padding one mini cell spends around its text: three
+/// pixels of margin on each side and two of padding, five pixels in all.
+const double _miniCellChrome = 7;
+
+/// The one font size every prayer name on the mini card is drawn at.
+///
+/// The five names are very different lengths — «طلوعِ شمس» is twice «فجر» —
+/// and scaling each name to its own cell made the row look as if it belonged
+/// to five different apps. The longest name sets the size here, and every
+/// other name is drawn at exactly that size.
+double _miniLabelSize(List<(PrayerEntry, String)> entries, double cellWidth) {
+  const base = 16.5;
+  final cached = _miniLabelCache;
+  if (cached != null && cached.$2 == cellWidth) return cached.$1;
+  final available = cellWidth - _miniCellChrome;
+  var widest = 0.0;
+  for (final (entry, label) in entries) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: const TextStyle(
+          fontFamily: kUrduFont,
+          fontSize: base,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      textDirection: TextDirection.rtl,
+      maxLines: 1,
+    )..layout();
+    if (painter.width > widest) widest = painter.width;
+    painter.dispose();
+  }
+  var size = base;
+  if (widest > 0 && available > 0 && available < widest) {
+    // Never shrink the names into unreadability: a smaller name is better
+    // than a name that has lost its shape.
+    size = math.max(11.0, base * available / widest);
+  }
+  _miniLabelCache = (size, cellWidth);
+  return size;
+}
+
+/// The measured size and the cell width it was measured for: the card is
+/// rebuilt on every tick of the clock, and measuring five strings each time
+/// would be waste.
+(double, double)? _miniLabelCache;
+
 /// One of the five prayers on the mini card: its name, its time, and either the
 /// **Now** tag or the time left until it.
 class _MiniPrayerCell extends StatelessWidget {
@@ -808,6 +863,8 @@ class _MiniPrayerCell extends StatelessWidget {
     required this.entry,
     required this.active,
     required this.upcoming,
+    required this.labelSize,
+    required this.nameWidth,
     this.remaining,
     this.displayLabel,
   });
@@ -821,60 +878,75 @@ class _MiniPrayerCell extends StatelessWidget {
   final bool upcoming;
   final Duration? remaining;
 
+  /// The size every name on the card is drawn at, and the width each cell
+  /// gives its text — the two together keep the five names identical.
+  final double labelSize;
+  final double nameWidth;
+
   @override
   Widget build(BuildContext context) {
     const gold = Color(0xFFFFE1A1);
-    final lit = active || upcoming;
     final left = remaining;
-    return AnimatedScale(
-      scale: active ? 1.08 : (upcoming ? 1.02 : 1),
-      duration: const Duration(milliseconds: 220),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        margin: const EdgeInsets.symmetric(horizontal: 1.5),
-        padding: EdgeInsets.symmetric(vertical: active ? 3 : 1, horizontal: 2),
-        decoration: BoxDecoration(
-          // Running prayer: the solid emerald tile readers already know.
-          // Next prayer: deliberately NO coloured container and no border —
-          // gold lettering, a hairline gold underline and the live countdown
-          // do the highlighting, so the sky stays visible behind the row.
-          gradient: active
-              ? const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: <Color>[_activeEmerald, _activeEmeraldDeep],
-                )
-              : null,
-          color: active ? null : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-          border: active ? Border.all(color: Colors.white, width: 1.7) : null,
-          boxShadow: active
-              ? <BoxShadow>[
-                  BoxShadow(color: _activeEmerald.withValues(alpha: 0.55), blurRadius: 10, offset: const Offset(0, 3)),
-                ]
-              : null,
-        ),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.symmetric(horizontal: 1.5),
+      // The same padding in every cell: a cell that was taller would scale
+      // its own text down and the five names would no longer match.
+      padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+      decoration: BoxDecoration(
+        // Running prayer: the solid emerald tile readers already know.
+        // Next prayer: deliberately NO coloured container and no border —
+        // gold lettering, a hairline gold underline and the live countdown
+        // do the highlighting, so the sky stays visible behind the row.
+        gradient: active
+            ? const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: <Color>[_activeEmerald, _activeEmeraldDeep],
+              )
+            : null,
+        color: active ? null : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        border: active ? Border.all(color: Colors.white, width: 1.7) : null,
+        boxShadow: active
+            ? <BoxShadow>[
+                BoxShadow(color: _activeEmerald.withValues(alpha: 0.55), blurRadius: 10, offset: const Offset(0, 3)),
+              ]
+            : null,
+      ),
+      // Every row is exactly as wide as the name, so the five cells scale by
+      // the same factor and the five names are drawn at the same size.
+      child: SizedBox(
+        width: nameWidth,
         child: FittedBox(
           fit: BoxFit.scaleDown,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Text(
-                displayLabel ?? entry.marker.labelUrdu,
-                maxLines: 1,
-                overflow: TextOverflow.clip,
-                // A step larger than the clock underneath: the name is what
-                // the reader looks for first (فجر، ظہرین، مغربین …).
-                style: _onSky(active ? 17.5 : 16, weight: lit ? FontWeight.w800 : FontWeight.w700, height: 1.25,
-                    color: Colors.white),
-              ),
-              FittedBox(
-                fit: BoxFit.scaleDown,
+              SizedBox(
+                width: nameWidth,
                 child: Text(
-                  formatClockDigitsUrdu(entry.time),
-                  textDirection: TextDirection.ltr,
-                  style: _onSky(active ? 16 : 14.5, weight: FontWeight.w800, digits: true, height: 1,
-                      color: active ? Colors.white : (upcoming ? gold : Colors.white)),
+                  displayLabel ?? entry.marker.labelUrdu,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.clip,
+                  // One size for all five names: the name is what the reader
+                  // looks for first (فجر، ظہرین، مغربین …).
+                  style: _onSky(labelSize, weight: FontWeight.w800, height: 1.25,
+                      color: Colors.white),
+                ),
+              ),
+              SizedBox(
+                width: nameWidth,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    formatClockDigitsUrdu(entry.time),
+                    textAlign: TextAlign.center,
+                    textDirection: TextDirection.ltr,
+                    style: _onSky(active ? 16 : 14.5, weight: FontWeight.w800, digits: true, height: 1,
+                        color: active ? Colors.white : (upcoming ? gold : Colors.white)),
+                  ),
                 ),
               ),
               // A two-pixel gold rule is the whole "this one is next" mark.
@@ -891,6 +963,7 @@ class _MiniPrayerCell extends StatelessWidget {
               ],
               const SizedBox(height: 1),
               SizedBox(
+                width: nameWidth,
                 height: upcoming ? 15 : 14,
                 child: Center(
                   child: active

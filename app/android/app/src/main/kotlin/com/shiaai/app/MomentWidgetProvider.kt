@@ -6,11 +6,17 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.view.View
 import android.widget.RemoteViews
 import kotlin.random.Random
 
 /** A genuinely useful Android launcher widget; refreshes on the platform's
- * hourly AppWidget schedule and can also be advanced with its refresh button. */
+ * hourly AppWidget schedule and can also be advanced with its refresh button.
+ *
+ * The plate is cut for the cell the launcher gives it: a tall cell shows the
+ * verse, its reference, the next prayer and the Hijri date, while a short one
+ * shows the verse alone. Both layouts carry the same view ids, so the same
+ * update fills either of them. */
 class MomentWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         ids.forEach { updateOne(context, manager, it, hourly = true) }
@@ -25,7 +31,16 @@ class MomentWidgetProvider : AppWidgetProvider() {
     }
 
     private fun updateOne(context: Context, manager: AppWidgetManager, id: Int, hourly: Boolean) {
-        val views = RemoteViews(context.packageName, R.layout.moment_widget)
+        // The launcher tells the widget how much room it has. A cell shorter
+        // than a full row of text gets the compact plate.
+        val options = manager.getAppWidgetOptions(id)
+        val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+        val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+        val compact = (minHeight in 1 until 110) || (minHeight == 0 && minWidth in 1 until 180)
+        val views = RemoteViews(
+            context.packageName,
+            if (compact) R.layout.moment_widget_small else R.layout.moment_widget,
+        )
         val seed = if (hourly) System.currentTimeMillis() / HOUR_MS + id * 31L else System.nanoTime()
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val key = "quote_$id"
@@ -36,6 +51,23 @@ class MomentWidgetProvider : AppWidgetProvider() {
         val quote = moments[selected]
         views.setTextViewText(R.id.moment_text, quote.text)
         views.setTextViewText(R.id.moment_reference, quote.reference)
+
+        // The next prayer and the Hijri date, as the app itself calculates
+        // them. The widget reads them from the app's own preferences, so the
+        // plate on the home screen never disagrees with the card in the app.
+        val shared = context.getSharedPreferences(FLUTTER_PREFS, Context.MODE_PRIVATE)
+        val nextPrayer = shared.getString("$FLUTTER_PREFIX$KEY_NEXT_PRAYER", null)
+        val hijri = shared.getString("$FLUTTER_PREFIX$KEY_HIJRI", null)
+        views.setTextViewText(R.id.moment_next_prayer, nextPrayer ?: "")
+        views.setTextViewText(R.id.moment_hijri, hijri ?: "")
+        views.setViewVisibility(
+            R.id.moment_next_prayer,
+            if (compact || nextPrayer.isNullOrEmpty()) View.GONE else View.VISIBLE,
+        )
+        views.setViewVisibility(
+            R.id.moment_hijri,
+            if (compact || hijri.isNullOrEmpty()) View.GONE else View.VISIBLE,
+        )
 
         val refreshIntent = Intent(context, MomentWidgetProvider::class.java).apply { action = ACTION_REFRESH }
         views.setOnClickPendingIntent(
@@ -56,6 +88,13 @@ class MomentWidgetProvider : AppWidgetProvider() {
         private const val ACTION_REFRESH = "com.shiaai.app.ACTION_REFRESH_MOMENT"
         private const val PREFS_NAME = "moment_widget"
         private const val HOUR_MS = 60L * 60L * 1000L
+
+        /** Where the Flutter client keeps its own preferences, and the prefix
+         * it puts on every key inside them. */
+        private const val FLUTTER_PREFS = "FlutterSharedPreferences"
+        private const val FLUTTER_PREFIX = "flutter."
+        private const val KEY_NEXT_PRAYER = "widget_next_prayer"
+        private const val KEY_HIJRI = "widget_hijri"
 
         // Carefully attributed selections from the Quran and Nahj al-Balagha.
         // The launcher widget is self-contained and remains useful offline.

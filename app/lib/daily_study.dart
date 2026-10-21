@@ -51,16 +51,26 @@ enum StudyTrack {
 /// The mushaf's page count, fixed in every printed edition.
 const int kQuranPages = 604;
 
-/// A plan the reader chose: one track, one length, one start day.
+/// A plan the reader chose: one book, one length, one start day.
+///
+/// A reader can also aim at more than one book at a time — the Quran and one
+/// section of Nahj al-Balagha, say — so the plan carries the first book in
+/// [track] and the rest in [extraTracks]. Every book is split over the same
+/// number of days, so one day means one portion of each of them.
 class StudyPlan {
   const StudyPlan({
     required this.track,
     required this.days,
     required this.startedOn,
     this.completedDays = const <int>{},
+    this.extraTracks = const <StudyTrack>[],
   });
 
+  /// The book the plan starts with.
   final StudyTrack track;
+
+  /// The other books of the same plan, read in the same days.
+  final List<StudyTrack> extraTracks;
 
   /// How many days the whole book should take.
   final int days;
@@ -73,11 +83,24 @@ class StudyPlan {
   /// Plan-day numbers the reader marked as finished (1-based).
   final Set<int> completedDays;
 
-  StudyPlan copyWith({int? days, String? startedOn, Set<int>? completedDays}) => StudyPlan(
+  /// Every book this plan walks through, the first one first.
+  List<StudyTrack> get tracks => <StudyTrack>[track, ...extraTracks];
+
+  /// True when the reader aimed at more than one book at a time.
+  bool get isMultiBook => extraTracks.isNotEmpty;
+
+  StudyPlan copyWith({
+    int? days,
+    String? startedOn,
+    Set<int>? completedDays,
+    List<StudyTrack>? extraTracks,
+  }) =>
+      StudyPlan(
         track: track,
         days: days ?? this.days,
         startedOn: startedOn ?? this.startedOn,
         completedDays: completedDays ?? this.completedDays,
+        extraTracks: extraTracks ?? this.extraTracks,
       );
 
   /// A day is finished, or un-finished again on a second tap.
@@ -89,6 +112,7 @@ class StudyPlan {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'track': track.name,
+        'extraTracks': <String>[for (final value in extraTracks) value.name],
         'days': days,
         'startedOn': startedOn,
         'completedDays': (completedDays.toList()..sort()),
@@ -109,7 +133,23 @@ class StudyPlan {
       for (final day in (raw['completedDays'] as List<Object?>? ?? const <Object?>[]))
         if (day is int && day > 0) day,
     };
-    return StudyPlan(track: track, days: days, startedOn: startedOn, completedDays: completed);
+    // The other books of the plan: a name that is no longer known is simply
+    // left out, the same way an unknown first book leaves no plan at all.
+    final extra = <StudyTrack>[];
+    for (final value in (raw['extraTracks'] as List<Object?>? ?? const <Object?>[])) {
+      for (final candidate in StudyTrack.values) {
+        if (candidate.name == value && candidate != track && !extra.contains(candidate)) {
+          extra.add(candidate);
+        }
+      }
+    }
+    return StudyPlan(
+      track: track,
+      days: days,
+      startedOn: startedOn,
+      completedDays: completed,
+      extraTracks: extra,
+    );
   }
 }
 

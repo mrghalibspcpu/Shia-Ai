@@ -3,9 +3,10 @@
 
 Not a screenshot: it paints the camera-lens page at the same fractions the
 Flutter screen uses (``app/lib/screens/explore_screen.dart``) — five amber
-lenses climbing the brushed-metal body, the red encyclopaedia plate hanging off
-the left edge, and the red radial-menu plate in the bottom-right corner — so
-the layout can be reviewed, and re-rendered, without a phone in hand.
+lenses climbing the brushed-metal body and the three red plates cut into its
+edges: the brand wedge in the top-right corner, the pointing wedge on the left
+edge, and the corner wedge in the bottom-right that carries the radial-menu
+button — so the layout can be reviewed, and re-rendered, without a phone.
 
 Dependencies::
 
@@ -22,7 +23,7 @@ from pathlib import Path
 
 import arabic_reshaper
 from bidi.algorithm import get_display
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "docs" / "previews" / "explore.png"
@@ -36,6 +37,12 @@ W, H = 390, 844
 SAFE_TOP = 44
 FIELD_H = H - SAFE_TOP
 LENS = min(W * 0.40, FIELD_H * 0.20)
+
+# The three red plates, cut into the edges of the body.
+BRAND_W, BRAND_H = W * 0.62, FIELD_H * 0.185
+WEDGE_W, WEDGE_H = W * 0.44, FIELD_H * 0.38
+WEDGE_TOP = FIELD_H * 0.28
+CORNER_W, CORNER_H = W * 0.46, FIELD_H * 0.34
 
 
 def urdu(text: str) -> str:
@@ -117,7 +124,7 @@ def hatch(canvas: Image.Image, box, tone=(255, 255, 255, 22)) -> None:
     canvas.alpha_composite(Image.composite(layer, Image.new("RGBA", canvas.size, (0, 0, 0, 0)), mask))
 
 
-def lens(canvas: Image.Image, centre, diameter: float, number: int, title: str,
+def lens(canvas: Image.Image, centre, diameter: float, title: str,
          subtitle: str, accent) -> None:
     draw = ImageDraw.Draw(canvas)
     cx, cy = centre[0] * S, centre[1] * S
@@ -177,31 +184,92 @@ def lens(canvas: Image.Image, centre, diameter: float, number: int, title: str,
         centred(draw, (cx, cy + disc_d * 0.28), urdu(subtitle),
                 urdu_font(diameter * 0.070), (221, 204, 194))
 
-    badge = latin_font(diameter * 0.085)
-    bbox = draw.textbbox((0, 0), str(number), font=badge)
-    bw, bh = bbox[2] - bbox[0] + 12 * S, bbox[3] - bbox[1] + 8 * S
-    top = cy - r + diameter * 0.055 * S
-    draw.rounded_rectangle(
-        (cx - bw / 2, top, cx + bw / 2, top + bh), radius=bh / 2,
-        fill=(18, 26, 32, 200), outline=(217, 195, 166, 120), width=S,
+
+def incentre(points):
+    """The centre of the triangle's inscribed circle: the one point where a
+    control can sit without crossing any of the three edges."""
+    (ax, ay), (bx, by), (cx, cy) = points
+    a = math.hypot(bx - cx, by - cy)
+    b = math.hypot(ax - cx, ay - cy)
+    c = math.hypot(ax - bx, ay - by)
+    perimeter = a + b + c
+    if perimeter <= 0:
+        return (ax, ay)
+    return (
+        (a * ax + b * bx + c * cx) / perimeter,
+        (a * ay + b * by + c * cy) / perimeter,
     )
-    centred(draw, (cx, top + bh / 2), str(number), badge, (231, 216, 196))
 
 
-def red_plate(canvas: Image.Image, box, title: str, subtitle: str, tint) -> None:
+def triangle_plate(canvas: Image.Image, points, tint, sheen) -> None:
+    """A red plate cut into the body: bevelled edge, brushed steel, shadow."""
     draw = ImageDraw.Draw(canvas)
-    left, top, right, bottom = box
+    shadow = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).polygon(
+        [(x, y + 7 * S) for x, y in points], fill=(4, 8, 11, 190)
+    )
+    canvas.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(5 * S)))
+
+    left = min(p[0] for p in points)
+    top = min(p[1] for p in points)
+    right = max(p[0] for p in points)
+    bottom = max(p[1] for p in points)
+    width = max(1, int(right - left))
+    height = max(1, int(bottom - top))
+    gradient = Image.new("RGBA", (width, height))
+    pixels = gradient.load()
+    for y in range(height):
+        f = y / max(1, height - 1)
+        row = tuple(int(tint[i] + (sheen[i] - tint[i]) * f) for i in range(3)) + (255,)
+        for x in range(width):
+            pixels[x, y] = row
+
     layer = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
-    ImageDraw.Draw(layer).rounded_rectangle(box, radius=26 * S, fill=tint + (255,))
+    layer.paste(gradient, (int(left), int(top)))
+    mask = Image.new("L", canvas.size, 0)
+    ImageDraw.Draw(mask).polygon(points, fill=255)
+    layer.putalpha(ImageChops.multiply(layer.getchannel("A"), mask))
     canvas.alpha_composite(layer)
-    hatch(canvas, box)
-    draw.rounded_rectangle(box, radius=26 * S, outline=(255, 162, 154, 170), width=S + 1)
-    width = right - left
-    centred(draw, ((left + right) / 2, top + (bottom - top) * 0.40), urdu(title),
-            urdu_font(width / S * 0.092), (255, 255, 255))
-    if subtitle:
-        centred(draw, ((left + right) / 2, top + (bottom - top) * 0.72), urdu(subtitle),
-                urdu_font(width / S * 0.072), (255, 217, 201))
+
+    brushed = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
+    brush = ImageDraw.Draw(brushed)
+    for offset in range(int(left - height), int(right), 7 * S):
+        brush.line((offset, bottom, offset + height, top), fill=(255, 255, 255, 14), width=S)
+    brushed.putalpha(ImageChops.multiply(brushed.getchannel("A"), mask))
+    canvas.alpha_composite(brushed)
+
+    draw.polygon(points, outline=(255, 192, 180, 180), width=S + 1)
+
+
+def brand_mark(canvas: Image.Image, centre, angle: float, width: float) -> None:
+    """The wordmark, laid along the plate's hypotenuse."""
+    layer = Image.new("RGBA", (int(width * S), int(62 * S)), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    centred(draw, (width * S / 2, 22 * S), "Xplore", latin_font(21), (255, 255, 255))
+    centred(draw, (width * S / 2, 48 * S), "by ShiaVerse", latin_font(10.5), (255, 255, 255, 205))
+    rotated = layer.rotate(-math.degrees(angle), resample=Image.BICUBIC, expand=True)
+    canvas.alpha_composite(
+        rotated,
+        (int(centre[0] - rotated.width / 2), int(centre[1] - rotated.height / 2)),
+    )
+
+
+def book_glyph(draw: ImageDraw.ImageDraw, centre, size: float, colour) -> None:
+    """A small open book, the way the wedge carries the encyclopaedia."""
+    cx, cy = centre
+    half = size / 2
+    page = size * 0.42
+    draw.polygon(
+        [(cx - half, cy - page), (cx - size * 0.06, cy - page * 0.72),
+         (cx - size * 0.06, cy + page * 0.86), (cx - half, cy + page)],
+        fill=colour,
+    )
+    draw.polygon(
+        [(cx + half, cy - page), (cx + size * 0.06, cy - page * 0.72),
+         (cx + size * 0.06, cy + page * 0.86), (cx + half, cy + page)],
+        fill=colour,
+    )
+    draw.line((cx, cy - page * 0.78, cx, cy + page * 0.9), fill=(90, 20, 26, 255), width=max(1, int(1.4 * S)))
 
 
 def main() -> int:
@@ -230,33 +298,47 @@ def main() -> int:
     def at(x: float, y: float):
         return (x * W, SAFE_TOP + y * FIELD_H)
 
-    lens(canvas, at(0.20, 0.155), LENS, 1, "تسبیح", "تسبیح و ذکر", (233, 160, 90))
-    lens(canvas, at(0.505, 0.335), LENS * 1.08, 2, "نماز", "اوقات و قرات", (111, 189, 184))
-    lens(canvas, at(0.795, 0.505), LENS * 0.94, 3, "چاند کی\nرویت", "رویتِ ہلال", (181, 167, 236))
-    lens(canvas, at(0.515, 0.675), LENS, 4, "اسلامی\nتقویم", "ہجری تاریخیں", (127, 199, 167))
-    lens(canvas, at(0.215, 0.838), LENS * 0.88, 5, "Xplore\nXtra", "روزانہ مطالعہ", (235, 192, 107))
+    lens(canvas, at(0.20, 0.155), LENS, "تسبیح", "تسبیح و ذکر", (233, 160, 90))
+    lens(canvas, at(0.505, 0.335), LENS * 1.08, "نماز", "اوقات و قرات", (111, 189, 184))
+    lens(canvas, at(0.795, 0.505), LENS * 0.94, "چاند کی\nرویت", "رویتِ ہلال", (181, 167, 236))
+    lens(canvas, at(0.515, 0.675), LENS, "اسلامی\nتقویم", "ہجری تاریخیں", (127, 199, 167))
+    lens(canvas, at(0.215, 0.838), LENS * 0.88, "Xplore\nXtra", "روزانہ مطالعہ", (235, 192, 107))
 
-    plate = LENS * 0.92
-    red_plate(
-        canvas,
-        (-plate * 0.16 * S, (SAFE_TOP + FIELD_H * 0.435 - plate * 0.44) * S,
-         ((-plate * 0.16) + plate) * S, (SAFE_TOP + FIELD_H * 0.435 + plate * 0.48) * S),
-        "اثنا عشری\nانسائکلوپیڈیا", "ائمہ، عقائد، تاریخ", (126, 39, 49),
-    )
+    # the brand wedge in the top-right corner, the wordmark along its edge
+    brand_points = [
+        ((W - BRAND_W) * S, SAFE_TOP * S),
+        (W * S, SAFE_TOP * S),
+        (W * S, (SAFE_TOP + BRAND_H) * S),
+    ]
+    triangle_plate(canvas, brand_points, (142, 35, 48), (194, 60, 75))
+    brand_mark(canvas, incentre(brand_points), math.atan2(BRAND_H, BRAND_W), BRAND_W * 0.44)
 
-    # bottom-right launch plate, with the round radial-menu button
-    plate_w, plate_h = LENS * 1.02, LENS * 0.78
-    left = W - plate_w + LENS * 0.12
-    top = SAFE_TOP + FIELD_H - plate_h - max(4.0, FIELD_H * 0.012)
-    box = (left * S, top * S, (W + 30) * S, (H + 30) * S)
-    layer = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
-    ImageDraw.Draw(layer).rounded_rectangle(box, radius=28 * S, fill=(150, 41, 53, 255))
-    canvas.alpha_composite(layer)
-    hatch(canvas, box)
-    draw.rounded_rectangle(box, radius=28 * S, outline=(255, 162, 154, 170), width=S + 1)
+    # the wedge on the left edge: the encyclopaedia
+    wedge_points = [
+        (0, (SAFE_TOP + WEDGE_TOP) * S),
+        (0, (SAFE_TOP + WEDGE_TOP + WEDGE_H) * S),
+        (WEDGE_W * S, (SAFE_TOP + WEDGE_TOP + WEDGE_H / 2) * S),
+    ]
+    triangle_plate(canvas, wedge_points, (126, 39, 49), (169, 48, 64))
+    wedge_centre = incentre(wedge_points)
+    wedge_top = (SAFE_TOP + WEDGE_TOP) * S
+    book_glyph(draw, (wedge_centre[0], wedge_top + WEDGE_H * 0.39 * S), 38 * S,
+               (255, 225, 206, 255))
+    centred(draw, (wedge_centre[0], wedge_top + WEDGE_H * 0.52 * S), urdu("انسائکلوپیڈیا"),
+            urdu_font(13), (255, 255, 255))
+    centred(draw, (wedge_centre[0], wedge_top + WEDGE_H * 0.60 * S), urdu("بارہ ائمہ • عقائد"),
+            urdu_font(9.5), (255, 217, 201))
 
-    button = min(66.0, W * 0.17)
-    bx, by = (left + plate_w * 0.56) * S, (top + plate_h * 0.40) * S
+    # the corner wedge in the bottom right, with the round radial-menu button
+    corner_points = [
+        (W * S, (SAFE_TOP + FIELD_H - CORNER_H) * S),
+        (W * S, (SAFE_TOP + FIELD_H) * S),
+        ((W - CORNER_W) * S, (SAFE_TOP + FIELD_H) * S),
+    ]
+    triangle_plate(canvas, corner_points, (139, 38, 53), (180, 54, 67))
+    corner_centre = incentre(corner_points)
+    button = min(60.0, W * 0.16)
+    bx, by = corner_centre[0], corner_centre[1]
     canvas.alpha_composite(
         radial(int(button * S), [(0.0, (95, 208, 166)), (0.62, (27, 107, 82)), (1.0, (11, 45, 35))]),
         (int(bx - button * S / 2), int(by - button * S / 2)),
@@ -272,18 +354,8 @@ def main() -> int:
             y = by + (row - 1) * 11 * S
             draw.rounded_rectangle((x - dot / 2, y - dot / 2, x + dot / 2, y + dot / 2),
                                    radius=dot / 2, fill=(242, 255, 249, 255))
-    centred(draw, (bx, (top + plate_h * 0.72) * S), urdu("Radial menu"),
+    centred(draw, (bx, corner_centre[1] + button * S / 2 + 12 * S), urdu("Radial menu"),
             latin_font(11.0), (255, 227, 214))
-
-    # brand plate
-    brand = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
-    ImageDraw.Draw(brand).polygon(
-        ((W * S - 156 * S, 0), (W * S, 0), (W * S, 74 * S), (W * S - 120 * S, 74 * S)),
-        fill=(170, 43, 53, 255),
-    )
-    canvas.alpha_composite(brand)
-    centred(draw, (W * S - 66 * S, 26 * S), "Xplore", latin_font(21), (255, 255, 255))
-    centred(draw, (W * S - 66 * S, 52 * S), "by ShiaVerse", latin_font(10.5), (255, 255, 255, 205))
 
     # back button
     draw.ellipse((8 * S, 8 * S, 48 * S, 48 * S), fill=(255, 255, 255, 18),

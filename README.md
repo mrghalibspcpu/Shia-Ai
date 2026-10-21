@@ -2,14 +2,44 @@
 
 ## New in 1.24 — the lens plate, a third marja, the notes in their place
 
+- **The three red plates of Xplore are triangles, as in the artwork.** The
+  brand plate in the top-right corner, the pointing wedge on the left edge and
+  the corner wedge in the bottom-right are cut as triangles now — the brand
+  wordmark runs along the hypotenuse, the book's glyph sits on the incentre of
+  the left wedge, and the round radial-menu button sits on the incentre of the
+  bottom-right wedge, with the menu fanning out of the button it belongs to.
+  The five amber lenses keep their place and their glass, and **none of the
+  containers carries a number tag any more**: the number was an annotation of
+  the drawing, and on a phone it reads as a dial to be counted. The geometry
+  and the reasoning are in `docs/explore-lens-plate-1-24.md`.
+- **روزانہ مطالعہ now studies more than one book at a time.** The picker is
+  a multi-select — the Quran and the sections of Nahj al-Balagha can be
+  studied together — and every book of the plan gets its own portion of the
+  day and its own card. Opening a book opens the whole run of that day's
+  pages or entries, and at the end of the run the reader offers **the surah
+  before and after** the pages on the screen and **the run of pages before and
+  after** this one, so the reader can walk on without looking anything up.
+  The features of Xplore Xtra that do not exist yet are plain «جلد آ رہا ہے»
+  containers and nothing more.
+- **The launcher widget is a plate that fits the cell.** It is drawn in five
+  layers now — the shadow on the wallpaper, the steel, the light along its top
+  edge, the shadow under it, the gold rim — with a raised amber lens badge and
+  a round refresh knob, and it picks a full plate or a compact one from the
+  size the launcher gives it. It may be resized down to a single row of text.
+  The app writes the next prayer and the Hijri date into its own preferences
+  and the widget reads them from there, so the plate and the app can never
+  disagree; everything the widget did before still works.
+- **The mini prayer card's names are one size.** All five prayers are drawn
+  at the same measured size, so «فجر» and «مغربین» sit on one line with one
+  treatment instead of the mixed sizes the card grew.
 - **Xplore is the camera-lens plate of the design.** The page is one full-screen
   portrait body of brushed metal: five amber lenses climb it diagonally
-  (تسبیح ← نماز ← چاند کی رویت ← اسلامی تقویم ← Xplore Xtra), the sixth
-  destination — **اثنا عشری انسائکلوپیڈیا** — sits on a red bevel plate hanging
-  off the left edge, and the red plate in the bottom-right corner carries the
-  **radial menu** button. The button is no longer a bar at the bottom centre of
-  the page: it lives in its plate, as the artwork places it, and fans the five
-  destinations out over the plate when tapped. `docs/previews/explore.png` is
+  (تسبیح ← نماز ← چاند کی رویت ← اسلامی تقویم ← Xplore Xtra), and the sixth
+  destination — **اثنا عشری انسائکلوپیڈیا** — hangs off the left edge on a red
+  plate. The **radial menu** button is no longer a bar at the bottom centre of
+  the page: it lives in the bottom-right plate, as the artwork places it, and
+  fans the five destinations out over the plate when tapped.
+  `docs/previews/explore.png` is
   the layout re-drawn at the app's own fractions
   (`scripts/render_explore_preview.py`); `docs/previews/xplore-1-24/` holds the
   phone-sized renderings of the real widget tree, and the layout test mounts
@@ -36,8 +66,8 @@
   **حاشیہ ۱، حاشیہ ۲ …**, and a note stays under a paragraph only where the
   printed matn still carries its own marker («الْوَالِدِ الْفَانِ٢»). One case,
   151 notes, is pinned by a test.
-- Version 1.24.0 (versionCode 34) — it installs over the published 1.23.0
-  (versionCode 33) without losing downloaded books.
+- Version 1.26.0 (versionCode 36) — it installs over the published 1.25.0
+  (versionCode 35) without losing downloaded books.
 
 ## New in 1.22 — a reading plan, a proofread Nahj al-Balagha, bigger prayer names
 

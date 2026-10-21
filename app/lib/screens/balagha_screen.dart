@@ -170,6 +170,7 @@ class BalaghaReaderScreen extends StatelessWidget {
     required this.type,
     required this.typeNo,
     required this.title,
+    this.lastTypeNo,
     this.initialRecordId,
     this.searchQuery = '',
   });
@@ -178,32 +179,52 @@ class BalaghaReaderScreen extends StatelessWidget {
   final int type;
   final int typeNo;
   final String title;
+
+  /// The last entry of a run, when the reader was opened for a portion: the
+  /// daily study opens the whole day's entries, not only the first one.
+  final int? lastTypeNo;
+
   final int? initialRecordId;
   final String searchQuery;
+
+  /// The entries the reader shows: one, or the whole run of a portion.
+  Future<List<Passage>> _load() async {
+    final end = lastTypeNo ?? typeNo;
+    if (end <= typeNo) return library.getBalaghaEntry(type, typeNo);
+    final passages = <Passage>[];
+    for (var entry = typeNo; entry <= end; entry++) {
+      passages.addAll(await library.getBalaghaEntry(type, entry));
+    }
+    return passages;
+  }
 
   Future<void> _openEntry(BuildContext context, int delta) async {
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    final passages = await library.getBalaghaEntry(type, typeNo + delta);
+    final end = lastTypeNo ?? typeNo;
+    // Forward from the last entry of the run, backward from its first.
+    final target = delta > 0 ? end + 1 : typeNo - 1;
+    final passages = await library.getBalaghaEntry(type, target);
     if (!context.mounted) return;
     if (passages.isEmpty) {
       messenger.showSnackBar(SnackBar(content: Text(delta > 0 ? 'اس کے بعد کوئی متن نہیں۔' : 'اس سے پہلے کوئی متن نہیں۔')));
       return;
     }
     navigator.pushReplacement(MaterialPageRoute<void>(
-      builder: (_) => BalaghaReaderScreen(library: library, type: type, typeNo: typeNo + delta, title: ''),
+      builder: (_) => BalaghaReaderScreen(library: library, type: type, typeNo: target, title: ''),
     ));
   }
 
   @override
   Widget build(BuildContext context) {
+    final end = lastTypeNo ?? typeNo;
     return _BalaghaPassageList(
       library: library,
       onNextSection: () => unawaited(_openEntry(context, 1)),
       onPreviousSection: () => unawaited(_openEntry(context, -1)),
       title: title.isEmpty ? '${balaghaSectionTitles[type] ?? ''} $typeNo' : title,
-      loader: () => library.getBalaghaEntry(type, typeNo),
-      storageKey: 'balagha-$type-$typeNo',
+      loader: _load,
+      storageKey: 'balagha-$type-$typeNo-${end == typeNo ? typeNo : end}',
       initialRecordId: initialRecordId,
       searchQuery: searchQuery,
       recordIdForLastRead: typeNo,

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../astro/hijri_calendar.dart';
 import '../astro/lunar_hijri.dart';
 import '../astro/prayer_calculator.dart';
+import '../astro/prayer_format.dart';
 import 'alerts.dart';
 import 'place_names.dart';
 import 'prayer_locations.dart';
@@ -98,6 +99,11 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
   static const String alertStorage = 'prayer_alert_v1';
   static const String hijriStorage = 'hijri_adjust_v1';
 
+  /// Where the launcher widget reads the next prayer and the Hijri date. The
+  /// Android side reads these from the same preferences file.
+  static const String widgetNextPrayerKey = 'widget_next_prayer';
+  static const String widgetHijriKey = 'widget_hijri';
+
   /// A GPS location older than this is re-checked quietly on the next launch,
   /// so a reader who travelled sees the new town without touching anything.
   static const Duration staleFixAge = Duration(hours: 3);
@@ -122,6 +128,9 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
   bool _nativeNotificationsGranted = false;
   Timer? _ticker;
   String? _lastFiredKey;
+  /// The prayer the launcher widget was last told about, so the plate is
+  /// written only when the next prayer actually changes.
+  PrayerMarker? _widgetMarker;
   final List<PrayerAlertEvent> _pendingAlerts = <PrayerAlertEvent>[];
 
   bool _alertsEnabled = true;
@@ -504,7 +513,35 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
       clock: raw,
     );
     now.value = _displayNow(raw);
+    _widgetMarker = null;
+    _syncWidgetData();
     if (_nativeAlertsReady) unawaited(_syncNativePrayerNotifications());
+  }
+
+  /// The launcher widget reads the next prayer and the Hijri date from the
+  /// app's own preferences, so the plate on the home screen shows the same
+  /// times the card in the app does.
+  void _syncWidgetData() {
+    try {
+      final next = _schedule.nextEntry(now.value);
+      if (next.marker == _widgetMarker) return;
+      _widgetMarker = next.marker;
+    } catch (_) {
+      return;
+    }
+    unawaited(() async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final next = _schedule.nextEntry(now.value);
+        await prefs.setString(
+          widgetNextPrayerKey,
+          'اگلی نماز: ${next.marker.labelUrdu} ${formatClockUrdu(next.time)}',
+        );
+        await prefs.setString(widgetHijriKey, hijriFor(now.value).labelUrdu);
+      } catch (_) {
+        return;
+      }
+    }());
   }
 
   Future<void> _syncNativePrayerNotifications() async {
@@ -545,6 +582,9 @@ class PrayerController extends ChangeNotifier with WidgetsBindingObserver {
       _rebuildSchedule();
       notifyListeners();
     }
+
+    // The home-screen plate follows the next prayer as the day passes.
+    _syncWidgetData();
 
     _checkPrayerAlerts();
   }
