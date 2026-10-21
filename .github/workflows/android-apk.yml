@@ -478,7 +478,9 @@ jobs:
 
       # The zip again as unreferenced git blobs (20 MB parts), for build tooling
       # that can reach the GitHub API but not the release download host. The
-      # part ids are printed as a notice. Best effort: never fails the build.
+      # part ids are printed as a notice and written into the release notes,
+      # so the bytes can be fetched through the API alone. Best effort: never
+      # fails the build.
       - name: Stage the zipped APK as git blobs
         if: github.event_name == 'push'
         continue-on-error: true
@@ -487,6 +489,7 @@ jobs:
         run: |
           set -euo pipefail
           version=$(sed -n 's/^version:[[:space:]]*//p' app/pubspec.yaml | tr -d '\r')
+          tag="app-v${version%%+*}"
           base="ShiaVerse-${version%%+*}"
           zip="build/apk-zip/$base.zip"
           mkdir -p build/blobs
@@ -499,10 +502,29 @@ jobs:
           print(json.dumps({'content': base64.b64encode(data).decode(), 'encoding': 'base64'}))
           PY
             sha=$(gh api -X POST "repos/$GITHUB_REPOSITORY/git/blobs" --input "$part.json" --jq .sha)
-            parts="$parts,$sha"
+            parts="$parts,$(basename "$part" .json)=$sha"
           done
           zipsha=$(sha256sum "$zip" | cut -d' ' -f1)
           echo "::notice title=APK zip blobs::$base.zip sha256=$zipsha parts=${parts#,}"
+          # The release host cannot be reached from every tool, but the API
+          # can. The blob ids go into the release notes, so the exact bytes of
+          # this build can be fetched through the API alone.
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release view "$tag" --json body --jq .body > build/apk-release/notes-blob.md
+            {
+              echo
+              echo
+              echo "### Build blobs"
+              echo
+              echo "The same ZIP as git blobs, for tooling that can reach the API but not the release host."
+              echo
+              echo '```'
+              echo "$base.zip  sha256=$zipsha"
+              echo "${parts#,}"
+              echo '```'
+            } >> build/apk-release/notes-blob.md
+            gh release edit "$tag" --notes-file build/apk-release/notes-blob.md
+          fi
 
       - name: Remove temporary signing key
         if: always()
