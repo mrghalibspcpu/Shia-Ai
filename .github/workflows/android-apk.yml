@@ -223,31 +223,42 @@ jobs:
             echo "Production signing secrets are incomplete; building with the Android debug key. This APK is for testing only."
           fi
 
-      # Flutter's Gradle plugin downloads NDK 28.2 on demand. A truncated
-      # archive makes sdkmanager fail the whole APK with "unknown archive".
-      # Install it here, and delete the partial zip before each retry.
+      # sdkmanager's copy of NDK 28.2 is currently a truncated zip ("unknown
+      # archive"), and Flutter then aborts before producing an APK. Fetch the
+      # official archive directly. If that also fails, build with the newest
+      # NDK already on the runner instead of downloading 28.2 again.
       - name: Install Android NDK
         run: |
           set -euo pipefail
           sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
-          manager="$sdk/cmdline-tools/latest/bin/sdkmanager"
+          mkdir -p "$sdk/ndk"
           ndk_dir="$sdk/ndk/28.2.13676358"
+          if [[ ! -x "$ndk_dir/ndk-build" ]]; then
+            tmp=$(mktemp -d)
+            url="https://dl.google.com/android/repository/android-ndk-r28c-linux.zip"
+            if curl -fL --retry 5 --retry-all-errors --retry-delay 5 -o "$tmp/ndk.zip" "$url" \
+                && unzip -tqq "$tmp/ndk.zip"; then
+              unzip -q "$tmp/ndk.zip" -d "$tmp/src"
+              rm -rf "$ndk_dir"
+              mv "$tmp/src/android-ndk-r28c" "$ndk_dir"
+              echo "Installed NDK 28.2.13676358 from $url"
+            else
+              echo "Direct NDK download failed; using an NDK already on the runner"
+            fi
+            rm -rf "$tmp"
+          fi
           if [[ -x "$ndk_dir/ndk-build" ]]; then
-            echo "NDK 28.2.13676358 already installed"
+            echo "SHIA_NDK_VERSION=28.2.13676358" >> "$GITHUB_ENV"
+            echo "Using NDK 28.2.13676358"
             exit 0
           fi
-          yes | "$manager" --licenses >/dev/null || true
-          for attempt in 1 2 3 4; do
-            if yes | "$manager" --install "ndk;28.2.13676358"; then
-              exit 0
-            fi
-            echo "NDK install attempt $attempt failed; clearing the partial archive"
-            rm -rf "$ndk_dir" "$sdk/.temp" "$sdk/temp" "$HOME/.android/cache"
-            find "$sdk" /tmp -name '*28.2.13676358*.zip' -delete 2>/dev/null || true
-            sleep $((attempt * 8))
-          done
-          echo "::error title=NDK install failed::Could not unpack NDK 28.2.13676358"
-          exit 1
+          installed=$(find "$sdk/ndk" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V | tail -1)
+          if [[ -z "$installed" || ! -x "$sdk/ndk/$installed/ndk-build" ]]; then
+            echo "::error title=NDK install failed::No usable Android NDK on the runner"
+            exit 1
+          fi
+          echo "SHIA_NDK_VERSION=$installed" >> "$GITHUB_ENV"
+          echo "Using preinstalled NDK $installed"
 
       - name: Build APK
         working-directory: app
