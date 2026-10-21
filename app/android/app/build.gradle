@@ -80,18 +80,34 @@ flutter {
 // next universal or 32-bit APK as a downgrade, and this phone's installer
 // reports that as "package appears to be invalid". Every APK of a release
 // must carry the same code, and that code must stay above those old offsets.
-androidComponents {
-    onVariants(selector().all()) { variant ->
-        variant.outputs.each { output ->
-            output.versionCode.set(flutter.versionCode.toInteger())
+// Flutter adds abi*1000 during --split-per-abi. Pinning here is best-effort:
+// scripts/force_apk_version_code.py rewrites and re-signs if this loses the
+// race, so a Gradle API mismatch must not fail the APK build.
+try {
+    def components = project.extensions.findByName("androidComponents")
+    if (components != null) {
+        components.onVariants(components.selector().all()) { variant ->
+            try {
+                variant.outputs.each { output ->
+                    output.versionCode.set(flutter.versionCode.toInteger())
+                }
+            } catch (Throwable ignored) {
+                logger.warn("ShiaVerse versionCode pin skipped: ${ignored}")
+            }
         }
     }
+} catch (Throwable ignored) {
+    logger.warn("ShiaVerse versionCode registration skipped: ${ignored}")
 }
 afterEvaluate {
-    def sharedVersionCode = flutter.versionCode.toInteger()
-    android.applicationVariants.configureEach { variant ->
-        variant.outputs.configureEach { output ->
-            output.versionCodeOverride = sharedVersionCode
+    try {
+        def sharedVersionCode = flutter.versionCode.toInteger()
+        android.applicationVariants.configureEach { variant ->
+            variant.outputs.configureEach { output ->
+                output.versionCodeOverride = sharedVersionCode
+            }
         }
+    } catch (Throwable ignored) {
+        logger.warn("ShiaVerse versionCodeOverride skipped: ${ignored}")
     }
 }

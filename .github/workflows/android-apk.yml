@@ -237,9 +237,13 @@ jobs:
             python3 - <<'PY'
           from pathlib import Path
 
-          lines = [line for line in Path('/tmp/flutter-build.log').read_text(errors='replace').splitlines() if line.strip()]
-          detail = chr(10).join(lines[-80:])
-          detail = detail[-3000:]
+          lines = []
+          for raw in Path('/tmp/flutter-build.log').read_text(errors='replace').splitlines():
+              line = raw.strip()
+              if not line or line.startswith('%') or 'Downloading ' in line:
+                  continue
+              lines.append(line)
+          detail = ' || '.join(lines[-30:])[-3000:]
           print(f'::error title=Flutter APK build failed::{detail}')
           PY
             exit "$status"
@@ -267,6 +271,7 @@ jobs:
       # A phone that installed an older arm64 split has versionCode 2xxx.
       # A later universal (code 37) or v7a split (code 1xxx) is a downgrade,
       # which the installer shows as "package appears to be invalid".
+      # Rewrite any ABI offset, re-sign, then refuse to publish a mismatch.
       - name: Require one versionCode on every APK
         working-directory: app
         shell: bash
@@ -274,8 +279,10 @@ jobs:
           set -euo pipefail
           sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           aapt=$(find "$sdk/build-tools" -type f -name aapt | sort -V | tail -1)
-          if [[ -z "$aapt" ]]; then
-            echo "::error title=Missing aapt::Cannot read APK versionCode"
+          zipalign=$(find "$sdk/build-tools" -type f -name zipalign | sort -V | tail -1)
+          apksigner=$(find "$sdk/build-tools" -type f -name apksigner | sort -V | tail -1)
+          if [[ -z "$aapt" || -z "$zipalign" || -z "$apksigner" ]]; then
+            echo "::error title=Missing build-tools::Cannot read or re-sign APK versionCode"
             exit 1
           fi
           expected=$(sed -n 's/^version:[[:space:]]*[^+]*+//p' pubspec.yaml | tr -d '\r')
@@ -283,8 +290,18 @@ jobs:
             echo "::error title=versionCode too low::$expected cannot replace the old ABI-offset splits (arm64 was 2036)"
             exit 1
           fi
-          found=0
           shopt -s nullglob
+          apks=(build/app/outputs/flutter-apk/*.apk)
+          if [[ ${#apks[@]} -lt 4 ]]; then
+            echo "::error title=Missing APKs::expected the universal APK plus three ABI splits, found ${#apks[@]}"
+            exit 1
+          fi
+          python3 ../scripts/force_apk_version_code.py \
+            --version-code "$expected" \
+            --zipalign "$zipalign" \
+            --apksigner "$apksigner" \
+            "${apks[@]}"
+          found=0
           for apk in build/app/outputs/flutter-apk/*.apk; do
             badging=$("$aapt" dump badging "$apk")
             code=$(printf '%s\n' "$badging" | sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p" | head -1)
