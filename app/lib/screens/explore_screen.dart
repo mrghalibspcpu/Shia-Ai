@@ -744,12 +744,14 @@ class _RadialMenuState extends State<_RadialMenu> with SingleTickerProviderState
   Widget build(BuildContext context) {
     const destinations = HubDestination.values;
     final size = MediaQuery.sizeOf(context);
-    // The dials sit on an arc 90 degrees wide. Their spacing is therefore
-    // radius * pi / 8, so the radius and the dial have to grow together: at
-    // 0.40 and 74 dp the five circles were 56 dp apart and covered each
-    // other's captions. 0.46 and ~60 dp leaves a gap on the narrowest phone.
-    final radius = math.min(size.width, size.height) * 0.46;
-    final itemSize = math.min(60.0, size.width * 0.165);
+    // The dials sit on an arc 90 degrees wide, so neighbours are
+    // radius * pi / 8 apart. Each one carries a caption underneath, and the
+    // next dial has to stay clear of it: that needs
+    // radius * pi / 8 >= dial + caption, i.e. a radius of about 0.53 of the
+    // short side for a ~58 dp dial. Smaller values buried the captions under
+    // the neighbouring circle.
+    final radius = math.min(size.width, size.height) * 0.535;
+    final itemSize = math.min(58.0, size.width * 0.16);
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
