@@ -264,6 +264,43 @@ jobs:
           flutter build apk --release --split-per-abi --dart-define=SHIA_DATA_BASE_URL="$SHIA_DATA_BASE_URL"
           cp build/app-universal-release.apk build/app/outputs/flutter-apk/app-release.apk
 
+      # A phone that installed an older arm64 split has versionCode 2xxx.
+      # A later universal (code 37) or v7a split (code 1xxx) is a downgrade,
+      # which the installer shows as "package appears to be invalid".
+      - name: Require one versionCode on every APK
+        working-directory: app
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          aapt=$(find "$sdk/build-tools" -type f -name aapt | sort -V | tail -1)
+          if [[ -z "$aapt" ]]; then
+            echo "::error title=Missing aapt::Cannot read APK versionCode"
+            exit 1
+          fi
+          expected=$(sed -n 's/^version:[[:space:]]*[^+]*+//p' pubspec.yaml | tr -d '\r')
+          if [[ "$expected" -lt 10038 ]]; then
+            echo "::error title=versionCode too low::$expected cannot replace the old ABI-offset splits (arm64 was 2036)"
+            exit 1
+          fi
+          found=0
+          shopt -s nullglob
+          for apk in build/app/outputs/flutter-apk/*.apk; do
+            badging=$("$aapt" dump badging "$apk")
+            code=$(printf '%s\n' "$badging" | sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p" | head -1)
+            name=$(printf '%s\n' "$badging" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p" | head -1)
+            echo "$apk versionName=$name versionCode=$code"
+            if [[ "$code" != "$expected" ]]; then
+              echo "::error title=ABI versionCode offset::$apk has versionCode $code, expected $expected"
+              exit 1
+            fi
+            found=$((found + 1))
+          done
+          if [[ "$found" -lt 4 ]]; then
+            echo "::error title=Missing APKs::expected the universal APK plus three ABI splits, found $found"
+            exit 1
+          fi
+
       - name: Report APK size and digest
         run: |
           set -euo pipefail

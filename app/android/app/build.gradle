@@ -74,3 +74,24 @@ dependencies {
 flutter {
     source "../.."
 }
+
+// Flutter's --split-per-abi build adds ABI*1000 to versionCode (arm64 of
+// 1.26.0 was 2036, the universal file stayed 36). Android then refuses the
+// next universal or 32-bit APK as a downgrade, and this phone's installer
+// reports that as "package appears to be invalid". Every APK of a release
+// must carry the same code, and that code must stay above those old offsets.
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.outputs.each { output ->
+            output.versionCode.set(flutter.versionCode.toInteger())
+        }
+    }
+}
+afterEvaluate {
+    def sharedVersionCode = flutter.versionCode.toInteger()
+    android.applicationVariants.configureEach { variant ->
+        variant.outputs.configureEach { output ->
+            output.versionCodeOverride = sharedVersionCode
+        }
+    }
+}
