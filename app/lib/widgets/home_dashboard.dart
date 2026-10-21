@@ -684,7 +684,11 @@ class _MiniPrayerCard extends StatelessWidget {
                   // the row reads as a single line of type instead of five
                   // names at five different sizes.
                   final cellWidth = constraints.maxWidth / miniEntries.length;
-                  final labelSize = _miniLabelSize(miniEntries, cellWidth);
+                  final labelSize = _miniLabelSize(
+                    miniEntries,
+                    cellWidth,
+                    MediaQuery.textScalerOf(context),
+                  );
                   final nameWidth = cellWidth - _miniCellChrome;
                   Widget prayerRow(Iterable<(PrayerEntry, String)> entries) => Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -817,13 +821,28 @@ const double _miniCellChrome = 7;
 ///
 /// The five names are very different lengths — «طلوعِ شمس» is twice «فجر» —
 /// and scaling each name to its own cell made the row look as if it belonged
-/// to five different apps. The longest name sets the size here, and every
-/// other name is drawn at exactly that size.
-double _miniLabelSize(List<(PrayerEntry, String)> entries, double cellWidth) {
+/// to five different apps: the running prayer's name came out half the size
+/// of the others, because its cell also carries the countdown. The longest
+/// name sets the size here, and every other name is drawn at exactly that
+/// size.
+///
+/// The measurement takes the reader's own text scale into account, so a
+/// reader who enlarges the system font gets five names of one size, not five
+/// names of five sizes.
+double _miniLabelSize(
+  List<(PrayerEntry, String)> entries,
+  double cellWidth,
+  TextScaler scaler,
+) {
   const base = 16.5;
+  final scale = scaler.scale(1);
   final cached = _miniLabelCache;
-  if (cached != null && cached.$2 == cellWidth) return cached.$1;
-  final available = cellWidth - _miniCellChrome;
+  if (cached != null && cached.$2 == cellWidth && cached.$3 == scale) {
+    return cached.$1;
+  }
+  // A pixel of slack, so a name that measures exactly to the line is not
+  // clipped by a rounding error.
+  final available = cellWidth - _miniCellChrome - 1;
   var widest = 0.0;
   for (final entry in entries) {
     final painter = TextPainter(
@@ -836,6 +855,7 @@ double _miniLabelSize(List<(PrayerEntry, String)> entries, double cellWidth) {
         ),
       ),
       textDirection: TextDirection.rtl,
+      textScaler: scaler,
       maxLines: 1,
     )..layout();
     if (painter.width > widest) widest = painter.width;
@@ -845,16 +865,16 @@ double _miniLabelSize(List<(PrayerEntry, String)> entries, double cellWidth) {
   if (widest > 0 && available > 0 && available < widest) {
     // Never shrink the names into unreadability: a smaller name is better
     // than a name that has lost its shape.
-    size = math.max(11.0, base * available / widest);
+    size = math.max(10.0, base * available / widest);
   }
-  _miniLabelCache = (size, cellWidth);
+  _miniLabelCache = (size, cellWidth, scale);
   return size;
 }
 
-/// The measured size and the cell width it was measured for: the card is
-/// rebuilt on every tick of the clock, and measuring five strings each time
-/// would be waste.
-(double, double)? _miniLabelCache;
+/// The measured size, the cell width and the text scale it was measured for:
+/// the card is rebuilt on every tick of the clock, and measuring five strings
+/// each time would be waste.
+(double, double, double)? _miniLabelCache;
 
 /// One of the five prayers on the mini card: its name, its time, and either the
 /// **Now** tag or the time left until it.
@@ -925,15 +945,18 @@ class _MiniPrayerCell extends StatelessWidget {
             children: <Widget>[
               SizedBox(
                 width: nameWidth,
-                child: Text(
-                  displayLabel ?? entry.marker.labelUrdu,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.clip,
-                  // One size for all five names: the name is what the reader
-                  // looks for first (فجر، ظہرین، مغربین …).
-                  style: _onSky(labelSize, weight: FontWeight.w800, height: 1.25,
-                      color: Colors.white),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    displayLabel ?? entry.marker.labelUrdu,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.clip,
+                    // One size for all five names: the name is what the reader
+                    // looks for first (فجر، ظہرین، مغربین …).
+                    style: _onSky(labelSize, weight: FontWeight.w800, height: 1.25,
+                        color: Colors.white),
+                  ),
                 ),
               ),
               SizedBox(
@@ -944,7 +967,7 @@ class _MiniPrayerCell extends StatelessWidget {
                     formatClockDigitsUrdu(entry.time),
                     textAlign: TextAlign.center,
                     textDirection: TextDirection.ltr,
-                    style: _onSky(active ? 16 : 14.5, weight: FontWeight.w800, digits: true, height: 1,
+                    style: _onSky(15, weight: FontWeight.w800, digits: true, height: 1,
                         color: active ? Colors.white : (upcoming ? gold : Colors.white)),
                   ),
                 ),
@@ -967,25 +990,32 @@ class _MiniPrayerCell extends StatelessWidget {
                 height: upcoming ? 15 : 14,
                 child: Center(
                   child: active
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            const _NowTag(),
-                            // Between Dhuhr and Asr the next prayer belongs to
-                            // this same ظہرین cell, so the countdown rides
-                            // inside the emerald tile instead of disappearing.
-                            if (left != null) ...<Widget>[
-                              const SizedBox(width: 3),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
+                      // The running prayer carries the **Now** tag and, when
+                      // the next prayer folds into this same cell, its
+                      // countdown as well. Both are wider than one narrow
+                      // cell, so the pair is scaled down as a whole — the
+                      // names above keep their one size whatever happens
+                      // here.
+                      ? FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              const _NowTag(),
+                              // Between Dhuhr and Asr the next prayer belongs
+                              // to this same ظہرین cell, so the countdown
+                              // rides inside the emerald tile instead of
+                              // disappearing.
+                              if (left != null) ...<Widget>[
+                                const SizedBox(width: 3),
+                                Text(
                                   formatCountdownClock(left),
                                   key: ValueKey<String>('mini-countdown-${entry.marker.name}'),
                                   style: _onSky(10.5, weight: FontWeight.w800, color: Colors.white, digits: true),
                                 ),
-                              ),
+                              ],
                             ],
-                          ],
+                          ),
                         )
                       : (left == null
                           ? const SizedBox.shrink()
