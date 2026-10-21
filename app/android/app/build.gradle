@@ -8,9 +8,14 @@ android {
     namespace "com.shiaai.app"
     compileSdk flutter.compileSdkVersion
     // CI sets this when NDK 28.2 cannot be unpacked, so Gradle does not
-    // download that broken archive during the release build.
+    // download that broken archive during the release build. Assign it;
+    // `ndkVersion (cond) ? a : b` is parsed as a method call.
     def pinnedNdk = System.getenv("SHIA_NDK_VERSION")
-    ndkVersion (pinnedNdk != null && !pinnedNdk.isBlank()) ? pinnedNdk : flutter.ndkVersion
+    if (pinnedNdk != null && !pinnedNdk.isBlank()) {
+        ndkVersion = pinnedNdk
+    } else {
+        ndkVersion = flutter.ndkVersion
+    }
 
     compileOptions {
         coreLibraryDesugaringEnabled true

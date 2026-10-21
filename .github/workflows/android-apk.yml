@@ -249,7 +249,7 @@ jobs:
           fi
           if [[ -x "$ndk_dir/ndk-build" ]]; then
             echo "SHIA_NDK_VERSION=28.2.13676358" >> "$GITHUB_ENV"
-            echo "Using NDK 28.2.13676358"
+            echo "::notice title=NDK::Using 28.2.13676358"
             exit 0
           fi
           installed=$(find "$sdk/ndk" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V | tail -1)
@@ -258,7 +258,7 @@ jobs:
             exit 1
           fi
           echo "SHIA_NDK_VERSION=$installed" >> "$GITHUB_ENV"
-          echo "Using preinstalled NDK $installed"
+          echo "::notice title=NDK::Using preinstalled $installed"
 
       - name: Build APK
         working-directory: app
