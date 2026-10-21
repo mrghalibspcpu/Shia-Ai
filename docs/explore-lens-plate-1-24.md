@@ -32,6 +32,22 @@ quarter-arc left of and above the plate, and a scrim closes the menu again. The
 page underneath never moves; the same five destinations are reached exactly as
 from the app-wide hub.
 
+Geometry, learned from the rendered test: the five dials sit on a 90° arc, so
+neighbours are `radius × π/8` apart while each dial carries a caption beneath
+it. `radius = min(width, height) × 0.535` and a ~58 dp dial leave a 75 dp step
+on a 360 dp phone — enough for the caption to sit on open plate instead of
+under the next circle. Both numbers are smaller/larger respectively than the
+first attempt (0.40 radius, 74 dp dial), which drew overlapping rings and
+captions on top of the neighbouring dial.
+
+## Previews
+
+`docs/previews/xplore-1-24/` holds the phone-sized renderings the CI layout
+test produces (`app/test/ui_layout_test.dart`, `SHIAVERSE_PREVIEW_DIR`):
+`plate-800dp.png`, `plate-640dp.png` and `radial-menu.png`. They come from the
+real widget tree, so they show what Flutter actually painted — including the
+one-pixel overflow stripe that the radial menu carried until 1.24.
+
 ## The engraving
 
 Each lens paints four layers in code, no bitmaps:

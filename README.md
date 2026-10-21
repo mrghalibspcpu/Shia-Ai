@@ -11,7 +11,10 @@
   the page: it lives in its plate, as the artwork places it, and fans the five
   destinations out over the plate when tapped. `docs/previews/explore.png` is
   the layout re-drawn at the app's own fractions
-  (`scripts/render_explore_preview.py`).
+  (`scripts/render_explore_preview.py`); `docs/previews/xplore-1-24/` holds the
+  phone-sized renderings of the real widget tree, and the layout test mounts
+  the screen at 800 dp and 640 dp tall so an overflowing plate fails CI instead
+  of a reader's phone.
 - **دینی مسائل gains a third marja: آیت اللہ العظمیٰ شیخ حافظ بشیر حسین نجفی.**
   8,104 Urdu question/answer pairs in 417 chapters, every one carrying the
   official alnajafy.com page it came from and the publisher's own reference
