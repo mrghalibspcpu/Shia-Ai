@@ -509,6 +509,11 @@ void main() {
       page: 21,
     )));
     await settle(tester);
+    // The prev/next bar sits at the very end of the reading list.
+    for (var i = 0; i < 4 && find.byKey(const ValueKey<String>('quran-section-prev-next')).evaluate().isEmpty; i++) {
+      await tester.drag(find.byType(PassageCard).first, const Offset(0, -420));
+      await tester.pump(const Duration(milliseconds: 300));
+    }
     expect(find.byKey(const ValueKey<String>('quran-section-prev-next')), findsOneWidget);
     expect(find.text('اگلا صفحہ'), findsOneWidget);
     expect(find.text('پچھلا صفحہ'), findsOneWidget);
@@ -547,7 +552,12 @@ void main() {
     await tester.tap(find.text('۲ کتابوں کے منصوبے شروع کریں'));
     await settle(tester);
     // Both plans now exist side by side (their data is absent in the test,
-    // so each shows its install notice and its own end-plan button).
+    // so each shows its install notice and its own end-plan button). The
+    // add-more picker sits below them, so scroll it into view first.
+    for (var i = 0; i < 5 && find.text('شامل ہے').evaluate().length < 2; i++) {
+      await tester.drag(find.byType(ListView), const Offset(0, -420));
+      await tester.pump(const Duration(milliseconds: 300));
+    }
     expect(find.text('شامل ہے'), findsNWidgets(2));
     expect(find.textContaining('کا منصوبہ ختم کریں'), findsNWidgets(2));
     expect(tester.takeException(), isNull);
