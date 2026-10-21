@@ -6,6 +6,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app_theme.dart';
+import '../daily_study.dart' show kQuranPages;
 import '../library_repository.dart';
 import '../models.dart';
 import '../text_utils.dart' show arabicNumerals, parseReaderNumber;
@@ -339,9 +340,13 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
   @override
   Widget build(BuildContext context) {
     return _QuranVerseList(
-      onNextSection: () => unawaited(_openSurah(context, 1)),
-      onPreviousSection: () => unawaited(_openSurah(context, -1)),
+      onNextSection:
+          widget.surah.number < 114 ? () => unawaited(_openSurah(context, 1)) : null,
+      onPreviousSection:
+          widget.surah.number > 1 ? () => unawaited(_openSurah(context, -1)) : null,
       sectionNavLabel: 'سورة ${widget.surah.number} از 114 — اگلی / پچھلی سورة',
+      previousSectionLabel: 'پچھلی سورة',
+      nextSectionLabel: 'اگلی سورة',
       library: widget.library,
       title: widget.surah.displayTitle,
       subtitle: widget.surah.verseCount > 0
@@ -380,6 +385,8 @@ class JuzReaderScreen extends StatelessWidget {
                 builder: (_) => JuzReaderScreen(library: library, juz: juz - 1)))
           : null,
       sectionNavLabel: 'پارہ $juz از 30 — اگلا / پچھلا پارہ',
+      previousSectionLabel: 'پچھلا پارہ',
+      nextSectionLabel: 'اگلا پارہ',
     );
   }
 }
@@ -398,6 +405,20 @@ class QuranPageReaderScreen extends StatelessWidget {
       subtitle: 'مصحف کا صفحہ',
       loader: () => library.getQuranPage(page),
       storageKey: 'quran-page-$page',
+      // Daily study opens the mushaf page by page, so the end of a page
+      // must offer the next/previous page just as a surah offers the
+      // next/previous surah.
+      onNextSection: page < kQuranPages
+          ? () => Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
+                builder: (_) => QuranPageReaderScreen(library: library, page: page + 1)))
+          : null,
+      onPreviousSection: page > 1
+          ? () => Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
+                builder: (_) => QuranPageReaderScreen(library: library, page: page - 1)))
+          : null,
+      sectionNavLabel: 'صفحہ $page از $kQuranPages — اگلا / پچھلا صفحہ',
+      previousSectionLabel: 'پچھلا صفحہ',
+      nextSectionLabel: 'اگلا صفحہ',
     );
   }
 }
@@ -416,6 +437,8 @@ class _QuranVerseList extends StatefulWidget {
     this.onNextSection,
     this.onPreviousSection,
     this.sectionNavLabel = '',
+    this.previousSectionLabel = 'پچھلا متن',
+    this.nextSectionLabel = 'اگلا متن',
     this.surahNumber,
   });
 
@@ -435,6 +458,8 @@ class _QuranVerseList extends StatefulWidget {
   final VoidCallback? onNextSection;
   final VoidCallback? onPreviousSection;
   final String sectionNavLabel;
+  final String previousSectionLabel;
+  final String nextSectionLabel;
 
   @override
   State<_QuranVerseList> createState() => _QuranVerseListState();
@@ -778,8 +803,8 @@ class _QuranVerseListState extends State<_QuranVerseList> with ReaderDisplayMode
             hasNext: widget.onNextSection != null,
             onPrevious: widget.onPreviousSection,
             onNext: widget.onNextSection,
-            previousLabel: 'پچھلا متن',
-            nextLabel: 'اگلا متن',
+            previousLabel: widget.previousSectionLabel,
+            nextLabel: widget.nextSectionLabel,
             label: widget.sectionNavLabel,
           ),
         ],

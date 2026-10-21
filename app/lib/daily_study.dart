@@ -203,11 +203,16 @@ int studyStreak(StudyPlan plan, int today) {
   return streak;
 }
 
-/// Persists the plan. A reader who never chose one simply has `null`.
+/// Persists the plans. Since 1.25 a reader can run several plans at once
+/// (Quran and Nahj al-Balagha side by side), so the store keeps a list under
+/// a v2 key. The original single-plan key stays readable — and is kept in
+/// sync with the first plan — so a downgrade or an older build never loses
+/// the plan it already had.
 class StudyPlanStore {
   StudyPlanStore({SharedPreferences? preferences}) : _cached = preferences;
 
   static const String _key = 'daily_study_plan_v1';
+  static const String _plansKey = 'daily_study_plans_v2';
   SharedPreferences? _cached;
 
   Future<SharedPreferences> _prefs() async => _cached ??= await SharedPreferences.getInstance();
@@ -228,9 +233,68 @@ class StudyPlanStore {
     await prefs.setString(_key, jsonEncode(plan.toJson()));
   }
 
+  /// Every active plan, oldest first. Falls back to the pre-1.25 single
+  /// plan, so an existing reader's plan simply appears in the list.
+  Future<List<StudyPlan>> loadPlans() async {
+    final prefs = await _prefs();
+    final raw = prefs.getString(_plansKey);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          final seen = <StudyTrack>{};
+          final plans = <StudyPlan>[];
+          for (final item in decoded) {
+            final plan = StudyPlan.fromJson(item);
+            if (plan != null && seen.add(plan.track)) plans.add(plan);
+          }
+          return plans;
+        }
+      } catch (_) {
+        // fall through to the legacy single plan below
+      }
+      return const <StudyPlan>[];
+    }
+    final legacy = await load();
+    return legacy == null ? const <StudyPlan>[] : <StudyPlan>[legacy];
+  }
+
+  /// Replaces the whole plan list (one plan per track; a repeated track
+  /// keeps its first entry) and mirrors the first plan into the legacy key.
+  Future<void> savePlans(List<StudyPlan> plans) async {
+    final prefs = await _prefs();
+    final seen = <StudyTrack>{};
+    final unique = <StudyPlan>[
+      for (final plan in plans)
+        if (seen.add(plan.track)) plan,
+    ];
+    await prefs.setString(_plansKey, jsonEncode(unique.map((p) => p.toJson()).toList()));
+    if (unique.isEmpty) {
+      await prefs.remove(_key);
+    } else {
+      await prefs.setString(_key, jsonEncode(unique.first.toJson()));
+    }
+  }
+
+  /// Adds a plan, or replaces the existing plan for the same track.
+  Future<void> savePlan(StudyPlan plan) async {
+    final plans = await loadPlans();
+    await savePlans(<StudyPlan>[
+      for (final existing in plans)
+        if (existing.track != plan.track) existing,
+      plan,
+    ]);
+  }
+
+  Future<void> removePlan(StudyTrack track) async {
+    final plans = await loadPlans();
+    await savePlans(plans.where((plan) => plan.track != track).toList());
+  }
+
   Future<void> clear() async {
     final prefs = await _prefs();
     await prefs.remove(_key);
+    await prefs.remove(_plansKey);
   }
 }
 

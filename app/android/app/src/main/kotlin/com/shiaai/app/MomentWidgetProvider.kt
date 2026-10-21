@@ -10,10 +10,40 @@ import android.widget.RemoteViews
 import kotlin.random.Random
 
 /** A genuinely useful Android launcher widget; refreshes on the platform's
- * hourly AppWidget schedule and can also be advanced with its refresh button. */
+ * hourly AppWidget schedule and can also be advanced with its refresh button.
+ *
+ * Adjustable by design: the widget is freely resizable (see
+ * `moment_widget_info.xml`) and picks one of three layouts — compact,
+ * standard, large — from the size the launcher actually gives it, both
+ * when it is placed and every time the reader drags it to a new size.
+ * All three sit on the same layered 3D slab (drop shadow, lit gold rim,
+ * enamel face, inner groove, gloss sweep) drawn in
+ * `moment_widget_background.xml`, with the refresh control as a brass orb. */
 class MomentWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         ids.forEach { updateOne(context, manager, it, hourly = true) }
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        manager: AppWidgetManager,
+        id: Int,
+        newOptions: android.os.Bundle
+    ) {
+        super.onAppWidgetOptionsChanged(context, manager, id, newOptions)
+        updateOne(context, manager, id, hourly = true)
+    }
+
+    /** Which of the three layouts fits the size [id] currently has. */
+    private fun layoutFor(manager: AppWidgetManager, id: Int): Int {
+        val options = manager.getAppWidgetOptions(id)
+        val width = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+        val height = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+        return when {
+            width in 1..189 || height in 1..99 -> R.layout.moment_widget_compact
+            width >= 300 && height >= 190 -> R.layout.moment_widget_large
+            else -> R.layout.moment_widget
+        }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -25,7 +55,7 @@ class MomentWidgetProvider : AppWidgetProvider() {
     }
 
     private fun updateOne(context: Context, manager: AppWidgetManager, id: Int, hourly: Boolean) {
-        val views = RemoteViews(context.packageName, R.layout.moment_widget)
+        val views = RemoteViews(context.packageName, layoutFor(manager, id))
         val seed = if (hourly) System.currentTimeMillis() / HOUR_MS + id * 31L else System.nanoTime()
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val key = "quote_$id"

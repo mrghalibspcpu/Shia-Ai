@@ -1,5 +1,15 @@
 # Xplore — the lens plate (1.24)
 
+> **1.25 amendment (owner's correction against the artwork):** the three
+> red containers are now true triangles, as drawn in the reference image —
+> the brand plate fills the top-right corner (text along its diagonal),
+> the encyclopaedia plate is a triangle pointing in from the middle of the
+> left edge (text kept in its wide half), and the radial-menu plate fills
+> the bottom-right corner with the button in its wide corner end. The lens
+> "control numbers" are gone: the artwork's 1–7 only label the image, and
+> no number tag may appear in the app. The lenses, their fractions and the
+> radial menu geometry below are unchanged from 1.24.
+
 The Xplore page is one full-screen portrait plate, taken from the reference
 artwork: a brushed-metal body with amber camera lenses climbing it diagonally,
 two red bevel plates at the edges, and hatched graticule wedges in the metal

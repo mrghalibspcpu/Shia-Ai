@@ -824,7 +824,6 @@ class _MiniPrayerCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const gold = Color(0xFFFFE1A1);
-    final lit = active || upcoming;
     final left = remaining;
     return AnimatedScale(
       scale: active ? 1.08 : (upcoming ? 1.02 : 1),
@@ -863,10 +862,15 @@ class _MiniPrayerCell extends StatelessWidget {
                 displayLabel ?? entry.marker.labelUrdu,
                 maxLines: 1,
                 overflow: TextOverflow.clip,
-                // A step larger than the clock underneath: the name is what
-                // the reader looks for first (فجر، ظہرین، مغربین …).
-                style: _onSky(active ? 17.5 : 16, weight: lit ? FontWeight.w800 : FontWeight.w700, height: 1.25,
-                    color: Colors.white),
+                // Every prayer name in exactly the same type — same size,
+                // same weight, same colour — whether it is running, next or
+                // waiting. The active/next state is carried by the emerald
+                // tile, the gold rule and the countdown, never by making one
+                // name bigger or bolder than its neighbours, which is what
+                // made the row look uneven. One shared size (a step larger
+                // than the clock underneath, as readers asked) keeps the
+                // five names reading as one calm row.
+                style: _onSky(16.5, weight: FontWeight.w800, height: 1.25, color: Colors.white),
               ),
               FittedBox(
                 fit: BoxFit.scaleDown,

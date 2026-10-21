@@ -157,4 +157,57 @@ void main() {
       expect(await StudyPlanStore().load(), isNull);
     });
   });
+
+  group('several books at once (1.25)', () {
+    test('a pre-1.25 single plan becomes the first of the list', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final store = StudyPlanStore();
+      await store.save(const StudyPlan(track: StudyTrack.quran, days: 90, startedOn: '2026-10-20'));
+      final plans = await store.loadPlans();
+      expect(plans, hasLength(1));
+      expect(plans.single.track, StudyTrack.quran);
+    });
+
+    test('two tracks are kept side by side and survive a round trip', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final store = StudyPlanStore();
+      await store.savePlans(const <StudyPlan>[
+        StudyPlan(track: StudyTrack.quran, days: 90, startedOn: '2026-10-20', completedDays: <int>{1}),
+        StudyPlan(track: StudyTrack.balaghaSermons, days: 60, startedOn: '2026-10-21'),
+      ]);
+      final plans = await StudyPlanStore().loadPlans();
+      expect(plans.map((p) => p.track), <StudyTrack>[StudyTrack.quran, StudyTrack.balaghaSermons]);
+      expect(plans.first.completedDays, <int>{1});
+      // The legacy key still mirrors the first plan for older builds.
+      expect((await StudyPlanStore().load())!.track, StudyTrack.quran);
+    });
+
+    test('adding one book never disturbs the plan already running', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final store = StudyPlanStore();
+      await store.savePlan(const StudyPlan(
+          track: StudyTrack.quran, days: 90, startedOn: '2026-10-20', completedDays: <int>{1, 2}));
+      await store.savePlan(
+          const StudyPlan(track: StudyTrack.balaghaWisdom, days: 30, startedOn: '2026-10-22'));
+      var plans = await store.loadPlans();
+      expect(plans, hasLength(2));
+      expect(plans.first.completedDays, <int>{1, 2}, reason: 'the Quran record is untouched');
+
+      await store.removePlan(StudyTrack.quran);
+      plans = await store.loadPlans();
+      expect(plans.map((p) => p.track), <StudyTrack>[StudyTrack.balaghaWisdom]);
+    });
+
+    test('a track can only be targeted once', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final store = StudyPlanStore();
+      await store.savePlans(const <StudyPlan>[
+        StudyPlan(track: StudyTrack.quran, days: 90, startedOn: '2026-10-20'),
+        StudyPlan(track: StudyTrack.quran, days: 30, startedOn: '2026-10-21'),
+      ]);
+      final plans = await store.loadPlans();
+      expect(plans, hasLength(1));
+      expect(plans.single.days, 90);
+    });
+  });
 }

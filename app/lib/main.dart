@@ -276,7 +276,7 @@ class _ShiaLibraryAppState extends State<ShiaLibraryApp> {
         // book rather than open it, so Xplore leads with the daily portion.
         MoreFeature(
           title: 'روزانہ مطالعہ',
-          subtitle: 'قرآن یا نہج البلاغہ — روز کا مقررہ حصہ، ساتھ میں تسلسل کا حساب',
+          subtitle: 'ایک یا زیادہ کتابیں ایک ساتھ — ہر کتاب کا روز کا مقررہ حصہ اور اپنا تسلسل',
           icon: Icons.event_available_rounded,
           color: const Color(0xFF1F6E5A),
           onOpen: () => unawaited(_navigatorKey.currentState?.push(MaterialPageRoute<void>(

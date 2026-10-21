@@ -8,9 +8,11 @@ import '../widgets/reading_hub.dart';
 /// Full-screen Xplore dashboard.
 ///
 /// The page is the camera-lens plate of the reference artwork, in portrait:
-/// six amber lenses on a brushed-metal body, the sixth destination on a red
-/// bevel plate hanging off the left edge, and the red plate in the bottom-right
-/// corner that carries the radial-menu button. Lens one sits top-left, lens two
+/// five amber lenses on a brushed-metal body with NO number tags on them,
+/// and three red triangular plates where the artwork puts them — the brand
+/// plate filling the top-right corner, the encyclopaedia as a triangle
+/// pointing in from the middle of the left edge, and the bottom-right
+/// corner triangle that carries the radial-menu button. Lens one sits top-left, lens two
 /// steps down towards the middle, three reaches the right edge, four comes back
 /// to the centre, five closes at the bottom-left — the same diagonal climb as
 /// the artwork, so the controls read as a machine and not as a grid.
@@ -102,7 +104,9 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
               // Lens diameter: about 40% of the width on a phone, and never so
               // tall that the five lenses plus the corner plates stop fitting.
               final lens = math.min(width * 0.40, height * 0.20);
-              final anchor = Offset(width * 0.855, height - math.min(64.0, lens * 0.5));
+              // Centre of the radial button inside the bottom-right
+              // triangle: near the corner, where the triangle is widest.
+              final anchor = Offset(width - 54, height - 86);
 
               Widget at(Offset centre, double diameter, Widget child) => Positioned(
                     left: centre.dx - diameter / 2,
@@ -120,7 +124,6 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                     Offset(width * 0.20, height * 0.155),
                     lens,
                     _LensControl(
-                      number: 1,
                       title: 'تسبیح',
                       subtitle: 'تسبیح و ذکر',
                       icon: Icons.fingerprint_rounded,
@@ -132,7 +135,6 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                     Offset(width * 0.505, height * 0.335),
                     lens * 1.08,
                     _LensControl(
-                      number: 2,
                       title: 'نماز',
                       subtitle: 'اوقات و قرات',
                       icon: Icons.access_time_filled_rounded,
@@ -144,7 +146,6 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                     Offset(width * 0.795, height * 0.505),
                     lens * 0.94,
                     _LensControl(
-                      number: 3,
                       title: 'چاند کی رویت',
                       subtitle: 'رویتِ ہلال',
                       icon: Icons.nightlight_round,
@@ -156,7 +157,6 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                     Offset(width * 0.515, height * 0.675),
                     lens,
                     _LensControl(
-                      number: 4,
                       title: 'اسلامی تقویم',
                       subtitle: 'ہجری تاریخیں',
                       icon: Icons.calendar_month_rounded,
@@ -168,7 +168,6 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                     Offset(width * 0.215, height * 0.838),
                     lens * 0.88,
                     _LensControl(
-                      number: 5,
                       title: 'Xplore Xtra',
                       subtitle: 'روزانہ مطالعہ',
                       icon: Icons.auto_awesome_rounded,
@@ -176,11 +175,13 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                       feature: extra,
                     ),
                   ),
+                  // Container 6 of the artwork: a red triangle mounted on
+                  // the left edge, its point reaching into the plate.
                   Positioned(
-                    left: -lens * 0.16,
-                    top: height * 0.435 - lens * 0.44,
-                    width: lens * 0.92,
-                    height: lens * 0.92,
+                    left: 0,
+                    top: height * 0.435 - lens * 0.47,
+                    width: width * 0.46,
+                    height: lens * 0.94,
                     child: _RedPlate(
                       icon: Icons.menu_book_rounded,
                       title: 'اثنا عشری انسائکلوپیڈیا',
@@ -189,11 +190,13 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
                       feature: encyclopedia,
                     ),
                   ),
+                  // Container 7: the bottom-right corner is one red
+                  // triangle; the radial button sits in its wide corner end.
                   Positioned(
-                    right: -lens * 0.12,
-                    bottom: math.max(4.0, height * 0.012),
-                    width: lens * 1.02,
-                    height: lens * 0.78,
+                    right: 0,
+                    bottom: 0,
+                    width: width * 0.44,
+                    height: lens * 0.95,
                     child: _LaunchPlate(
                       open: _menuOpen,
                       onTap: _toggleMenu,
@@ -218,6 +221,93 @@ class _ExploreScreenState extends State<ExploreScreen> with RouteAware {
   }
 }
 
+/// The three triangular plates of the artwork, as paths.
+Path _topRightTrianglePath(Size size) => Path()
+  ..moveTo(0, 0)
+  ..lineTo(size.width, 0)
+  ..lineTo(size.width, size.height)
+  ..close();
+
+Path _leftPointTrianglePath(Size size) => Path()
+  ..moveTo(0, 0)
+  ..lineTo(size.width, size.height / 2)
+  ..lineTo(0, size.height)
+  ..close();
+
+Path _bottomRightTrianglePath(Size size) => Path()
+  ..moveTo(size.width, 0)
+  ..lineTo(size.width, size.height)
+  ..lineTo(0, size.height)
+  ..close();
+
+class _TriangleClipper extends CustomClipper<Path> {
+  const _TriangleClipper(this.buildPath);
+
+  final Path Function(Size size) buildPath;
+
+  @override
+  Path getClip(Size size) => buildPath(size);
+
+  @override
+  bool shouldReclip(covariant _TriangleClipper oldClipper) => false;
+}
+
+/// A soft shadow in the plate's own triangular shape, so the red plates
+/// lift off the metal like the bevelled metal of the artwork instead of
+/// floating as flat red stickers.
+class _TriangleShadowPainter extends CustomPainter {
+  const _TriangleShadowPainter(this.buildPath);
+
+  final Path Function(Size size) buildPath;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xB305090C)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
+    canvas.drawPath(buildPath(size).shift(const Offset(1, 6)), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TriangleShadowPainter oldDelegate) => false;
+}
+
+/// The bevel light on a triangular plate: a bright edge, a dark groove just
+/// inside it, and a gloss sweep — the pressed-metal read of the reference.
+class _TriangleBevelPainter extends CustomPainter {
+  const _TriangleBevelPainter(this.buildPath);
+
+  final Path Function(Size size) buildPath;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = buildPath(size);
+    final highlight = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..color = const Color(0xCCFFB3A7);
+    canvas.drawPath(path, highlight);
+    final groove = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = const Color(0x59000000);
+    canvas.save();
+    canvas.translate(2.5, 2.5);
+    canvas.drawPath(path, groove);
+    canvas.restore();
+    final gloss = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: <Color>[Color(0x2EFFFFFF), Color(0x00FFFFFF)],
+      ).createShader(Offset.zero & size);
+    canvas.drawPath(path, gloss);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TriangleBevelPainter oldDelegate) => false;
+}
+
 /// The brand plate and the back button, painted over the top of the metal.
 class _TopBar extends StatelessWidget {
   const _TopBar({required this.onBack});
@@ -230,7 +320,7 @@ class _TopBar extends StatelessWidget {
         right: 0,
         top: 0,
         child: SizedBox(
-          height: 62,
+          height: 104,
           child: Stack(
             children: <Widget>[
               Positioned(
@@ -252,50 +342,82 @@ class _TopBar extends StatelessWidget {
                   ),
                 ),
               ),
+              // The artwork's top-right plate is a full corner triangle —
+              // not a rounded tab — with the brand set along its diagonal.
               Positioned(
                 right: 0,
                 top: 0,
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(22, 9, 18, 11),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topRight,
-                      end: Alignment.bottomLeft,
-                      colors: [Color(0xFFAA2B35), Color(0xFF5E1620)],
+                width: 252,
+                height: 104,
+                child: Stack(
+                  children: <Widget>[
+                    const Positioned.fill(
+                      child: CustomPaint(painter: _TriangleShadowPainter(_topRightTrianglePath)),
                     ),
-                    borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24)),
-                    border: Border(
-                      left: BorderSide(color: Color(0x88FF9B94), width: 1.2),
-                      bottom: BorderSide(color: Color(0x88FF9B94), width: 1.2),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      const Text(
-                        'Xplore',
-                        style: TextStyle(
-                          fontFamily: 'sans-serif',
-                          fontSize: 21,
-                          height: 1.05,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: .8,
-                          color: Colors.white,
+                    ClipPath(
+                      clipper: const _TriangleClipper(_topRightTrianglePath),
+                      child: DecoratedBox(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topRight,
+                            end: Alignment.bottomLeft,
+                            colors: [Color(0xFFBE3A44), Color(0xFF8E1F2C), Color(0xFF4A0E18)],
+                            stops: [0, .55, 1],
+                          ),
+                        ),
+                        child: Stack(
+                          children: <Widget>[
+                            const Positioned.fill(
+                              child: CustomPaint(painter: _HatchPainter(color: Color(0x26FFFFFF))),
+                            ),
+                            Positioned.fill(
+                              child: CustomPaint(
+                                painter: const _TriangleBevelPainter(_topRightTrianglePath),
+                              ),
+                            ),
+                            // Brand along the triangle's diagonal, inside the
+                            // wide corner end where the plate can hold it.
+                            Positioned(
+                              top: 8,
+                              right: 12,
+                              child: Transform.rotate(
+                                angle: -0.30,
+                                alignment: Alignment.topRight,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    const Text(
+                                      'Xplore',
+                                      style: TextStyle(
+                                        fontFamily: 'sans-serif',
+                                        fontSize: 21,
+                                        height: 1.05,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: .8,
+                                        color: Colors.white,
+                                        shadows: [Shadow(color: Color(0x88000000), blurRadius: 4, offset: Offset(0, 1))],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'by ShiaVerse',
+                                      style: TextStyle(
+                                        fontFamily: 'sans-serif',
+                                        fontSize: 10.5,
+                                        letterSpacing: 1.1,
+                                        color: Colors.white.withValues(alpha: .82),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'by ShiaVerse',
-                        style: TextStyle(
-                          fontFamily: 'sans-serif',
-                          fontSize: 10.5,
-                          letterSpacing: 1.1,
-                          color: Colors.white.withValues(alpha: .78),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -308,7 +430,6 @@ class _TopBar extends StatelessWidget {
 /// destination engraved on a dark disc at the centre.
 class _LensControl extends StatelessWidget {
   const _LensControl({
-    required this.number,
     required this.title,
     required this.subtitle,
     required this.icon,
@@ -316,7 +437,6 @@ class _LensControl extends StatelessWidget {
     required this.feature,
   });
 
-  final int number;
   final String title;
   final String subtitle;
   final IconData icon;
@@ -449,28 +569,9 @@ class _LensControl extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // An engraved control number on the barrel, as on the body.
-                  Positioned(
-                    top: size * 0.055,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: size * 0.05, vertical: size * 0.008),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(size),
-                        color: const Color(0x99121A20),
-                        border: Border.all(color: const Color(0x55D9C3A6), width: .8),
-                      ),
-                      child: Text(
-                        '$number',
-                        style: TextStyle(
-                          fontFamily: 'sans-serif',
-                          fontSize: size * 0.085,
-                          height: 1,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFFE7D8C4),
-                        ),
-                      ),
-                    ),
-                  ),
+                  // No number tag: the reference image is numbered only to
+                  // point at its containers, and the app itself must not
+                  // show those numbers (the owner asked for this plainly).
                 ],
               ),
             ),
@@ -503,76 +604,94 @@ class _RedPlate extends StatelessWidget {
     return Semantics(
       button: true,
       label: '$title — $subtitle',
-      child: Transform.rotate(
-        angle: -0.07,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(26),
-            onTap: feature?.onOpen,
-            child: Ink(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(26),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: <Color>[Color.lerp(tint, Colors.white, .22)!, tint, const Color(0xFF2A0D12)],
-                ),
-                border: Border.all(color: const Color(0x99FFA29A), width: 1.2),
-                boxShadow: const [
-                  BoxShadow(color: Color(0xCC05090C), blurRadius: 18, offset: Offset(0, 9)),
-                ],
-              ),
-              child: Stack(
-                children: <Widget>[
-                  Positioned.fill(
-                    child: CustomPaint(painter: _HatchPainter(color: const Color(0x33FFFFFF))),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
+      child: LayoutBuilder(builder: (context, constraints) {
+        final plateWidth = constraints.maxWidth;
+        return Stack(
+          children: <Widget>[
+            const Positioned.fill(
+              child: CustomPaint(painter: _TriangleShadowPainter(_leftPointTrianglePath)),
+            ),
+            ClipPath(
+              clipper: const _TriangleClipper(_leftPointTrianglePath),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: feature?.onOpen,
+                  child: Ink(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: <Color>[
+                          Color.lerp(tint, Colors.white, .30)!,
+                          tint,
+                          const Color(0xFF2A0D12),
+                        ],
+                        stops: const <double>[0, .55, 1],
+                      ),
+                    ),
+                    child: Stack(
                       children: <Widget>[
-                        Icon(icon, color: const Color(0xFFFFE1CE), size: 26),
-                        const SizedBox(height: 8),
-                        Flexible(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              title,
-                              textAlign: TextAlign.center,
-                              maxLines: 3,
-                              textDirection: TextDirection.rtl,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                height: 1.35,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            ),
+                        const Positioned.fill(
+                          child: CustomPaint(painter: _HatchPainter(color: Color(0x33FFFFFF))),
+                        ),
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: const _TriangleBevelPainter(_leftPointTrianglePath),
                           ),
                         ),
-                        const SizedBox(height: 5),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            subtitle,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            textDirection: TextDirection.rtl,
-                            style: const TextStyle(fontSize: 10, color: Color(0xFFFFD9C9)),
+                        // The text lives in the triangle's wide left half;
+                        // the pointed right third stays empty metal-red,
+                        // exactly as the artwork's plate reads.
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(13, 10, plateWidth * 0.34, 10),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: <Widget>[
+                              Icon(icon, color: const Color(0xFFFFE1CE), size: 24),
+                              const SizedBox(height: 5),
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    title,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 3,
+                                    textDirection: TextDirection.rtl,
+                                    style: const TextStyle(
+                                      fontSize: 14.5,
+                                      height: 1.35,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                      shadows: [Shadow(color: Color(0x88000000), blurRadius: 4, offset: Offset(0, 1))],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  subtitle,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  textDirection: TextDirection.rtl,
+                                  style: const TextStyle(fontSize: 9.5, color: Color(0xFFFFD9C9)),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
-      ),
+          ],
+        );
+      }),
     );
   }
 }
@@ -591,51 +710,71 @@ class _LaunchPlate extends StatelessWidget {
     return Semantics(
       button: true,
       label: open ? 'مینو بند کریں' : 'مینو کھولیں',
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: const BorderRadius.only(topLeft: Radius.circular(30)),
-          onTap: onTap,
-          child: Ink(
-            decoration: const BoxDecoration(
-              borderRadius: BorderRadius.only(topLeft: Radius.circular(30)),
-              gradient: LinearGradient(
-                begin: Alignment.bottomRight,
-                end: Alignment.topLeft,
-                colors: [Color(0xFF42121A), Color(0xFF8B2635), Color(0xFFB43643)],
-              ),
-              border: Border(
-                top: BorderSide(color: Color(0x88FFA29A), width: 1.2),
-                left: BorderSide(color: Color(0x88FFA29A), width: 1.2),
-              ),
-            ),
-            child: Stack(
-              children: <Widget>[
-                Positioned.fill(
-                  child: CustomPaint(painter: _HatchPainter(color: const Color(0x22FFFFFF))),
-                ),
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+      child: Stack(
+        children: <Widget>[
+          const Positioned.fill(
+            child: CustomPaint(painter: _TriangleShadowPainter(_bottomRightTrianglePath)),
+          ),
+          ClipPath(
+            clipper: const _TriangleClipper(_bottomRightTrianglePath),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onTap,
+                child: Ink(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomRight,
+                      end: Alignment.topLeft,
+                      colors: [Color(0xFF42121A), Color(0xFF8B2635), Color(0xFFC04452)],
+                      stops: [0, .55, 1],
+                    ),
+                  ),
+                  child: Stack(
                     children: <Widget>[
-                      _RadialButton(open: open, size: math.min(66.0, width * 0.17)),
-                      const SizedBox(height: 7),
-                      Text(
-                        open ? 'مینو بند کریں' : 'Radial menu',
-                        textDirection: TextDirection.rtl,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFFFFE3D6),
+                      const Positioned.fill(
+                        child: CustomPaint(painter: _HatchPainter(color: Color(0x22FFFFFF))),
+                      ),
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: const _TriangleBevelPainter(_bottomRightTrianglePath),
+                        ),
+                      ),
+                      // Button + caption tucked into the corner, where the
+                      // triangle is at its widest; the pointed top-left of
+                      // the plate stays empty, as in the artwork.
+                      Align(
+                        alignment: Alignment.bottomRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 13, bottom: 11),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: <Widget>[
+                              _RadialButton(open: open, size: math.min(62.0, width * 0.165)),
+                              const SizedBox(height: 5),
+                              Text(
+                                open ? 'مینو بند کریں' : 'Radial menu',
+                                textDirection: TextDirection.rtl,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFFFFE3D6),
+                                  shadows: [Shadow(color: Color(0x88000000), blurRadius: 4, offset: Offset(0, 1))],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

@@ -38,6 +38,8 @@ import 'package:shiaverse/services/tasbeeh_controller.dart';
 import 'package:shiaverse/widgets/home_dashboard.dart';
 import 'package:shiaverse/widgets/more_features.dart';
 import 'package:shiaverse/screens/explore_screen.dart';
+import 'package:shiaverse/screens/xplore_xtra_screen.dart';
+import 'package:shiaverse/screens/daily_study_screen.dart';
 
 /// Layout checks for the 1.12 home dashboard and readers and the screens around it on a
 /// small (360 dp) phone, with the app's real fonts: any overflow fails the
@@ -499,6 +501,60 @@ void main() {
     await finish(tester, prayer, tasbeeh);
   });
 
+  testWidgets('a mushaf page opened from daily study ends with next/previous page', (tester) async {
+    phone(tester);
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(12, 10));
+    await tester.pumpWidget(host(prayer, tasbeeh, QuranPageReaderScreen(
+      library: _PreviewReaderLibrary(),
+      page: 21,
+    )));
+    await settle(tester);
+    expect(find.byKey(const ValueKey<String>('quran-section-prev-next')), findsOneWidget);
+    expect(find.text('اگلا صفحہ'), findsOneWidget);
+    expect(find.text('پچھلا صفحہ'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await shoot(tester, 'reader-quran-page-nav');
+    await finish(tester, prayer, tasbeeh);
+  });
+
+  testWidgets('Xplore Xtra shows one Coming Soon container and no promised features', (tester) async {
+    phone(tester);
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(12, 10));
+    await tester.pumpWidget(host(prayer, tasbeeh, XploreXtraScreen(library: _PreviewReaderLibrary())));
+    await settle(tester);
+    expect(find.text('روزانہ مطالعہ'), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('xtra-coming-soon')), findsOneWidget);
+    expect(find.text('Coming Soon'), findsOneWidget);
+    // Unbuilt features must not be named or described anywhere on the page.
+    expect(find.textContaining('اعمال کی فہرست'), findsNothing);
+    expect(find.textContaining('ذاتی مطالعہ فہرست'), findsNothing);
+    expect(find.textContaining('یاددہانی'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await shoot(tester, 'xplore-xtra');
+    await finish(tester, prayer, tasbeeh);
+  });
+
+  testWidgets('daily study can target two books at the same time', (tester) async {
+    phone(tester);
+    final (prayer, tasbeeh) = await controllersAt(tester, localTime(12, 10));
+    await tester.pumpWidget(host(prayer, tasbeeh, DailyStudyScreen(library: _PreviewReaderLibrary())));
+    await settle(tester);
+    // Quran is ticked by default; ticking sermons too must offer a
+    // two-book start instead of replacing the first choice.
+    await tester.tap(find.text('نہج البلاغہ — خطبات'));
+    await tester.pump();
+    expect(find.text('۲ کتابوں کے منصوبے شروع کریں'), findsOneWidget);
+    await tester.tap(find.text('۲ کتابوں کے منصوبے شروع کریں'));
+    await settle(tester);
+    // Both plans now exist side by side (their data is absent in the test,
+    // so each shows its install notice and its own end-plan button).
+    expect(find.text('شامل ہے'), findsNWidgets(2));
+    expect(find.textContaining('کا منصوبہ ختم کریں'), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
+    await shoot(tester, 'daily-study-multi');
+    await finish(tester, prayer, tasbeeh);
+  });
+
   testWidgets('reader appearance, bookmarks, notes and last position still work', (tester) async {
     phone(tester);
     final (prayer, tasbeeh) = await controllersAt(tester, localTime(12, 10));
@@ -661,6 +717,16 @@ void main() {
     // The next cell carries the «باقی …» countdown …
     expect(find.byKey(const ValueKey<String>('mini-countdown-maghrib')), findsOneWidget);
     expect(find.textContaining('باقی '), findsOneWidget);
+    // 1.25: every prayer name on the mini card shares one text style —
+    // same size, weight and colour — running and next included.
+    final nameStyles = <String>{
+      for (final name in <String>['فجر', 'طلوعِ شمس', 'ظہرین', 'مغربین', 'نصف شب'])
+        () {
+          final style = tester.widget<Text>(find.text(name)).style!;
+          return '${style.fontSize}/${style.fontWeight}/${style.color}';
+        }(),
+    };
+    expect(nameStyles, hasLength(1), reason: 'prayer names must not differ in size or weight');
     // … and no coloured container or outline: only the running prayer keeps
     // its solid emerald tile with the white border.
     final bordered = tester
@@ -797,6 +863,16 @@ void main() {
       ));
       await settle(tester);
       expect(find.textContaining('Xplore'), findsWidgets);
+      // The reference artwork's numbers (1–7) label its containers for the
+      // reader of the image; the app itself must never show them.
+      for (var n = 1; n <= 7; n++) {
+        expect(find.text('$n'), findsNothing, reason: 'no number tag on container $n');
+      }
+      // Container 6 is the left-edge triangle: its title sits in the left
+      // third of the plate, not centred on the page.
+      final encyclopediaTitle = find.text('اثنا عشری انسائکلوپیڈیا');
+      expect(encyclopediaTitle, findsOneWidget);
+      expect(tester.getCenter(encyclopediaTitle).dx, lessThan(360 * 0.35));
       // Nothing may overflow: an overflowing plate is a failed layout.
       expect(tester.takeException(), isNull);
       await shoot(tester, 'explore-1-24-$label');
@@ -849,6 +925,9 @@ class _PreviewReaderLibrary extends LibraryRepository {
   static const _layoutText = <Passage>[
     Passage(recordId: 1, sectionId: 1, arabic: '', urdu: 'آزمائشی متن — صرف لے آؤٹ کی جانچ کے لیے۔'),
   ];
+
+  @override
+  Future<List<Passage>> getQuranPage(int page) async => getSurahVerses(1);
 
   @override
   Future<List<Passage>> getSectionPassages(BookDefinition book, int sectionId) async => _layoutText;

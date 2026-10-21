@@ -1,6 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <corners android:radius="22dp" />
-    <gradient android:angle="135" android:startColor="#173D36" android:centerColor="#142A2D" android:endColor="#15212A" />
-    <stroke android:width="1dp" android:color="#A87F49" />
-</shape>
+<!-- A pressed, bevelled slab rather than a flat card: a soft drop shadow,
+     a lit metal-gold rim, a deep green enamel face, an inner groove and a
+     gloss sweep across the top — layered so the widget reads as a real
+     3D object on the launcher at any size. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- drop shadow -->
+    <item android:left="2dp" android:right="2dp" android:top="5dp" android:bottom="1dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp" />
+            <solid android:color="#59000000" />
+        </shape>
+    </item>
+    <!-- lit outer rim -->
+    <item android:left="1dp" android:right="1dp" android:top="1dp" android:bottom="4dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp" />
+            <gradient android:angle="315" android:startColor="#F0D089" android:centerColor="#8A6A34" android:endColor="#3D2C12" />
+        </shape>
+    </item>
+    <!-- enamel face -->
+    <item android:left="3dp" android:right="3dp" android:top="3dp" android:bottom="6dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="22dp" />
+            <gradient android:angle="135" android:startColor="#1E574C" android:centerColor="#123B36" android:endColor="#081A20" />
+        </shape>
+    </item>
+    <!-- inner groove -->
+    <item android:left="7dp" android:right="7dp" android:top="7dp" android:bottom="10dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="19dp" />
+            <stroke android:width="1dp" android:color="#3DFFE9C9" />
+            <solid android:color="#0AFFFFFF" />
+        </shape>
+    </item>
+    <!-- gloss sweep on the top half -->
+    <item android:left="4dp" android:right="4dp" android:top="4dp" android:height="52dp" android:gravity="top">
+        <shape android:shape="rectangle">
+            <corners android:topLeftRadius="21dp" android:topRightRadius="21dp" android:bottomLeftRadius="8dp" android:bottomRightRadius="8dp" />
+            <gradient android:angle="270" android:startColor="#38FFFFFF" android:endColor="#00FFFFFF" />
+        </shape>
+    </item>
+</layer-list>

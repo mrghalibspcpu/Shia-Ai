@@ -1,5 +1,49 @@
 # ShiaVerse
 
+## New in 1.25 — the artwork's triangles, several books at once, a 3D widget
+
+- **Xplore now copies the reference artwork's three red plates as triangles,
+  not rounded tabs.** Five amber lenses (unchanged positions) carry **no
+  number tags** — the 1–7 in the image only label its containers. The brand
+  plate fills the **top-right corner as a full triangle** with the brand set
+  along its diagonal; **اثنا عشری انسائکلوپیڈیا** rides a red triangle
+  pointing in from the **middle of the left edge**, its text in the wide
+  half; and the **bottom-right corner is one triangle** holding the radial
+  menu button in its wide corner end. Each plate is clipped to its triangle
+  and painted with a shaped drop shadow, a bevel highlight, a groove and a
+  gloss sweep, so it reads as pressed red metal. A layout test asserts no
+  digit 1–7 is drawn and that the encyclopaedia title stays in the left
+  third of the screen.
+- **«روزانہ مطالعہ» targets several books at once.** The picker is now
+  multi-select: tick قرآن and one or more نہج البلاغہ sections and each
+  starts its own plan with its own daily portion, progress and streak;
+  adding a book never restarts a running plan, and each plan ends
+  individually. Existing single plans migrate automatically
+  (`daily_study_plans_v2`, with the 1.24 key kept in sync). Readers opened
+  from a plan end with next/previous navigation: the mushaf **page** reader
+  gains «اگلا / پچھلا صفحہ» (pages 1–604, disabled at the ends), and the
+  surah footer now disables at Surah 1/114 and names its buttons
+  «اگلی / پچھلی سورة» (juz: «اگلا / پچھلا پارہ»). The generic book reader and
+  the Nahj al-Balagha reader already ended with section navigation and are
+  untouched.
+- **Xplore Xtra makes no promises it cannot keep.** The three unbuilt
+  features no longer appear by name with written-up descriptions; the page
+  shows روزانہ مطالعہ and a single **Coming Soon** container
+  («عنقریب، ان شاء اللہ»).
+- **The mini prayer names are one type.** فجر، طلوعِ شمس، ظہرین، مغربین and
+  نصف شب now share a single size, weight and colour whether running, next
+  or waiting; state is still carried by the emerald tile, the gold rule and
+  the countdown, so the row reads evenly instead of one name looming.
+- **The launcher widget is adjustable and properly 3D.** It is freely
+  resizable down to 140 × 80 dp, and `MomentWidgetProvider` picks a
+  compact / standard / large layout from the size the launcher grants it —
+  on placement and on every resize (`onAppWidgetOptionsChanged`). All
+  three sit on a layered slab (drop shadow, lit gold rim, deep-green enamel
+  face, inner groove, top gloss) with the refresh control redrawn as a
+  brass orb and the saying given a soft text shadow.
+- Version 1.25.0 (versionCode 35) — it installs over the published 1.24.0
+  (versionCode 34) without losing downloaded books or a running study plan.
+
 ## New in 1.24 — the lens plate, a third marja, the notes in their place
 
 - **Xplore is the camera-lens plate of the design.** The page is one full-screen

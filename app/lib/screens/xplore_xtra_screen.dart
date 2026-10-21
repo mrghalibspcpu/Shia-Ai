@@ -49,19 +49,45 @@ class XploreXtraScreen extends StatelessWidget {
                 _XtraCard(
                   icon: Icons.event_available_rounded,
                   title: 'روزانہ مطالعہ',
-                  subtitle: 'قرآن یا نہج البلاغہ کے لیے اپنا ہدف منتخب کریں، آج کا حصہ فوراً کھولیں اور اپنی پیش رفت و مسلسل دن محفوظ رکھیں۔ مکمل طور پر آف لائن۔',
+                  subtitle: 'ایک وقت میں ایک سے زیادہ کتابوں کا ہدف رکھیں — قرآن اور نہج البلاغہ ساتھ ساتھ — ہر کتاب کا آج کا حصہ فوراً کھولیں اور ہر ایک کی پیش رفت و مسلسل دن محفوظ رکھیں۔ مکمل طور پر آف لائن۔',
                   accent: const Color(0xFF42A78B),
                   badge: 'ابھی دستیاب',
                   onTap: () => unawaited(Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => DailyStudyScreen(library: library)))),
                 ),
                 const SizedBox(height: 12),
-                _XtraCard(icon: Icons.checklist_rounded, title: 'آج کے اعمال کی فہرست', subtitle: 'اپنے روزانہ کے منتخب اعمال کو نشان لگائیں، سادہ تسلسل اور یاددہانی کے ساتھ۔', accent: const Color(0xFF657BC4), badge: 'عنقریب، ان شاء اللہ'),
-                const SizedBox(height: 12),
-                _XtraCard(icon: Icons.bookmark_add_rounded, title: 'ذاتی مطالعہ فہرست', subtitle: 'محفوظ آیات، احادیث اور مطالعے کے نوٹس ایک منظم فہرست میں۔', accent: const Color(0xFFB87555), badge: 'عنقریب، ان شاء اللہ'),
-                const SizedBox(height: 12),
-                _XtraCard(icon: Icons.notifications_active_rounded, title: 'نرم روزانہ یاددہانی', subtitle: 'مطالعے یا دعا کے لیے اپنی پسند کے وقت پر مقامی یاددہانی۔', accent: const Color(0xFFB08B42), badge: 'عنقریب، ان شاء اللہ'),
-                const SizedBox(height: 16),
-                const JustifiedText('فی الحال روزانہ مطالعہ مکمل طور پر کام کرتا ہے؛ باقی سہولتیں آنے والی تازہ کاریوں میں شامل ہوں گی۔', style: TextStyle(fontSize: 12, height: 1.7, color: Color(0xFFB9CEC4))),
+                // Features that do not exist yet get no names and no
+                // descriptions — one honest Coming Soon container only, so
+                // nothing on this page promises what the app cannot do.
+                Container(
+                  key: const ValueKey<String>('xtra-coming-soon'),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(22),
+                    color: Colors.white.withValues(alpha: .045),
+                    border: Border.all(color: Colors.white.withValues(alpha: .14)),
+                  ),
+                  child: const Column(
+                    children: <Widget>[
+                      Icon(Icons.hourglass_top_rounded, size: 30, color: Color(0xFFB9CEC4)),
+                      SizedBox(height: 10),
+                      Text(
+                        'Coming Soon',
+                        style: TextStyle(
+                          fontFamily: 'sans-serif',
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      JustifiedText(
+                        'عنقریب، ان شاء اللہ',
+                        style: TextStyle(fontSize: 12.5, color: Color(0xFFB9CEC4)),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
