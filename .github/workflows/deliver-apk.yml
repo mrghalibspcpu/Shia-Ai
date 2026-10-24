@@ -41,13 +41,13 @@ jobs:
           else
             gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.apk' --clobber
           fi
-          apk=$(ls *.apk 2>/dev/null | head -1)
-          echo "asset        : $apk"
-          echo "size         : $(stat -c%s "$apk") bytes"
-          echo "sha256       : $(sha256sum "$apk" | cut -d' ' -f1)"
+          asset=$(ls -1 | grep -v '^part-' | head -1)
+          echo "asset        : $asset"
+          echo "size         : $(stat -c%s "$asset") bytes"
+          echo "sha256       : $(sha256sum "$asset" | cut -d' ' -f1)"
 
           parts=""
-          split -b 10m -d -a 2 "$apk" part-
+          split -b 10m -d -a 2 "$asset" part-
           for part in part-??; do
             python3 - "$part" > "$part.json" <<'PY'
           import base64, json, sys
@@ -57,4 +57,26 @@ jobs:
             blob=$(gh api -X POST "repos/$GITHUB_REPOSITORY/git/blobs" --input "$part.json" --jq .sha)
             parts="$parts,$blob"
           done
-          echo "::notice title=APK blobs::$apk size=$(stat -c%s "$apk") sha256=$(sha256sum "$apk" | cut -d' ' -f1) parts=${parts#,}"
+          manifest_sha=$(sha256sum "$asset" | cut -d' ' -f1)
+          manifest_size=$(stat -c%s "$asset")
+          manifest_parts=${parts#,}
+          echo "::notice title=APK blobs::$asset size=$manifest_size sha256=$manifest_sha parts=$manifest_parts"
+
+          # Also commit the manifest through the contents API so sandboxes that
+          # cannot read job logs/annotations can still fetch the blob parts.
+          python3 - > /tmp/delivery-manifest.b64 <<PY
+          import base64
+          text = "asset=$asset\nsize=$manifest_size\nsha256=$manifest_sha\nparts=$manifest_parts\n"
+          print(base64.b64encode(text.encode()).decode())
+          PY
+          content=$(cat /tmp/delivery-manifest.b64)
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/contents/.github/apk-delivery-result?ref=$GITHUB_REF_NAME" --jq .sha 2>/dev/null || true)
+          if [ -n "$sha" ]; then
+            gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/.github/apk-delivery-result" \
+              -f message="chore(ci): update APK delivery manifest [skip ci]" \
+              -f branch="$GITHUB_REF_NAME" -f content="$content" -f sha="$sha" --jq .commit.sha
+          else
+            gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/.github/apk-delivery-result" \
+              -f message="chore(ci): add APK delivery manifest [skip ci]" \
+              -f branch="$GITHUB_REF_NAME" -f content="$content" --jq .commit.sha
+          fi
