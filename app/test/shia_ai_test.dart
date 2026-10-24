@@ -4,17 +4,18 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shiaverse/library_repository.dart';
 import 'package:shiaverse/models.dart';
 import 'package:shiaverse/screens/shia_ai_screen.dart';
-import 'package:shia_ai/shia_ai_engine.dart';
-import 'package:shia_ai/shia_ai_gateway.dart';
-import 'package:shia_ai/shia_ai_models.dart';
-import 'package:shia_ai/shia_ai_retriever.dart';
-import 'package:shia_ai/shia_ai_settings.dart';
-import 'package:shia_ai/shia_ai_store.dart';
-import 'package:shia_ai/text_utils.dart';
+import 'package:shiaverse/shia_ai/shia_ai_engine.dart';
+import 'package:shiaverse/shia_ai/shia_ai_gateway.dart';
+import 'package:shiaverse/shia_ai/shia_ai_models.dart';
+import 'package:shiaverse/shia_ai/shia_ai_retriever.dart';
+import 'package:shiaverse/shia_ai/shia_ai_settings.dart';
+import 'package:shiaverse/shia_ai/shia_ai_store.dart';
+import 'package:shiaverse/text_utils.dart';
 
 SearchHit _hit(
   String bookKey,
@@ -73,26 +74,16 @@ class _FakeLibrary extends LibraryRepository {
 }
 
 class _FakeRetriever extends ShiaAiRetriever {
-  _FakeRetriever(this.result, [this.queryVariants = const <String>['وضو']])
-      : super(library: _FakeLibrary());
+  _FakeRetriever(this.result) : super(library: _FakeLibrary());
   final ShiaAiRetrieval result;
-  final List<String> queryVariants;
 
   @override
   Future<ShiaAiRetrieval> retrieve(String question) async => result;
-
-  @override
-  List<String> buildQueries(String question) => queryVariants;
-}
-
-class _NoopClient extends http.Client {
-  @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async =>
-      http.StreamedResponse(const Stream.empty(), 200);
 }
 
 class _FakeGateway extends ShiaAiGateway {
-  _FakeGateway({this.reply, this.error}) : super(client: _NoopClient());
+  _FakeGateway({this.reply, this.error})
+      : super(client: MockClient((request) async => http.Response('{}', 500)));
   final ShiaAiGatewayResponse? reply;
   final ShiaAiGatewayException? error;
   int calls = 0;
@@ -111,26 +102,18 @@ class _FakeGateway extends ShiaAiGateway {
   }
 }
 
-class _RecordingClient extends http.Client {
-  _RecordingClient({this.response, this.throwable});
-  final http.Response? response;
-  final Object? throwable;
-  String? lastBody;
-
-  @override
-  Future<http.Response> post(
-    Uri url, {
-    Map<String, String>? headers,
-    Object? body,
-    Encoding? encoding,
-  }) async {
-    lastBody = body?.toString();
-    if (throwable != null) throw throwable!;
+/// Builds an in-memory HTTP client that records request bodies and either
+/// returns a canned response or throws (transport/timeout failures).
+MockClient _recordingClient({
+  http.Response? response,
+  Object? throwable,
+  required List<String> bodies,
+}) {
+  return MockClient((request) async {
+    bodies.add(request.body);
+    if (throwable != null) throw throwable;
     return response!;
-  }
-
-  @override
-  void close() {}
+  });
 }
 
 void main() {
@@ -451,7 +434,9 @@ void main() {
     final evidence = [_evidence('alkafi', 1), _evidence('quran', 5)];
 
     test('parses a successful model response', () async {
-      final client = _RecordingClient(
+      final bodies = <String>[];
+      final client = _recordingClient(
+        bodies: bodies,
         response: http.Response(
           jsonEncode({
             'sufficient': true,
@@ -469,14 +454,16 @@ void main() {
       );
       expect(reply.answer, 'جواب');
       expect(reply.usedIds, ['alkafi:1']);
-      final sent = jsonDecode(client.lastBody!) as Map<String, Object?>;
+      final sent = jsonDecode(bodies.single) as Map<String, Object?>;
       expect((sent['passages'] as List<Object?>).length, 2);
       expect(sent['question'], 'وضو');
     });
 
     test('never sends more than eight excerpts', () async {
       final many = List.generate(10, (i) => _evidence('alkafi', i + 1));
-      final client = _RecordingClient(
+      final bodies = <String>[];
+      final client = _recordingClient(
+        bodies: bodies,
         response: http.Response(
           jsonEncode({'sufficient': true, 'answer': 'x', 'used_citation_ids': <String>[]}),
           200,
@@ -487,7 +474,7 @@ void main() {
         question: 'q',
         evidence: many,
       );
-      final sent = jsonDecode(client.lastBody!) as Map<String, Object?>;
+      final sent = jsonDecode(bodies.single) as Map<String, Object?>;
       expect((sent['passages'] as List<Object?>).length, 8);
     });
 
@@ -497,7 +484,9 @@ void main() {
         (TimeoutException('slow'), ShiaAiDelivery.networkError),
       ];
       for (final (throwable, delivery) in cases) {
-        final gateway = gatewayWith(_RecordingClient(throwable: throwable));
+        final gateway = gatewayWith(
+          _recordingClient(bodies: <String>[], throwable: throwable),
+        );
         await expectLater(
           gateway.synthesize(
             endpoint: Uri.parse('https://gw.example/'),
@@ -517,7 +506,10 @@ void main() {
         (500, ShiaAiDelivery.serviceError),
       ]) {
         final gateway = gatewayWith(
-          _RecordingClient(response: http.Response('{}', status)),
+          _recordingClient(
+            bodies: <String>[],
+            response: http.Response('{}', status),
+          ),
         );
         await expectLater(
           gateway.synthesize(
@@ -530,7 +522,10 @@ void main() {
         );
       }
       final malformed = gatewayWith(
-        _RecordingClient(response: http.Response('not json', 200)),
+        _recordingClient(
+          bodies: <String>[],
+          response: http.Response('not json', 200),
+        ),
       );
       await expectLater(
         malformed.synthesize(

@@ -130,15 +130,15 @@ jobs:
           print(base64.b64encode(data).decode())
           PY
           content=$(cat /tmp/diag.b64)
-          sha=$(gh api "repos/$GITHUB_REPOSITORY/contents/.github/analyze-diagnostic.txt" --jq .sha 2>/dev/null || true)
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/contents/.github/analyze-diagnostic.txt?ref=$GITHUB_REF_NAME" --jq .sha 2>/dev/null || true)
           if [ -n "$sha" ]; then
             gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/.github/analyze-diagnostic.txt" \
               -f message="chore(ci): update analyzer diagnostics [skip ci]" \
-              -f content="$content" -f sha="$sha" --jq .commit.sha
+              -f branch="$GITHUB_REF_NAME" -f content="$content" -f sha="$sha" --jq .commit.sha
           else
             gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/.github/analyze-diagnostic.txt" \
               -f message="chore(ci): add analyzer diagnostics [skip ci]" \
-              -f content="$content" --jq .commit.sha
+              -f branch="$GITHUB_REF_NAME" -f content="$content" --jq .commit.sha
           fi
 
       - name: Run Flutter tests
