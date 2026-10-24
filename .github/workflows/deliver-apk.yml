@@ -1,8 +1,10 @@
 name: Deliver APK
 
-# Fetches an APK already published on an app-v* release and stores its exact
-# bytes as unreferenced git blobs. Sandboxed tooling that can only reach
-# api.github.com can then download the file through the blobs API.
+# Fetches an asset already published on an app-v* release (APK or the zipped
+# APK) and stores its exact bytes as unreferenced git blobs. Sandboxed tooling
+# that can only reach api.github.com can then download the file through the
+# blobs API. The blob SHAs, size and sha256 are additionally committed to
+# .github/apk-delivery-result so they remain readable without job-log access.
 #
 # Trigger: write `tag [asset-name]` into .github/apk-delivery-request and push.
 # (workflow_dispatch needs the workflow on the default branch, which this

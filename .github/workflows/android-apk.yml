@@ -150,39 +150,6 @@ jobs:
             --input /tmp/flutter-test-log.json --jq .sha)
           echo "::notice title=flutter-test log blob::$sha"
 
-      # TEMPORARY diagnostic: also commit the test log through the contents API
-      # so restricted sandboxes can read it without the log blob host.
-      # Remove once the ShiaAi test failure is resolved.
-      - name: Commit flutter-test diagnostics
-        if: failure() && github.event_name == 'push'
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          if [ -s /tmp/flutter-test.log ]; then
-            cp /tmp/flutter-test.log /tmp/diag-source.log
-          elif [ -s /tmp/flutter-analyze.log ]; then
-            cp /tmp/flutter-analyze.log /tmp/diag-source.log
-          else
-            exit 0
-          fi
-          python3 - > /tmp/test-diag.b64 <<'PY'
-          import base64, pathlib
-          print(base64.b64encode(pathlib.Path('/tmp/diag-source.log').read_bytes()[-400_000:]).decode())
-          PY
-          content=$(cat /tmp/test-diag.b64)
-          sha=$(gh api "repos/$GITHUB_REPOSITORY/contents/.github/test-diagnostic.txt?ref=$GITHUB_REF_NAME" --jq .sha 2>/dev/null || true)
-          if [ -n "$sha" ]; then
-            gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/.github/test-diagnostic.txt" \
-              -f message="chore(ci): update flutter-test diagnostics [skip ci]" \
-              -f branch="$GITHUB_REF_NAME" -f content="$content" -f sha="$sha" --jq .commit.sha
-          else
-            gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/.github/test-diagnostic.txt" \
-              -f message="chore(ci): add flutter-test diagnostics [skip ci]" \
-              -f branch="$GITHUB_REF_NAME" -f content="$content" --jq .commit.sha
-          fi
-
       # The screens the layout test rendered, as unreferenced git blobs, so
       # the UI can be looked at from tooling that cannot download artifacts.
       # Best effort: never fails the build.
