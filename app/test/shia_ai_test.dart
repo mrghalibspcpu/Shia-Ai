@@ -724,7 +724,7 @@ void main() {
       await tester.drag(listFinder, const Offset(0, -220));
       await tester.pumpAndSettle();
       final before =
-          Scrollable.of(scrollableFinder.evaluate().first).position.pixels;
+          tester.state<ScrollableState>(scrollableFinder).position.pixels;
       expect(before, greaterThan(0));
 
       await tester.tap(find.byIcon(Icons.menu_book).first);
@@ -734,7 +734,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final after =
-          Scrollable.of(scrollableFinder.evaluate().first).position.pixels;
+          tester.state<ScrollableState>(scrollableFinder).position.pixels;
       expect(after, before);
       // Both turns are still there.
       expect(find.text('پہلا سوال'), findsOneWidget);
