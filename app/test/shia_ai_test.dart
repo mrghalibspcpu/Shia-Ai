@@ -723,11 +723,15 @@ void main() {
       );
       await tester.drag(listFinder, const Offset(0, -220));
       await tester.pumpAndSettle();
+      // The list is scrolled to its end, so target the last (visible) tile.
+      final citationIcon = find.byIcon(Icons.menu_book).last;
+      await tester.ensureVisible(citationIcon);
+      await tester.pumpAndSettle();
       final before =
           tester.state<ScrollableState>(scrollableFinder).position.pixels;
       expect(before, greaterThan(0));
 
-      await tester.tap(find.byIcon(Icons.menu_book).first);
+      await tester.tap(citationIcon);
       await tester.pumpAndSettle();
       expect(find.text('READER DUMMY'), findsOneWidget);
       await tester.tap(find.byTooltip('Back'));
