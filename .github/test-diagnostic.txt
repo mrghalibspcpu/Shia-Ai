@@ -1,0 +1,363 @@
+00:00 +0: loading /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart
+00:00 +0: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: groups all verses in order, preserving complete matn and precise jumps
+00:00 +1: /home/runner/work/ShiaVerse/ShiaVerse/app/test/prayer_engine_test.dart: Shia (Jafari) preset parameters Jafari is Fajr 16°, Isha 14°, Maghrib at 4°
+00:00 +2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +3: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +4: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +5: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +6: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +7: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +8: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +9: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +10: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +11: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +12: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +13: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +14: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +15: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +16: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +17: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +18: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +19: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +20: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +21: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +22: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +23: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +24: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +25: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +26: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +27: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +28: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +29: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +30: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +31: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +32: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +33: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +34: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +35: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +36: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +37: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +38: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:00 +39: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:01 +40: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:01 +41: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:01 +42: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:01 +43: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: mushaf mode is a justified continuous Arabic page, reversible and saved
+00:01 +44: /home/runner/work/ShiaVerse/ShiaVerse/app/test/new_books_test.dart: the committed .gz expands to exactly the published edition
+00:01 +45: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: tapping an ayah in the mushaf opens its translation and a tafseer toggle
+00:01 +46: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: the reader offers full screen and a smooth, adjustable auto-scroll
+00:02 +47: /home/runner/work/ShiaVerse/ShiaVerse/app/test/prayer_controller_test.dart: the published clock is the device instant in the location’s zone
+00:02 +48: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: saved mushaf preference does not change the default search result
+00:02 +49: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: saved mushaf preference does not change the default search result
+00:02 +50: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: saved mushaf preference does not change the default search result
+00:02 +51: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: saved mushaf preference does not change the default search result
+00:02 +52: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: saved mushaf preference does not change the default search result
+00:02 +53: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: saved mushaf preference does not change the default search result
+00:02 +54: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: saved mushaf preference does not change the default search result
+00:02 +55: /home/runner/work/ShiaVerse/ShiaVerse/app/test/prayer_controller_test.dart: with no fix, no IP and nothing stored, the fallback keeps the card alive
+00:02 +56: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: chapter parchment stays inside a tappable chapter card
+00:02 +57: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: chapter parchment stays inside a tappable chapter card
+00:02 +58: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: chapter parchment stays inside a tappable chapter card
+00:02 +59: /home/runner/work/ShiaVerse/ShiaVerse/app/test/mushaf_mode_test.dart: chapter parchment stays inside a tappable chapter card
+00:02 +60: /home/runner/work/ShiaVerse/ShiaVerse/app/test/prayer_controller_test.dart: 1.9: exact place names, quiet re-detection, Hijri date a city picked while the namer is busy is never overwritten
+00:02 +61: /home/runner/work/ShiaVerse/ShiaVerse/app/test/prayer_controller_test.dart: 1.9: exact place names, quiet re-detection, Hijri date a stored IP guess is replaced by a quiet GPS fix on the next launch
+00:02 +62: /home/runner/work/ShiaVerse/ShiaVerse/app/test/prayer_controller_test.dart: 1.9: exact place names, quiet re-detection, Hijri date a fresh fix is left alone; a stale one is re-checked and moves only for a real move
+00:02 +63: /home/runner/work/ShiaVerse/ShiaVerse/app/test/prayer_controller_test.dart: 1.9: exact place names, quiet re-detection, Hijri date a manually chosen city is never re-detected
+00:02 +64: /home/runner/work/ShiaVerse/ShiaVerse/app/test/prayer_controller_test.dart: 1.9: exact place names, quiet re-detection, Hijri date any picker row can become the location
+00:02 +65: /home/runner/work/ShiaVerse/ShiaVerse/app/test/prayer_controller_test.dart: 1.9: exact place names, quiet re-detection, Hijri date the Hijri date turns at Maghrib and follows the reader's shift
+00:03 +66: /home/runner/work/ShiaVerse/ShiaVerse/app/test/place_names_test.dart: reverse geocoding OpenStreetMap: neighbourhood and city, province and country
+00:03 +67: /home/runner/work/ShiaVerse/ShiaVerse/app/test/place_names_test.dart: reverse geocoding OpenStreetMap: a village is its own label
+00:03 +68: /home/runner/work/ShiaVerse/ShiaVerse/app/test/place_names_test.dart: reverse geocoding OpenStreetMap: errors and empty answers are null
+00:03 +69: /home/runner/work/ShiaVerse/ShiaVerse/app/test/place_names_test.dart: reverse geocoding BigDataCloud: locality and city
+00:03 +70: /home/runner/work/ShiaVerse/ShiaVerse/app/test/place_names_test.dart: online search Open-Meteo rows become picker rows
+00:03 +71: /home/runner/work/ShiaVerse/ShiaVerse/app/test/place_names_test.dart: online search OpenStreetMap search rows, with string coordinates
+00:03 +72: /home/runner/work/ShiaVerse/ShiaVerse/app/test/place_names_test.dart: online search two rows at one spot are recognised as the same place
+00:03 +73: /home/runner/work/ShiaVerse/ShiaVerse/app/test/lunar_hijri_test.dart: the crescent, measured the way the sighting committees measure it Ramadan 1447 opens with the crescent of 18 February 2026
+00:03 +74: /home/runner/work/ShiaVerse/ShiaVerse/app/test/lunar_hijri_test.dart: the crescent, measured the way the sighting committees measure it a crescent that goes down with the Sun cannot be seen
+00:03 +75: /home/runner/work/ShiaVerse/ShiaVerse/app/test/lunar_hijri_test.dart: the crescent, measured the way the sighting committees measure it the best time is four ninths of the way from sunset to moonset
+00:03 +76: /home/runner/work/ShiaVerse/ShiaVerse/app/test/lunar_hijri_test.dart: the crescent, measured the way the sighting committees measure it the crescent width is measured in the topocentric semi-diameter
+00:03 +77: /home/runner/work/ShiaVerse/ShiaVerse/app/test/lunar_hijri_test.dart: the month the crescent opens every month of the table begins where the crescent says it does
+00:03 +78: /home/runner/work/ShiaVerse/ShiaVerse/app/test/lunar_hijri_test.dart: the month the crescent opens no month is shorter than 29 days, or longer than 30
+00:03 +79: /home/runner/work/ShiaVerse/ShiaVerse/app/test/lunar_hijri_test.dart: the month the crescent opens the sighting of a month is the evening before its first day
+00:03 +80: /home/runner/work/ShiaVerse/ShiaVerse/app/test/lunar_hijri_test.dart: the month the crescent opens the crescent is read for the reader's own sky
+00:03 +81: /home/runner/work/ShiaVerse/ShiaVerse/app/test/lunar_hijri_test.dart: the calendar built on the crescent the day advances by one, and the month with it
+00:03 +82: /home/runner/work/ShiaVerse/ShiaVerse/app/test/lunar_hijri_test.dart: the calendar built on the crescent the manual shift the reader keeps still moves the date
+00:03 +83: /home/runner/work/ShiaVerse/ShiaVerse/app/test/lunar_hijri_test.dart: the calendar built on the crescent a day before the crescent is asked for still answers
+00:04 +84: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: (setUpAll)
+00:04 +84: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:04 +85: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:04 +86: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:04 +87: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:04 +88: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:04 +89: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:04 +90: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:04 +91: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:04 +92: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:04 +93: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:05 +94: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:05 +95: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:05 +96: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:05 +97: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:05 +98: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:05 +99: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:05 +100: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:05 +101: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:05 +102: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:05 +103: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:05 +104: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +105: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +106: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +107: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +108: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +109: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +110: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +111: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +112: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +113: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +114: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +115: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +116: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +117: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +118: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +119: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +120: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +121: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +122: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +123: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +124: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +125: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +126: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +127: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +128: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +129: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +130: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +131: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +132: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +133: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +134: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +135: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +136: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +137: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +138: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +139: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +140: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +141: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +142: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +143: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +144: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +145: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +146: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:06 +147: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (dawn)
+00:07 +148: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +149: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +150: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +151: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +152: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +153: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +154: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +155: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +156: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +157: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +158: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +159: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +160: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +161: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +162: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +163: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +164: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +165: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +166: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +167: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +168: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +169: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +170: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +171: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:07 +172: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:08 +173: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:08 +174: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:08 +175: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:08 +176: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (day)
+00:08 +177: /home/runner/work/ShiaVerse/ShiaVerse/app/test/search_reader_test.dart: Quran starts on a late ayah without eagerly building the full surah
+00:09 +178: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:09 +179: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:09 +180: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:09 +181: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:10 +182: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:10 +183: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:10 +184: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:10 +185: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:10 +186: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:10 +187: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:10 +188: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:10 +189: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:10 +190: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:10 +191: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:10 +192: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:10 +193: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:10 +194: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:10 +195: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (evening)
+00:10 +196: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:10 +197: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:10 +198: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:10 +199: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:10 +200: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:10 +201: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:10 +202: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:10 +203: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:10 +204: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:10 +205: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:10 +206: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:10 +207: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +208: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +209: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +210: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +211: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +212: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +213: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +214: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +215: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +216: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +217: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +218: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +219: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +220: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +221: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +222: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +223: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +224: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +225: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +226: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +227: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +228: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +229: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +230: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +231: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +232: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +233: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +234: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +235: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +236: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +237: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +238: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +239: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:11 +240: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the home dashboard fits a 360 dp phone (night)
+00:12 +241: /home/runner/work/ShiaVerse/ShiaVerse/app/test/shia_ai_test.dart: chat screen, citations and the return trip shows local-mode banner until online synthesis is enabled
+00:12 +242: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard keeps its shape with a large system font
+00:13 +242: /home/runner/work/ShiaVerse/ShiaVerse/app/test/shia_ai_test.dart: chat screen, citations and the return trip answers with verified citations and opens the exact reader record
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following assertion was thrown running a test:
+The finder "Found 0 widgets with widget matching predicate: []" (used in a call to "tap()") could
+not find any matching widgets.
+
+When the exception was thrown, this was the stack:
+#0      WidgetController._getElementPoint (package:flutter_test/src/controller.dart:2095:7)
+#1      WidgetController.getCenter (package:flutter_test/src/controller.dart:1947:12)
+#2      WidgetController.tap (package:flutter_test/src/controller.dart:1080:7)
+#3      main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/ShiaVerse/ShiaVerse/app/test/shia_ai_test.dart:670:20)
+<asynchronous suspension>
+#4      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#5      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+The test description was:
+  answers with verified citations and opens the exact reader record
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:13 +242 -1: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard keeps its shape with a large system font
+00:13 +242 -1: /home/runner/work/ShiaVerse/ShiaVerse/app/test/shia_ai_test.dart: chat screen, citations and the return trip answers with verified citations and opens the exact reader record [E]
+  Test failed. See exception logs above.
+  The test description was: answers with verified citations and opens the exact reader record
+  
+00:14 +242 -1: /home/runner/work/ShiaVerse/ShiaVerse/app/test/shia_ai_test.dart: chat screen, citations and the return trip scroll position is preserved across the reader round trip
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following assertion was thrown running a test:
+Scrollable.of() was called with a context that does not contain a Scrollable widget.
+No Scrollable widget ancestor could be found starting from the context that was passed to
+Scrollable.of(). This can happen because you are using a widget that looks for a Scrollable
+ancestor, but no such ancestor exists.
+The context used was:
+  ListView-[<'shia-ai-message-list'>](scrollDirection: vertical, ScrollController#34f9f(one client,
+offset 797.0), padding: EdgeInsets(14.0, 12.0, 14.0, 16.0), dependencies: [ScrollConfiguration])
+
+When the exception was thrown, this was the stack:
+#0      Scrollable.of.<anonymous closure> (package:flutter/src/widgets/scrollable.dart:429:9)
+#1      Scrollable.of (package:flutter/src/widgets/scrollable.dart:451:6)
+#2      main.<anonymous closure>.<anonymous closure> (file:///home/runner/work/ShiaVerse/ShiaVerse/app/test/shia_ai_test.dart:718:33)
+<asynchronous suspension>
+#3      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#4      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+The test description was:
+  scroll position is preserved across the reader round trip
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:14 +242 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard keeps its shape with a large system font
+00:14 +242 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/shia_ai_test.dart: chat screen, citations and the return trip scroll position is preserved across the reader round trip [E]
+  Test failed. See exception logs above.
+  The test description was: scroll position is preserved across the reader round trip
+  
+00:14 +243 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/shia_ai_test.dart: chat screen, citations and the return trip no-evidence turns show the plain abstention message
+00:14 +244 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +245 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +246 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +247 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +248 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +249 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +250 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +251 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +252 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +253 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +254 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +255 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +256 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +257 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +258 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +259 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +260 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +261 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +262 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +263 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +264 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:14 +265 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard fits a short phone without scrolling
+00:15 +266 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard and dock fit a 320 by 640 screen
+00:17 +267 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard and dock fit a 412 by 915 screen
+00:18 +268 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dashboard and dock fit a 800 by 1280 screen
+00:20 +269 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the bottom panel runs the features behind its five buttons
+00:20 +270 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: home starts at the status bar and shares its lower and side edges with the dock
+00:22 +271 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the crescent page reads the sky the reader lives under
+00:24 +272 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the Islamic calendar dates this year's days for this city
+00:26 +273 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the calendar converter accepts a date and looks up its Shia occasion
+00:28 +274 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the shell connects Settings, Bookmarks, Last seen and Xplore without touching the collections
+00:33 +275 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: every default page palette is white
+00:33 +276 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the refreshed reader fits and retains its preferences (quran)
+00:34 +277 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the refreshed reader fits and retains its preferences (night)
+00:36 +278 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the refreshed reader fits and retains its preferences (large-font)
+00:37 +279 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the continuous Mushaf page fits a phone with the real Arabic font
+00:38 +280 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: reader appearance, bookmarks, notes and last position still work
+00:40 +281 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the hadith reader uses the shared chrome without changing its list
+00:41 +282 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the sahifa reader uses the shared chrome without changing its list
+00:42 +283 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the fatwa reader uses the shared chrome without changing its list
+00:43 +284 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the balagha reader uses the shared chrome without changing its list
+00:45 +285 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the dua reader uses the shared chrome without changing its list
+00:46 +286 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the tasbeeh dial locks its reset button on a long press
+00:47 +287 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the prayer screen fits, top to bottom
+00:49 +288 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the Qibla bearing carries the transparent Kaaba asset on a narrow phone
+00:53 +289 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the next prayer is highlighted without a coloured container
+00:54 +290 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the countdown stays on the same cell when the next prayer folds into it
+00:56 +291 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the tasbeeh screen fits, with a saved wird and its own count
+00:58 +292 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: Tasbeeh-e-Zahra on the full counter
+00:59 +293 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the location picker finds towns from the offline list
+01:01 +294 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the moment card has built-in lines for a phone with no books
+01:01 +295 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the Xplore lens plate fits a 360 dp phone (tall)
+01:02 +296 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: the Xplore lens plate fits a 360 dp phone (short)
+01:04 +297 -2: /home/runner/work/ShiaVerse/ShiaVerse/app/test/ui_layout_test.dart: (tearDownAll)
+01:04 +297 -2: Some tests failed.
+
+Failing tests:
+  /home/runner/work/ShiaVerse/ShiaVerse/app/test/shia_ai_test.dart: chat screen, citations and the return trip answers with verified citations and opens the exact reader record
+  /home/runner/work/ShiaVerse/ShiaVerse/app/test/shia_ai_test.dart: chat screen, citations and the return trip scroll position is preserved across the reader round trip
