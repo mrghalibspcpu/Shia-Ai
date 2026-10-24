@@ -1,0 +1,5 @@
+Analyzing app...                                                
+
+   info • The import of 'package:shiaverse/text_utils.dart' is unnecessary because all of the used elements are also provided by the import of 'package:shiaverse/library_repository.dart'. Try removing the import directive • test/shia_ai_test.dart:18:8 • unnecessary_import
+
+1 issue found. (ran in 5.9s)
