@@ -637,9 +637,10 @@ void main() {
         opener: (context, library, citation) async {
           opened.add(citation);
           await Navigator.of(context).push(MaterialPageRoute<void>(
-            builder: (_) => const Scaffold(
-              appBar: AppBar(title: Text('Reader')),
-              body: Center(child: Text('READER DUMMY', textDirection: TextDirection.ltr)),
+            builder: (_) => Scaffold(
+              appBar: AppBar(title: const Text('Reader')),
+              body: const Center(
+                  child: Text('READER DUMMY', textDirection: TextDirection.ltr)),
             ),
           ));
         },
@@ -695,9 +696,10 @@ void main() {
         engine: engineWith(gateway, evidence: many),
         opener: (context, library, citation) async {
           await Navigator.of(context).push(MaterialPageRoute<void>(
-            builder: (_) => const Scaffold(
-              appBar: AppBar(title: Text('Reader')),
-              body: Center(child: Text('READER DUMMY', textDirection: TextDirection.ltr)),
+            builder: (_) => Scaffold(
+              appBar: AppBar(title: const Text('Reader')),
+              body: const Center(
+                  child: Text('READER DUMMY', textDirection: TextDirection.ltr)),
             ),
           ));
         },
