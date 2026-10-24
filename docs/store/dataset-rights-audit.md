@@ -42,3 +42,32 @@ permission, or remove/replace the affected databases, before submitting.
 2. Extend the in-app **Settings → Sources & rights** dialog (added in 1.21.1, generic wording) to list each work, translator/publisher and licence/permission once known.
 3. For anything without permission: ship the app without that database (the manifest/installer design allows each book to be omitted), or replace with an openly licensed source.
 4. Never write "licensed", "official" or "authorised" in the listing unless a document proves it.
+
+## ShiaAi (grounded question/answer) and third-party model use
+
+The ShiaAi feature (see `docs/shia-ai.md`) keeps retrieval entirely on device
+and never uploads a database, but online *synthesis* sends short retrieved
+excerpts to a self-hosted gateway and then to Gemini. Because the rights status
+above is not cleared, the implementation is deliberately conservative:
+
+- online synthesis is **opt-in and off by default** behind an explicit consent
+  switch (`ShiaAiPreferences.onlineEnabled`); without it the feature is a purely
+  local, citations-only experience and makes no network request;
+- only the question plus at most 8 short excerpts (each clipped to 1,200
+  characters on the client and again on the gateway) can leave the device — no
+  full book, table or database is transmitted or indexed in the cloud;
+- the Gemini API key is a server-side secret only; the APK, client source,
+  git history and CI logs never contain it;
+- the chat UI, its privacy dialog and Settings → Sources & rights state in
+  Urdu that selected passages may be sent to Gemini;
+- answers are limited to the supplied excerpts and every citation is rebuilt
+  in app code from the real record id, so model output cannot manufacture a
+  source reference.
+
+Residual risk to review before enabling the feature at scale: (a) transmitting
+even excerpts of copyrighted Urdu translations to a third-party model may count
+as use outside the original distribution, and should be covered by the same
+written permission process as the databases; (b) the reference gateway has no
+rate limiting or authentication beyond its URL — add WAF/rate limiting or a
+shared-secret header; (c) review the model provider's data-retention terms and
+consider a no-training/enterprise tier before production use.

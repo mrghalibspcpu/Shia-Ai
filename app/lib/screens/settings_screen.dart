@@ -9,6 +9,8 @@ import '../data_packages.dart';
 import '../library_repository.dart';
 import '../widgets/reader_kit.dart';
 import 'data_screen.dart';
+import '../shia_ai/shia_ai_settings.dart';
+import 'shia_ai_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
@@ -108,6 +110,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             'ہر جواب کے ساتھ اصل ماخذ کا لنک موجود ہے۔ کسی حکم پر عمل سے پہلے اصل ماخذ یا مرجع کے دفتر سے تصدیق کریں۔\n\n'
             'اثنا عشری انسائیکلو پیڈیا اردو ویکیپیڈیا اور ویکی شیعہ کے مضامین پر مبنی ہے؛ ہر حصے کے ساتھ اصل صفحہ کا حوالہ محفوظ ہے۔\n\n'
             'قبلہ کے نقشے کی ٹائلیں © OpenStreetMap contributors اور Esri (HERE, Garmin) کی ہیں۔\n\n'
+            'ShiaAi کا ہر حوالہ اسی ڈیوائس پر موجود کتب کی حقیقی ریکارڈ سے بنتا ہے۔ آن لائن موڈ میں پوری کتاب یا ڈیٹا بیس کبھی اپ لوڈ نہیں ہوتا؛ '
+            'صرف چند منتخب متعلقہ عبارتیں آپ کے اپنے گیٹ وے اور وہاں سے Gemini کو جاتی ہیں، اور یہ صرف آپ کی واضح اجازت سے ہوتا ہے۔ '
+            'Gemini کی کلید ایپ میں کبھی محفوظ نہیں ہوتی۔\n\n'
             'یہ ایپ کتب کے مصنفین یا اداروں کی طرف سے سرکاری طور پر تصدیق شدہ ہونے کا دعویٰ نہیں کرتی۔',
             style: TextStyle(height: 1.8),
           ),
@@ -417,6 +422,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         trailing: const Icon(Icons.chevron_left),
                         onTap: _showSources,
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        key: const ValueKey<String>('settings-shia-ai'),
+                        leading: const Icon(Icons.auto_awesome),
+                        title: const JustifiedText(
+                          'ShiaAi — ذہین سوال و جواب',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: const JustifiedText(
+                          'گیٹ وے کا پتہ اور آن لائن خلاصے کی اجازت؛ کلید صرف سرور پر',
+                          maxLines: 2,
+                        ),
+                        trailing: const Icon(Icons.chevron_left),
+                        onTap: () async {
+                          final preferences =
+                              await ShiaAiPreferences.load();
+                          if (!context.mounted) return;
+                          await showModalBottomSheet<bool>(
+                            context: context,
+                            isScrollControlled: true,
+                            builder: (_) =>
+                                ShiaAiSettingsSheet(initial: preferences),
+                          );
+                        },
                       ),
                     ],
                   ),

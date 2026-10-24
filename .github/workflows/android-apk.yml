@@ -62,6 +62,12 @@ jobs:
       - name: Run Python tooling tests
         run: python -m unittest discover -v
 
+      # The ShiaAi gateway is plain Node (no dependencies); its tests mock the
+      # Gemini call and verify input caps, grounding prompts and error mapping.
+      - name: Run ShiaAi gateway tests
+        working-directory: backend/shia-ai-gateway
+        run: node --test
+
       - name: Install Dart grammar for the offline client check
         run: python -m pip install --quiet tree-sitter tree-sitter-dart
 

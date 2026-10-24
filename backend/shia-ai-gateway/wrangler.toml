@@ -1,0 +1,13 @@
+name = "shia-ai-gateway"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+# Non-secret configuration. The Gemini API key is NOT stored here: set it with
+#   npx wrangler secret put GEMINI_API_KEY
+# Override the model (optional) with a plain variable:
+#   npx wrangler secret put GEMINI_MODEL   # or: [vars] GEMINI_MODEL = "..."
+[vars]
+GEMINI_MODEL = "gemini-2.5-flash"
+
+# Start with the free tier limits; raise after real traffic review.
+# https://developers.cloudflare.com/workers/platform/limits/

@@ -4,7 +4,8 @@ description: Offline Shia library — Quran, Mafatih al-Jinan, Nahj al-Balagha, 
 # The number after + is Android versionCode. It must stay above 10038.
 # Split APKs of 1.26/1.27 used Flutter's ABI offset (arm64 was 2036), and a
 # lower code is rejected as "package appears to be invalid".
-version: 1.27.1+10038
+# 1.27.2: source-grounded ShiaAi (local retrieval + opt-in gateway synthesis).
+version: 1.27.2+10039
 
 environment:
   sdk: ">=3.4.0 <4.0.0"

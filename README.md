@@ -251,9 +251,19 @@ tafseer notes, Mafatih al-Jinan, Nahj al-Balagha, and the 14-book Urdu/Arabic
 hadith corpus — with full-text search, bookmarks, notes, and reader themes that
 all run on the device.
 
-> The AI chat/Gemini integration was removed from this project. Everything here
-> is local: no API keys, no backend service, no network calls except the optional
-> corpus download described below.
+> **ShiaAi (source-grounded question/answer).** Retrieval always runs locally
+> over the installed books and the existing full-text index; no book database is
+> ever uploaded. Online *synthesis* is opt-in and off by default: when enabled,
+> the app sends only the question plus a few short retrieved excerpts to **your
+> own** gateway (`backend/shia-ai-gateway/`, a single Cloudflare Worker), which
+> holds the Gemini API key as a server-side secret. No API key is built into the
+> APK, stored in the client, or written to logs. Citations are generated in app
+> code from verified record IDs, and every citation opens the exact verse /
+> hadith / fatwa / dua in the existing reader. When the network, key or quota is
+> unavailable — or the corpus simply lacks evidence — ShiaAi abstains plainly
+> instead of inventing answers. See [`docs/shia-ai.md`](docs/shia-ai.md).
+> Apart from this opt-in flow and the optional corpus download described below,
+> the app stays fully offline.
 
 ## What is in this repository
 
@@ -275,6 +285,12 @@ all run on the device.
   and download locations for all 22 databases (the encyclopaedia and the third
   marja included).
   `app/assets/database-manifest.json` is the identical copy bundled into the APK.
+- `backend/shia-ai-gateway/` — the small, self-hosted HTTPS gateway for ShiaAi
+  (Cloudflare Worker). It is the only component that holds a Gemini key; the
+  Flutter client has no key and no cloud index. Deployment steps and the request
+  contract live in its README, with Node-based tests.
+- `docs/shia-ai.md` — ShiaAi architecture, privacy boundary, failure modes and
+  backend/secret setup.
 - `scripts/` — normalisation, packaging, publishing, and verification tools.
 - `docs/apk-analysis.md` — findings and signing/licensing limits of the supplied
   compiled APK.
