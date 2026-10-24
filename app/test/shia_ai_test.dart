@@ -740,7 +740,13 @@ void main() {
       final after =
           tester.state<ScrollableState>(scrollableFinder).position.pixels;
       expect(after, before);
-      // Both turns are still there.
+      // Both turns are still there. ListView lazily unmounts off-screen
+      // children, so jump back to the top before looking for the first turn.
+      tester
+          .state<ScrollableState>(scrollableFinder)
+          .position
+          .jumpTo(0);
+      await tester.pumpAndSettle();
       expect(find.text('پہلا سوال'), findsOneWidget);
       expect(find.text('دوسرا سوال'), findsOneWidget);
     });
