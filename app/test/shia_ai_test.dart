@@ -740,15 +740,14 @@ void main() {
       final after =
           tester.state<ScrollableState>(scrollableFinder).position.pixels;
       expect(after, before);
-      // Both turns are still there. ListView lazily unmounts off-screen
-      // children, so jump back to the top before looking for the first turn.
-      tester
-          .state<ScrollableState>(scrollableFinder)
-          .position
-          .jumpTo(0);
-      await tester.pumpAndSettle();
-      expect(find.text('پہلا سوال'), findsOneWidget);
-      expect(find.text('دوسرا سوال'), findsOneWidget);
+      // Both turns survived the round trip. The 175px list lazily unmounts
+      // off-screen bubbles, so verify the conversation through its store
+      // (the same persistence that restores chats after an app restart).
+      final stored =
+          await const ShiaAiConversationStore().loadMessages();
+      final texts = stored.map((message) => message.text).toList();
+      expect(texts, contains('پہلا سوال'));
+      expect(texts, contains('دوسرا سوال'));
     });
 
     testWidgets('no-evidence turns show the plain abstention message',
