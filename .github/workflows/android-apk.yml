@@ -160,10 +160,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          [ -s /tmp/flutter-test.log ] || exit 0
+          if [ -s /tmp/flutter-test.log ]; then
+            cp /tmp/flutter-test.log /tmp/diag-source.log
+          elif [ -s /tmp/flutter-analyze.log ]; then
+            cp /tmp/flutter-analyze.log /tmp/diag-source.log
+          else
+            exit 0
+          fi
           python3 - > /tmp/test-diag.b64 <<'PY'
           import base64, pathlib
-          print(base64.b64encode(pathlib.Path('/tmp/flutter-test.log').read_bytes()[-400_000:]).decode())
+          print(base64.b64encode(pathlib.Path('/tmp/diag-source.log').read_bytes()[-400_000:]).decode())
           PY
           content=$(cat /tmp/test-diag.b64)
           sha=$(gh api "repos/$GITHUB_REPOSITORY/contents/.github/test-diagnostic.txt?ref=$GITHUB_REF_NAME" --jq .sha 2>/dev/null || true)
