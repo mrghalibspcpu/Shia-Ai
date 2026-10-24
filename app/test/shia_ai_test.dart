@@ -15,7 +15,6 @@ import 'package:shiaverse/shia_ai/shia_ai_models.dart';
 import 'package:shiaverse/shia_ai/shia_ai_retriever.dart';
 import 'package:shiaverse/shia_ai/shia_ai_settings.dart';
 import 'package:shiaverse/shia_ai/shia_ai_store.dart';
-import 'package:shiaverse/text_utils.dart';
 
 SearchHit _hit(
   String bookKey,
